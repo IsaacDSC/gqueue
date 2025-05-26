@@ -1,4 +1,4 @@
-package cmd
+package setup
 
 import (
 	"github.com/IsaacDSC/webhook/internal/infra/cfg"

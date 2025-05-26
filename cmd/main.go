@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/IsaacDSC/webhook/cmd"
+	"github.com/IsaacDSC/webhook/cmd/setup"
 	"github.com/IsaacDSC/webhook/internal/infra/cfg"
 	"github.com/IsaacDSC/webhook/internal/infra/repository"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -32,17 +32,15 @@ func main() {
 	service := flag.String("service", "all", "service to run")
 	flag.Parse()
 
-	if *service == "all" {
-		go cmd.StartServer(repository)
-		cmd.StartWorker(repository)
-	}
-
 	if *service == "worker" {
-		cmd.StartWorker(repository)
+		setup.StartWorker(repository)
 	}
 
 	if *service == "webhook" {
-		cmd.StartServer(repository)
+		setup.StartServer(repository)
 	}
+
+	go setup.StartServer(repository)
+	setup.StartWorker(repository)
 
 }

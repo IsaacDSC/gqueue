@@ -1,4 +1,4 @@
-package cmd
+package setup
 
 import (
 	"github.com/IsaacDSC/webhook/internal/infra/cfg"
@@ -16,15 +16,12 @@ func StartWorker(repository *repository.MongoRepo) {
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: cfg.Cache.CacheAddr},
 		asynq.Config{
-			// Specify how many concurrent workers to use
 			Concurrency: 10,
-			// Optionally specify multiple queues with different priority.
 			Queues: map[string]int{
 				"critical": 6,
 				"default":  3,
 				"low":      1,
 			},
-			// See the godoc for other configuration options
 		},
 	)
 
