@@ -1,0 +1,41 @@
+
+### Create Internal Event
+POST http://localhost:8080/event/create
+Content-Type: application/json
+
+{
+  "event_name": "user.created",
+  "service_name": "user-service",
+  "repo_url": "https://github.com/example/user-service",
+  "team_owner": "user-team"
+}
+
+
+### Register Trigger
+POST http://localhost:8080/event/register
+Content-Type: application/json
+
+{
+  "eventName": "user.created",
+  "trigger": {
+    "serviceName": "notification-service",
+    "type": "http",
+    "baseUrl": "http://notification-service",
+    "path": "/notifications/new-user"
+  }
+}
+
+
+### Publish External Event
+POST http://localhost:8080/event/publisher
+Content-Type: application/json
+
+{
+  "event_name": "user.created",
+  "data": {
+    "userId": "123e4567-e89b-12d3-a456-426614174000",
+    "email": "user@example.com",
+    "name": "John Doe"
+  }
+}
+
