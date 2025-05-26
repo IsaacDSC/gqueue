@@ -1,12 +1,3 @@
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Docker Compose reference guide at
-# https://docs.docker.com/go/compose-spec-reference/
-
-# Here the instructions define your application as a service called "server".
-# This service is built from the Dockerfile in the current directory.
-# You can add other services your application may depend on here, such as a
-# database or a cache. For examples, see the Awesome Compose repository:
-# https://github.com/docker/awesome-compose
 services:
   server:
     build:
@@ -17,8 +8,18 @@ services:
     depends_on:
       - redis
       - mongodb
+    environment:
+      - DB_CONNECTION_STRING=mongodb://root:example@mongodb:27017/
+      - CACHE_ADDR=redis:6379
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
-  # Redis service configuration
   redis:
     image: redis:latest
     ports:
@@ -30,8 +31,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
 
-  # MongoDB service configuration
   mongodb:
     image: mongo:latest
     ports:
@@ -46,48 +54,38 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
-# MongoDB Atlas information (cloud service - not a Docker container)
-# To connect to MongoDB Atlas:
-# 1. Create an Atlas account at https://www.mongodb.com/cloud/atlas
-# 2. Set up a cluster
-# 3. Configure network access for your application
-# 4. Use the connection string provided by Atlas in your application
-
-# The commented out section below is an example of how to define a PostgreSQL
-# database that your application can use. `depends_on` tells Docker Compose to
-# start the database before your application. The `db-data` volume persists the
-# database data between container restarts. The `db-password` secret is used
-# to set the database password. You must create `db/password.txt` and add
-# a password of your choosing to it before running `docker compose up`.
-#     depends_on:
-#       db:
-#         condition: service_healthy
-#   db:
-#     image: postgres
-#     restart: always
-#     user: postgres
-#     secrets:
-#       - db-password
-#     volumes:
-#       - db-data:/var/lib/postgresql/data
-#     environment:
-#       - POSTGRES_DB=example
-#       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
-#     expose:
-#       - 5432
-#     healthcheck:
-#       test: [ "CMD", "pg_isready" ]
-#       interval: 10s
-#       timeout: 5s
-#       retries: 5
+  mongo-express:
+    image: mongo-express:latest
+    ports:
+      - 8081:8081
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=root
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=example
+      - ME_CONFIG_MONGODB_URL=mongodb://root:example@mongodb:27017/
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=pass
+    depends_on:
+      - mongodb
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
 
 volumes:
   redis-data:
   mongodb-data:
-# volumes:
-#   db-data:
-# secrets:
-#   db-password:
-#     file: db/password.txt
 
