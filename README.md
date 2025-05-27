@@ -1,12 +1,50 @@
-# webhook
-
-# Documentação do Sistema de Webhook em Português
+# Documentação IWebhook 
 
 ## Introdução
 
 Este sistema de webhook é uma aplicação desenvolvida em Go que permite a comunicação entre serviços internos através de eventos. O projeto implementa uma arquitetura orientada a eventos (Event-Driven Architecture) que possibilita o registro, disparo e processamento de eventos entre diferentes serviços.
 
+### Objetivos
+
+#### Simplicidade de implementação
+- Webhooks funcionam basicamente como requisições HTTP entre sistemas.
+- Não é necessário configurar brokers, tópicos ou clusters como no Kafka.
+- Ideal para integrações rápidas e simples entre dois ou poucos sistemas.
+
+####  Baixo custo operacional
+- Não há necessidade de infraestrutura complexa.
+- Evita custos e esforço com manutenção, escalabilidade e monitoramento de um cluster Kafka.
+
+#### Comunicação direta e instantânea
+- O serviço produtor envia imediatamente a requisição HTTP para o consumidor.
+- Ideal para eventos que precisam ser processados em tempo real, com baixa latência.
+
+#### Baseado em padrões amplamente suportados
+- HTTP, REST e JSON são padrões conhecidos e amplamente suportados por praticamente todas as linguagens e frameworks.
+- Evita a necessidade de bibliotecas específicas de cliente Kafka.
+
+#### Facilidade de depuração e monitoramento
+- Como se trata de chamadas HTTP, é fácil capturar logs, usar ferramentas como Postman, cURL ou proxies (ex.: ngrok) para testar.
+- Não requer ferramentas especializadas para inspeção como Kafka precisa (ex.: Kafka Tool, KSQL, etc).
+
+#### Desacoplamento via endpoints
+- Cada sistema apenas precisa expor ou consumir um endpoint HTTP, sem necessidade de se preocupar com filas, partições ou consumers groups.
+#### Menos dependência de stack tecnológica
+- Webhooks podem ser implementados mesmo em sistemas legados ou monolíticos que não possuem capacidade ou necessidade de adoção de Kafka.
+
+---
 ## Arquitetura do Sistema
+
+----
+### Utilização visão clientes
+![clients_example.png](docs/assets/clients_example.png)
+
+---- 
+
+### Visão Geral da Arquitetura
+![webhook_arch.png](docs/assets/webhook_arch.png)
+
+----
 
 O sistema é dividido em dois serviços principais:
 
