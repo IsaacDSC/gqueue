@@ -29,14 +29,6 @@ func (s Webhook) CreateInternalEvent(ctx context.Context, input structs.CreateIn
 	return model, nil
 }
 
-func (s Webhook) PublisherExternalEvent(ctx context.Context, input structs.PublisherExternalEventDto) error {
-	if err := s.publisher.Publish(ctx, task.PublisherExternalEvent.String(), input); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (s Webhook) RegisterTrigger(ctx context.Context, input structs.RegisterTriggersDto) (structs.InternalEvent, error) {
 	if input.EventName == "" {
 		return structs.InternalEvent{}, errors.New("event name and triggers are required")
@@ -67,9 +59,17 @@ func (s Webhook) RegisterTrigger(ctx context.Context, input structs.RegisterTrig
 		internalEvent.Triggers = append(internalEvent.Triggers, input.ToTrigger())
 	}
 
-	if err := s.repo.CreateInternalEvent(ctx, internalEvent); err != nil {
+	if err := s.repo.SaveInternalEvent(ctx, internalEvent); err != nil {
 		return structs.InternalEvent{}, errors.New("failed to create internal event")
 	}
 
 	return internalEvent, nil
+}
+
+func (s Webhook) PublisherExternalEvent(ctx context.Context, input structs.PublisherExternalEventDto) error {
+	if err := s.publisher.Publish(ctx, task.PublisherExternalEvent.String(), input); err != nil {
+		return err
+	}
+
+	return nil
 }

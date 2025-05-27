@@ -11,9 +11,6 @@ import (
 
 func (t Tasks) publisherExternalEvent(ctx context.Context, task *asynq.Task) error {
 	var payload structs.PublisherExternalEventDto
-
-	fmt.Println("Processing task:", task.Type(), "with payload:", string(task.Payload()))
-
 	if err := json.Unmarshal(task.Payload(), &payload); err != nil {
 		return fmt.Errorf("unmarshal payload: %w", err)
 	}
@@ -21,6 +18,10 @@ func (t Tasks) publisherExternalEvent(ctx context.Context, task *asynq.Task) err
 	internalEvent, err := t.repo.GetInternalEvent(ctx, payload.EventName)
 	if err != nil {
 		return fmt.Errorf("get internal event: %w", err)
+	}
+
+	if len(internalEvent.Triggers) == 0 {
+		return fmt.Errorf("no triggers: %w", asynq.SkipRetry)
 	}
 
 	externalEvent := payload.ToExternalEvent(internalEvent)

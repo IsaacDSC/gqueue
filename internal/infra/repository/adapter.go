@@ -8,6 +8,7 @@ import (
 type Repository interface {
 	CreateExternalEvent(ctx context.Context, event structs.ExternalEvent) error
 	SaveExternalEvent(ctx context.Context, event structs.ExternalEvent) error
-	CreateInternalEvent(ctx context.Context, event structs.InternalEvent) error
 	GetInternalEvent(ctx context.Context, eventName string) (structs.InternalEvent, error)
+	CreateInternalEvent(ctx context.Context, event structs.InternalEvent) error
+	SaveInternalEvent(ctx context.Context, event structs.InternalEvent) error
 }
