@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/IsaacDSC/webhook/internal/infra/cache"
 	"github.com/IsaacDSC/webhook/internal/infra/repository"
 	"github.com/IsaacDSC/webhook/internal/infra/task"
 	"github.com/IsaacDSC/webhook/internal/structs"
@@ -14,19 +15,41 @@ import (
 type Webhook struct {
 	repo      repository.Repository
 	publisher publisher.Publisher
+	cache     cache.Cache
 }
 
-func NewService(repo repository.Repository, publisher publisher.Publisher) *Webhook {
-	return &Webhook{repo: repo, publisher: publisher}
+func NewService(repo repository.Repository, publisher publisher.Publisher, cache cache.Cache) *Webhook {
+	return &Webhook{repo: repo, publisher: publisher, cache: cache}
 }
 
-func (s Webhook) CreateInternalEvent(ctx context.Context, input structs.CreateInternalEventDto) (structs.InternalEvent, error) {
-	model := input.ToInternalEvent()
-	if err := s.repo.CreateInternalEvent(ctx, model); err != nil {
-		return structs.InternalEvent{}, err
+func (s Webhook) getKey(ctx context.Context, eventName string) cache.Key {
+	return s.cache.Key("webhook", "internal_events", eventName)
+}
+
+func (s Webhook) CreateInternalEvent(ctx context.Context, input structs.CreateInternalEventDto) (output structs.InternalEvent, err error) {
+	key := s.getKey(ctx, input.EventName)
+	defaultTTL := s.cache.GetDefaultTTL()
+
+	internalEvent, err := s.repo.GetInternalEvent(ctx, input.EventName)
+	if err != nil {
+		return structs.InternalEvent{}, fmt.Errorf("unable to get internal event: %w", err)
 	}
 
-	return model, nil
+	if internalEvent.ID != uuid.Nil {
+		return structs.InternalEvent{}, errors.New("internal event already exists")
+	}
+
+	if err := s.cache.Hydrate(ctx, key, &output, defaultTTL, func(ctx context.Context) (any, error) {
+		model := input.ToInternalEvent()
+		if err := s.repo.CreateInternalEvent(ctx, model); err != nil {
+			return structs.InternalEvent{}, err
+		}
+		return model, nil
+	}); err != nil {
+		return structs.InternalEvent{}, fmt.Errorf("failed to create internal event: %w", err)
+	}
+
+	return output, nil
 }
 
 func (s Webhook) RegisterTrigger(ctx context.Context, input structs.RegisterTriggersDto) (structs.InternalEvent, error) {
@@ -44,23 +67,24 @@ func (s Webhook) RegisterTrigger(ctx context.Context, input structs.RegisterTrig
 	}
 
 	if len(internalEvent.Triggers) > 0 {
-		alreadyExists := true
-		for _, trigger := range internalEvent.Triggers {
-			if trigger.ServiceName != input.Trigger.ServiceName {
-				alreadyExists = false
-				internalEvent.Triggers = append(internalEvent.Triggers, trigger)
-			}
-		}
-
-		if alreadyExists {
+		if internalEvent.Triggers.AlreadyExist(input.ToTrigger()) {
 			return structs.InternalEvent{}, errors.New("trigger already exists")
+		} else {
+			internalEvent.Triggers = internalEvent.Triggers.Add(input.ToTrigger())
 		}
 	} else {
-		internalEvent.Triggers = append(internalEvent.Triggers, input.ToTrigger())
+		internalEvent.Triggers = internalEvent.Triggers.Add(input.ToTrigger())
 	}
 
-	if err := s.repo.SaveInternalEvent(ctx, internalEvent); err != nil {
-		return structs.InternalEvent{}, errors.New("failed to create internal event")
+	key := s.getKey(ctx, input.EventName)
+	defaultTTL := s.cache.GetDefaultTTL()
+	if err := s.cache.Hydrate(ctx, key, &internalEvent, defaultTTL, func(ctx context.Context) (any, error) {
+		if err := s.repo.SaveInternalEvent(ctx, internalEvent); err != nil {
+			return structs.InternalEvent{}, errors.New("failed to create internal event")
+		}
+		return internalEvent, nil
+	}); err != nil {
+		return structs.InternalEvent{}, fmt.Errorf("failed to register trigger: %w", err)
 	}
 
 	return internalEvent, nil

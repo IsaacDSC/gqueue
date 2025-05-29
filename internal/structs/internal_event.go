@@ -6,15 +6,31 @@ import (
 )
 
 type InternalEvent struct {
-	ID          uuid.UUID `bson:"id"`
-	Name        string    `bson:"name"`
-	ServiceName string    `bson:"serviceName"`
-	RepoUrl     string    `bson:"repoUrl"`
-	TeamOwner   string    `bson:"teamOwner"`
-	Triggers    []Trigger `bson:"triggers"`
-	CreatedAt   time.Time `bson:"createdAt"`
-	UpdatedAt   time.Time `bson:"updatedAt"`
-	DeletedAt   time.Time `bson:"deletedAt"`
+	ID          uuid.UUID   `bson:"id"`
+	Name        string      `bson:"name"`
+	ServiceName string      `bson:"serviceName"`
+	RepoUrl     string      `bson:"repoUrl"`
+	TeamOwner   string      `bson:"teamOwner"`
+	Triggers    ListTrigger `bson:"triggers"`
+	CreatedAt   time.Time   `bson:"createdAt"`
+	UpdatedAt   time.Time   `bson:"updatedAt"`
+	DeletedAt   time.Time   `bson:"deletedAt"`
+}
+
+type ListTrigger []Trigger
+
+func (lt ListTrigger) Add(input Trigger) ListTrigger {
+	return append(lt, input)
+}
+
+func (lt ListTrigger) AlreadyExist(input Trigger) bool {
+	for _, trigger := range lt {
+		if trigger.Path == input.Path {
+			return true
+		}
+	}
+
+	return false
 }
 
 type TriggerType string

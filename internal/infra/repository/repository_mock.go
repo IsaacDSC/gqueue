@@ -97,3 +97,17 @@ func (mr *MockRepositoryMockRecorder) SaveExternalEvent(ctx, event any) *gomock.
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveExternalEvent", reflect.TypeOf((*MockRepository)(nil).SaveExternalEvent), ctx, event)
 }
+
+// SaveInternalEvent mocks base method.
+func (m *MockRepository) SaveInternalEvent(ctx context.Context, event structs.InternalEvent) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveInternalEvent", ctx, event)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveInternalEvent indicates an expected call of SaveInternalEvent.
+func (mr *MockRepositoryMockRecorder) SaveInternalEvent(ctx, event any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveInternalEvent", reflect.TypeOf((*MockRepository)(nil).SaveInternalEvent), ctx, event)
+}

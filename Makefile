@@ -20,27 +20,27 @@ all: help
 # Construir o aplicativo
 build:
 	@echo "$(GREEN)Construindo aplicação...$(NC)"
-	@$(GO) build -o $(APP_NAME) ./cmd/main.go
+	@$(GO) build -o $(APP_NAME) ./cmd/api/main.go
 
 # Rodar teste de carga
 load-test:
 	@echo "$(YELLOW)Executando teste de carga...$(NC)"
-	@$(GO) run ./cmd/loadtest.go
+	@$(GO) run ./cmd/loadtest/loadtest.go
 
 # Iniciar worker
 run-worker:
 	@echo "$(BLUE)Iniciando serviço worker...$(NC)"
-	@$(GO) run ./cmd/main.go --service=worker
+	@$(GO) run ./cmd/api/main.go --service=worker
 
 # Iniciar webhook (API)
 run-webhook:
 	@echo "$(BLUE)Iniciando serviço webhook (API)...$(NC)"
-	@$(GO) run ./cmd/main.go --service=webhook
+	@$(GO) run ./cmd/api/main.go --service=webhook
 
 # Iniciar ambos serviços
 run-all:
 	@echo "$(BLUE)Iniciando todos os serviços (worker e webhook)...$(NC)"
-	@$(GO) run ./cmd/main.go --service=all
+	@$(GO) run ./cmd/api/main.go --service=all
 
 # Limpar binários gerados
 clean:
