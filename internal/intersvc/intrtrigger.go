@@ -1,8 +1,9 @@
-package structs
+package intersvc
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type RegisterTriggersDto struct {

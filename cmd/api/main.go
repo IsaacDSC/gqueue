@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+
 	"github.com/IsaacDSC/webhook/cmd/setup"
 	"github.com/IsaacDSC/webhook/internal/infra/cfg"
-	"github.com/IsaacDSC/webhook/internal/infra/repository"
+	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -15,32 +16,42 @@ import (
 // go run . --service=all
 func main() {
 	cfg := cfg.Get()
+	ctx := context.Background()
 
-	client, err := mongo.Connect(options.Client().ApplyURI(cfg.ConfigDatabase.DbConn))
+	mongodb, err := mongo.Connect(options.Client().ApplyURI(cfg.ConfigDatabase.DbConn))
 	if err != nil {
 		panic(err)
 	}
 
 	defer func() {
-		if err = client.Disconnect(context.TODO()); err != nil {
+		if err = mongodb.Disconnect(ctx); err != nil {
 			panic(err)
 		}
 	}()
 
-	repository := repository.NewRepository(client)
+	if err := mongodb.Ping(ctx, nil); err != nil {
+		panic(err)
+	}
+
+	cacheClient := redis.NewClient(&redis.Options{Addr: cfg.Cache.CacheAddr})
+	if err := cacheClient.Ping(ctx).Err(); err != nil {
+		panic(err)
+	}
 
 	service := flag.String("service", "all", "service to run")
 	flag.Parse()
 
 	if *service == "worker" {
-		setup.StartWorker(repository)
+		setup.StartWorker(mongodb)
+		return
 	}
 
 	if *service == "webhook" {
-		setup.StartServer(repository)
+		setup.StartServer(mongodb, cacheClient)
+		return
 	}
 
-	go setup.StartServer(repository)
-	setup.StartWorker(repository)
+	go setup.StartServer(mongodb, cacheClient)
+	setup.StartWorker(mongodb)
 
 }

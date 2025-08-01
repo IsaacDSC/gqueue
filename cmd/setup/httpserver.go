@@ -1,43 +1,42 @@
 package setup
 
 import (
-	"context"
-	cache2 "github.com/IsaacDSC/webhook/internal/infra/cache"
+	"log"
+	"net/http"
+
 	"github.com/IsaacDSC/webhook/internal/infra/cfg"
 	"github.com/IsaacDSC/webhook/internal/infra/handler"
-	"github.com/IsaacDSC/webhook/internal/infra/repository"
-	"github.com/IsaacDSC/webhook/internal/service"
+	"github.com/IsaacDSC/webhook/internal/infra/middleware"
+	"github.com/IsaacDSC/webhook/internal/interstore"
+	"github.com/IsaacDSC/webhook/internal/intersvc"
+	cache2 "github.com/IsaacDSC/webhook/pkg/cache"
 	"github.com/IsaacDSC/webhook/pkg/publisher"
 	"github.com/hibiken/asynq"
 	"github.com/redis/go-redis/v9"
-	"log"
-	"net/http"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-func StartServer(repository *repository.MongoRepo) {
-	ctx := context.Background()
+func StartServer(mongodb *mongo.Client, redisClient *redis.Client) {
 	cfg := cfg.Get()
-
-	cacheClient := redis.NewClient(&redis.Options{Addr: cfg.Cache.CacheAddr})
-	if err := cacheClient.Ping(ctx).Err(); err != nil {
-		panic(err)
-	}
 
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: cfg.Cache.CacheAddr})
 	defer asynqClient.Close()
 
+	cache := cache2.NewStrategy(redisClient)
+	store := interstore.NewMongoStore(mongodb)
+	svc := intersvc.NewWeb(store, cache)
 	pub := publisher.NewPublisher(asynqClient)
-	cache := cache2.NewStrategy(cacheClient)
-	svc := service.NewService(repository, pub, cache)
-	handlers := handler.NewHandler(svc)
+	handlers := handler.NewHandler(svc, pub)
 
 	mux := http.NewServeMux()
 	for p, h := range handlers.GetRoutes() {
 		mux.HandleFunc(p, h)
 	}
 
+	handler := middleware.LoggerMiddleware(mux)
+
 	log.Println("Starting HTTP server on :8080")
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+	if err := http.ListenAndServe(":8080", handler); err != nil {
 		panic(err)
 	}
 }

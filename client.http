@@ -7,6 +7,7 @@ Content-Type: application/json
   "event_name": "user.created",
   "service_name": "user-service",
   "repo_url": "https://github.com/example/user-service",
+  "type": "internal",
   "team_owner": "user-team"
 }
 
@@ -20,7 +21,7 @@ Content-Type: application/json
   "trigger": {
     "serviceName": "notification-service",
     "type": "http",
-    "baseUrl": "http://notification-service",
+    "baseUrl": "http://localhost:8081",
     "path": "/notifications/new-user"
   }
 }

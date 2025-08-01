@@ -1,16 +1,18 @@
 package setup
 
 import (
-	"github.com/IsaacDSC/webhook/internal/infra/cfg"
-	"github.com/IsaacDSC/webhook/internal/infra/gateway"
-	"github.com/IsaacDSC/webhook/internal/infra/repository"
-	"github.com/IsaacDSC/webhook/internal/infra/task"
 	"log"
+
+	"github.com/IsaacDSC/webhook/internal/consworker"
+	"github.com/IsaacDSC/webhook/internal/infra/cfg"
+	"github.com/IsaacDSC/webhook/internal/infra/middleware"
+	"github.com/IsaacDSC/webhook/internal/interstore"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"github.com/hibiken/asynq"
 )
 
-func StartWorker(repository *repository.MongoRepo) {
+func StartWorker(mongodb *mongo.Client) {
 	cfg := cfg.Get()
 
 	srv := asynq.NewServer(
@@ -25,12 +27,14 @@ func StartWorker(repository *repository.MongoRepo) {
 		},
 	)
 
-	gate := gateway.NewHook()
-	tasks := task.NewTasks(repository, gate)
-
+	store := interstore.NewMongoStore(mongodb)
 	mux := asynq.NewServeMux()
-	mux.Use(task.LogMiddleware)
-	for e, h := range tasks.GetTasks() {
+	mux.Use(middleware.AsynqLogger)
+	tasks := map[consworker.TaskName]asynq.HandlerFunc{
+		consworker.PublisherExternalEvent: consworker.GetInternalConsumerHandle(store.GetInternalEvent),
+	}
+
+	for e, h := range tasks {
 		mux.HandleFunc(e.String(), h)
 	}
 
