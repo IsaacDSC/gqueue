@@ -3,444 +3,325 @@ package service
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
+	"github.com/IsaacDSC/webhook/internal/infra/cache"
 	"github.com/IsaacDSC/webhook/internal/infra/repository"
-	"github.com/IsaacDSC/webhook/internal/infra/task"
 	"github.com/IsaacDSC/webhook/internal/structs"
 	"github.com/IsaacDSC/webhook/pkg/publisher"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
-	"testing"
-	"time"
 )
 
-func TestWebhook_CreateInternalEvent(t *testing.T) {
-	// Test table structure
-	tests := []struct {
-		name          string
-		input         structs.CreateInternalEventDto
-		setupMocks    func(mockRepo *repository.MockRepository)
-		expectedEvent structs.InternalEvent
-		expectedError error
-	}{
-		{
-			name: "Success",
-			input: structs.CreateInternalEventDto{
-				EventName:   "test-event",
-				ServiceName: "test-service",
-				RepoUrl:     "https://github.com/test/repo",
-				TeamOwner:   "test-team",
-			},
-			setupMocks: func(mockRepo *repository.MockRepository) {
+func TestCreateInternalEvent(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := repository.NewMockRepository(ctrl)
+	mockPublisher := publisher.NewMockPublisher(ctrl)
+	mockCache := cache.NewMockCache(ctrl)
+
+	// Set up mock keys for all test cases
+	testKey := cache.Key("webhook:internal_events:test-event")
+	mockCache.EXPECT().Key("webhook", "internal_events", "test-event").Return(testKey).AnyTimes()
+
+	existingEventKey := cache.Key("webhook:internal_events:existing-event")
+	mockCache.EXPECT().Key("webhook", "internal_events", "existing-event").Return(existingEventKey).AnyTimes()
+
+	errorEventKey := cache.Key("webhook:internal_events:error-event")
+	mockCache.EXPECT().Key("webhook", "internal_events", "error-event").Return(errorEventKey).AnyTimes()
+
+	cacheErrorEventKey := cache.Key("webhook:internal_events:cache-error-event")
+	mockCache.EXPECT().Key("webhook", "internal_events", "cache-error-event").Return(cacheErrorEventKey).AnyTimes()
+
+	mockCache.EXPECT().GetDefaultTTL().Return(time.Minute * 5).AnyTimes()
+
+	testService := NewService(mockRepo, mockPublisher, mockCache)
+
+	t.Run("Success - Create new internal event", func(t *testing.T) {
+		ctx := context.Background()
+		input := structs.CreateInternalEventDto{
+			EventName:   "test-event",
+			ServiceName: "test-service",
+			RepoUrl:     "https://github.com/test/repo",
+			TeamOwner:   "test-team",
+		}
+
+		expectedEvent := input.ToInternalEvent()
+
+		// Mock repository call to check if event exists
+		mockRepo.EXPECT().GetInternalEvent(gomock.Any(), input.EventName).Return(structs.InternalEvent{}, nil)
+
+		// Mock cache hydrate
+		mockCache.EXPECT().Hydrate(gomock.Any(), testKey, gomock.Any(), time.Minute*5, gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ cache.Key, value any, _ time.Duration, fn cache.Fn) error {
+				// Mock repository.CreateInternalEvent
 				mockRepo.EXPECT().CreateInternalEvent(gomock.Any(), gomock.Any()).Return(nil)
-			},
-			expectedEvent: structs.InternalEvent{
-				Name:        "test-event",
-				ServiceName: "test-service",
-				RepoUrl:     "https://github.com/test/repo",
-				TeamOwner:   "test-team",
-				Triggers:    []structs.Trigger{},
-			},
-			expectedError: nil,
-		},
-		{
-			name: "Repository error",
-			input: structs.CreateInternalEventDto{
-				EventName:   "test-event",
-				ServiceName: "test-service",
-				RepoUrl:     "https://github.com/test/repo",
-				TeamOwner:   "test-team",
-			},
-			setupMocks: func(mockRepo *repository.MockRepository) {
-				mockRepo.EXPECT().CreateInternalEvent(gomock.Any(), gomock.Any()).Return(errors.New("repository error"))
-			},
-			expectedEvent: structs.InternalEvent{},
-			expectedError: errors.New("repository error"),
-		},
-	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Setup
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
+				result, err := fn(ctx)
+				if err != nil {
+					return err
+				}
 
-			mockRepo := repository.NewMockRepository(ctrl)
-			mockPublisher := publisher.NewMockPublisher(ctrl)
+				// Copy result to value
+				*(value.(*structs.InternalEvent)) = result.(structs.InternalEvent)
+				return nil
+			})
 
-			if tt.setupMocks != nil {
-				tt.setupMocks(mockRepo)
-			}
+		// Call service
+		result, err := testService.CreateInternalEvent(ctx, input)
 
-			service := NewService(mockRepo, mockPublisher)
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, expectedEvent.Name, result.Name)
+		assert.Equal(t, expectedEvent.ServiceName, result.ServiceName)
+		assert.Equal(t, expectedEvent.RepoUrl, result.RepoUrl)
+		assert.Equal(t, expectedEvent.TeamOwner, result.TeamOwner)
+		assert.NotEqual(t, uuid.Nil, result.ID)
+	})
 
-			// Execute
-			result, err := service.CreateInternalEvent(context.Background(), tt.input)
+	t.Run("Error - Event already exists", func(t *testing.T) {
+		ctx := context.Background()
+		input := structs.CreateInternalEventDto{
+			EventName:   "existing-event",
+			ServiceName: "test-service",
+		}
 
-			// Assert
-			if tt.expectedError != nil {
-				assert.Error(t, err)
-				assert.Equal(t, tt.expectedError.Error(), err.Error())
-			} else {
-				assert.NoError(t, err)
-				// Since we can't predict UUID and timestamps, we verify non-random fields
-				assert.Equal(t, tt.expectedEvent.Name, result.Name)
-				assert.Equal(t, tt.expectedEvent.ServiceName, result.ServiceName)
-				assert.Equal(t, tt.expectedEvent.RepoUrl, result.RepoUrl)
-				assert.Equal(t, tt.expectedEvent.TeamOwner, result.TeamOwner)
-				assert.Equal(t, len(tt.expectedEvent.Triggers), len(result.Triggers))
-				assert.NotEqual(t, uuid.Nil, result.ID)
-				assert.False(t, result.CreatedAt.IsZero())
-			}
-		})
-	}
+		existingEvent := structs.InternalEvent{
+			ID:   uuid.New(),
+			Name: "existing-event",
+		}
+
+		// Mock repository call returning existing event
+		mockRepo.EXPECT().GetInternalEvent(gomock.Any(), input.EventName).Return(existingEvent, nil)
+
+		// Call service
+		_, err := testService.CreateInternalEvent(ctx, input)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "internal event already exists")
+	})
+
+	t.Run("Error - Repository error", func(t *testing.T) {
+		ctx := context.Background()
+		input := structs.CreateInternalEventDto{
+			EventName: "error-event",
+		}
+
+		// Mock repository call with error
+		mockRepo.EXPECT().GetInternalEvent(gomock.Any(), input.EventName).
+			Return(structs.InternalEvent{}, errors.New("database error"))
+
+		// Call service
+		_, err := testService.CreateInternalEvent(ctx, input)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unable to get internal event")
+	})
+
+	t.Run("Error - Cache error", func(t *testing.T) {
+		ctx := context.Background()
+		input := structs.CreateInternalEventDto{
+			EventName: "cache-error-event",
+		}
+
+		// Mock repository call
+		mockRepo.EXPECT().GetInternalEvent(gomock.Any(), input.EventName).Return(structs.InternalEvent{}, nil)
+
+		// Mock cache error
+		mockCache.EXPECT().Hydrate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(errors.New("cache error"))
+
+		// Call service
+		_, err := testService.CreateInternalEvent(ctx, input)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create internal event")
+	})
 }
 
-func TestWebhook_PublisherExternalEvent(t *testing.T) {
-	tests := []struct {
-		name          string
-		input         structs.PublisherExternalEventDto
-		setupMocks    func(mockPublisher *publisher.MockPublisher)
-		expectedError error
-	}{
-		{
-			name: "Success",
-			input: structs.PublisherExternalEventDto{
-				EventName: "test-event",
-				Data: map[string]any{
-					"key": "value",
-				},
+func TestRegisterTrigger(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockRepo := repository.NewMockRepository(ctrl)
+	mockPublisher := publisher.NewMockPublisher(ctrl)
+	mockCache := cache.NewMockCache(ctrl)
+
+	// Set up mock key
+	testKey := cache.Key("webhook:internal_events:test-event")
+	mockCache.EXPECT().Key("webhook", "internal_events", "test-event").Return(testKey).AnyTimes()
+	mockCache.EXPECT().GetDefaultTTL().Return(time.Minute * 5).AnyTimes()
+
+	testService := NewService(mockRepo, mockPublisher, mockCache)
+
+	t.Run("Success - Register new trigger", func(t *testing.T) {
+		ctx := context.Background()
+		input := structs.RegisterTriggersDto{
+			EventName: "test-event",
+			Trigger: structs.TriggerDto{
+				Type:    string(structs.TriggerTypePersistent),
+				BaseUrl: "https://example.com",
+				Path:    "/webhook",
 			},
-			setupMocks: func(mockPublisher *publisher.MockPublisher) {
-				mockPublisher.EXPECT().Publish(
-					gomock.Any(),
-					task.PublisherExternalEvent.String(),
-					gomock.Any(),
-				).Return(nil)
+		}
+
+		existingEvent := structs.InternalEvent{
+			ID:        uuid.New(),
+			Name:      "test-event",
+			Triggers:  []structs.Trigger{},
+			CreatedAt: time.Now(),
+		}
+
+		// Mock repository call
+		mockRepo.EXPECT().GetInternalEvent(gomock.Any(), input.EventName).Return(existingEvent, nil)
+
+		// Mock cache hydrate
+		mockCache.EXPECT().Hydrate(gomock.Any(), testKey, gomock.Any(), time.Minute*5, gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ cache.Key, value any, _ time.Duration, fn cache.Fn) error {
+				// Mock repository.SaveInternalEvent
+				mockRepo.EXPECT().SaveInternalEvent(gomock.Any(), gomock.Any()).Return(nil)
+
+				result, err := fn(ctx)
+				if err != nil {
+					return err
+				}
+
+				// Copy result to value
+				*(value.(*structs.InternalEvent)) = result.(structs.InternalEvent)
+				return nil
+			})
+
+		// Call service
+		result, err := testService.RegisterTrigger(ctx, input)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, existingEvent.ID, result.ID)
+		assert.Equal(t, existingEvent.Name, result.Name)
+		assert.Len(t, result.Triggers, 1)
+		assert.Equal(t, input.Trigger.Path, result.Triggers[0].Path)
+	})
+
+	t.Run("Error - Empty event name", func(t *testing.T) {
+		ctx := context.Background()
+		input := structs.RegisterTriggersDto{
+			EventName: "",
+		}
+
+		// Call service
+		_, err := testService.RegisterTrigger(ctx, input)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "event name and triggers are required")
+	})
+
+	t.Run("Error - Event not found", func(t *testing.T) {
+		ctx := context.Background()
+		input := structs.RegisterTriggersDto{
+			EventName: "non-existent-event",
+		}
+
+		// Mock repository call returning nil UUID (not found)
+		mockRepo.EXPECT().GetInternalEvent(gomock.Any(), input.EventName).
+			Return(structs.InternalEvent{}, nil)
+
+		// Call service
+		_, err := testService.RegisterTrigger(ctx, input)
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not found internal event")
+	})
+
+	t.Run("Error - Trigger already exists", func(t *testing.T) {
+		ctx := context.Background()
+		path := "/webhook"
+		input := structs.RegisterTriggersDto{
+			EventName: "test-event",
+			Trigger: structs.TriggerDto{
+				Type:    string(structs.TriggerTypePersistent),
+				BaseUrl: "https://example.com",
+				Path:    path,
 			},
-			expectedError: nil,
-		},
-		{
-			name: "Publisher error",
-			input: structs.PublisherExternalEventDto{
-				EventName: "test-event",
-				Data: map[string]any{
-					"key": "value",
-				},
-			},
-			setupMocks: func(mockPublisher *publisher.MockPublisher) {
-				mockPublisher.EXPECT().Publish(
-					gomock.Any(),
-					task.PublisherExternalEvent.String(),
-					gomock.Any(),
-				).Return(errors.New("publisher error"))
-			},
-			expectedError: errors.New("publisher error"),
-		},
-	}
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Setup
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
+		existingTrigger := structs.Trigger{
+			ID:          uuid.New(),
+			ServiceName: "test-service",
+			Type:        structs.TriggerTypePersistent,
+			BaseUrl:     "https://example.com",
+			Path:        path,
+			CreatedAt:   time.Now(),
+		}
 
-			mockRepo := repository.NewMockRepository(ctrl)
-			mockPublisher := publisher.NewMockPublisher(ctrl)
+		existingEvent := structs.InternalEvent{
+			ID:        uuid.New(),
+			Name:      "test-event",
+			Triggers:  []structs.Trigger{existingTrigger},
+			CreatedAt: time.Now(),
+		}
 
-			if tt.setupMocks != nil {
-				tt.setupMocks(mockPublisher)
-			}
+		// Mock repository call returning event with existing trigger
+		mockRepo.EXPECT().GetInternalEvent(gomock.Any(), input.EventName).Return(existingEvent, nil)
 
-			service := NewService(mockRepo, mockPublisher)
+		// Call service
+		_, err := testService.RegisterTrigger(ctx, input)
 
-			// Execute
-			err := service.PublisherExternalEvent(context.Background(), tt.input)
-
-			// Assert
-			if tt.expectedError != nil {
-				assert.Error(t, err)
-				assert.Equal(t, tt.expectedError.Error(), err.Error())
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "trigger already exists")
+	})
 }
 
-func TestWebhook_RegisterTrigger(t *testing.T) {
-	// Create a fixed time for testing
-	fixedTime := time.Now()
+func TestPublisherExternalEvent(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	// Create a fixed UUID for testing
-	fixedID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
-	eventID := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	mockRepo := repository.NewMockRepository(ctrl)
+	mockPublisher := publisher.NewMockPublisher(ctrl)
+	mockCache := cache.NewMockCache(ctrl)
 
-	tests := []struct {
-		name          string
-		input         structs.RegisterTriggersDto
-		setupMocks    func(mockRepo *repository.MockRepository)
-		expectedEvent structs.InternalEvent
-		expectedError error
-	}{
-		{
-			name: "Success - First trigger",
-			input: structs.RegisterTriggersDto{
-				EventName: "test-event",
-				Trigger: structs.TriggerDto{
-					ServiceName: "trigger-service",
-					Type:        "persistent",
-					BaseUrl:     "https://example.com",
-					Path:        "/webhook",
-				},
-			},
-			setupMocks: func(mockRepo *repository.MockRepository) {
-				// Return existing event with no triggers
-				mockRepo.EXPECT().GetInternalEvent(gomock.Any(), "test-event").Return(
-					structs.InternalEvent{
-						ID:          eventID,
-						Name:        "test-event",
-						ServiceName: "test-service",
-						RepoUrl:     "https://github.com/test/repo",
-						TeamOwner:   "test-team",
-						Triggers:    []structs.Trigger{},
-						CreatedAt:   fixedTime,
-					}, nil)
+	testService := NewService(mockRepo, mockPublisher, mockCache)
 
-				// Expect CreateInternalEvent to be called with an event containing the new trigger
-				mockRepo.EXPECT().CreateInternalEvent(gomock.Any(), gomock.Any()).DoAndReturn(
-					func(_ context.Context, ie structs.InternalEvent) error {
-						assert.Equal(t, eventID, ie.ID)
-						assert.Equal(t, "test-event", ie.Name)
-						assert.Equal(t, 1, len(ie.Triggers))
-						assert.Equal(t, "trigger-service", ie.Triggers[0].ServiceName)
-						assert.Equal(t, structs.TriggerType("persistent"), ie.Triggers[0].Type)
-						assert.Equal(t, "https://example.com", ie.Triggers[0].BaseUrl)
-						assert.Equal(t, "/webhook", ie.Triggers[0].Path)
-						return nil
-					})
-			},
-			expectedEvent: structs.InternalEvent{
-				ID:          eventID,
-				Name:        "test-event",
-				ServiceName: "test-service",
-				RepoUrl:     "https://github.com/test/repo",
-				TeamOwner:   "test-team",
-				Triggers:    []structs.Trigger{},
-				CreatedAt:   fixedTime,
-			},
-			expectedError: nil,
-		},
-		{
-			name: "Success - Add trigger to existing triggers",
-			input: structs.RegisterTriggersDto{
-				EventName: "test-event",
-				Trigger: structs.TriggerDto{
-					ServiceName: "trigger-service",
-					Type:        "persistent",
-					BaseUrl:     "https://example2.com",
-					Path:        "/webhook2",
-				},
-			},
-			setupMocks: func(mockRepo *repository.MockRepository) {
-				// Return existing event with one trigger
-				existingTrigger := structs.Trigger{
-					ID:          fixedID,
-					ServiceName: "trigger-service",
-					Type:        structs.TriggerType("persistent"),
-					BaseUrl:     "https://example.com",
-					Path:        "/webhook",
-					CreatedAt:   fixedTime,
-				}
+	t.Run("Success - Publish external event", func(t *testing.T) {
+		ctx := context.Background()
+		input := structs.PublisherExternalEventDto{
+			EventName: "test-event",
+			Data:      map[string]interface{}{"key": "value"},
+		}
 
-				mockRepo.EXPECT().GetInternalEvent(gomock.Any(), "test-event").Return(
-					structs.InternalEvent{
-						ID:          eventID,
-						Name:        "test-event",
-						ServiceName: "test-service",
-						RepoUrl:     "https://github.com/test/repo",
-						TeamOwner:   "test-team",
-						Triggers:    []structs.Trigger{existingTrigger},
-						CreatedAt:   fixedTime,
-					}, nil)
+		// Mock publisher - use the correct task name "publisher_external_event"
+		mockPublisher.EXPECT().Publish(gomock.Any(), "publisher_external_event", input, gomock.Any()).Return(nil)
 
-			},
-			expectedEvent: structs.InternalEvent{
-				ID:          eventID,
-				Name:        "test-event",
-				ServiceName: "test-service",
-				RepoUrl:     "https://github.com/test/repo",
-				TeamOwner:   "test-team",
-				CreatedAt:   fixedTime,
-				// We'll check the triggers in the test case
-			},
-			expectedError: errors.New("trigger already exists"),
-		},
-		{
-			name: "Error - Empty EventName",
-			input: structs.RegisterTriggersDto{
-				EventName: "",
-				Trigger: structs.TriggerDto{
-					ServiceName: "trigger-service",
-					Type:        "persistent",
-					BaseUrl:     "https://example.com",
-					Path:        "/webhook",
-				},
-			},
-			setupMocks:    func(mockRepo *repository.MockRepository) {},
-			expectedEvent: structs.InternalEvent{},
-			expectedError: errors.New("event name and triggers are required"),
-		},
-		{
-			name: "Error - Event not found",
-			input: structs.RegisterTriggersDto{
-				EventName: "test-event",
-				Trigger: structs.TriggerDto{
-					ServiceName: "trigger-service",
-					Type:        "persistent",
-					BaseUrl:     "https://example.com",
-					Path:        "/webhook",
-				},
-			},
-			setupMocks: func(mockRepo *repository.MockRepository) {
-				mockRepo.EXPECT().GetInternalEvent(gomock.Any(), "test-event").Return(
-					structs.InternalEvent{}, nil)
-			},
-			expectedEvent: structs.InternalEvent{},
-			expectedError: errors.New("not found internal event"),
-		},
-		{
-			name: "Error - Trigger already exists",
-			input: structs.RegisterTriggersDto{
-				EventName: "test-event",
-				Trigger: structs.TriggerDto{
-					ServiceName: "existing-service",
-					Type:        "persistent",
-					BaseUrl:     "https://example.com",
-					Path:        "/webhook",
-				},
-			},
-			setupMocks: func(mockRepo *repository.MockRepository) {
-				// Return existing event with a trigger with same service name
-				existingTrigger := structs.Trigger{
-					ID:          fixedID,
-					ServiceName: "existing-service", // Same service name as input
-					Type:        structs.TriggerType("persistent"),
-					BaseUrl:     "https://example.com",
-					Path:        "/webhook",
-					CreatedAt:   fixedTime,
-				}
+		// Call service
+		err := testService.PublisherExternalEvent(ctx, input)
 
-				mockRepo.EXPECT().GetInternalEvent(gomock.Any(), "test-event").Return(
-					structs.InternalEvent{
-						ID:          eventID,
-						Name:        "test-event",
-						ServiceName: "test-service",
-						RepoUrl:     "https://github.com/test/repo",
-						TeamOwner:   "test-team",
-						Triggers:    []structs.Trigger{existingTrigger},
-						CreatedAt:   fixedTime,
-					}, nil)
-			},
-			expectedEvent: structs.InternalEvent{},
-			expectedError: errors.New("trigger already exists"),
-		},
-		{
-			name: "Error - GetInternalEvent error",
-			input: structs.RegisterTriggersDto{
-				EventName: "test-event",
-				Trigger: structs.TriggerDto{
-					ServiceName: "trigger-service",
-					Type:        "persistent",
-					BaseUrl:     "https://example.com",
-					Path:        "/webhook",
-				},
-			},
-			setupMocks: func(mockRepo *repository.MockRepository) {
-				mockRepo.EXPECT().GetInternalEvent(gomock.Any(), "test-event").Return(
-					structs.InternalEvent{}, errors.New("database error"))
-			},
-			expectedEvent: structs.InternalEvent{},
-			expectedError: errors.New("unable to get internal event: database error"),
-		},
-		{
-			name: "Error - CreateInternalEvent error",
-			input: structs.RegisterTriggersDto{
-				EventName: "test-event",
-				Trigger: structs.TriggerDto{
-					ServiceName: "trigger-service",
-					Type:        "persistent",
-					BaseUrl:     "https://example.com",
-					Path:        "/webhook",
-				},
-			},
-			setupMocks: func(mockRepo *repository.MockRepository) {
-				// Return existing event with no triggers
-				mockRepo.EXPECT().GetInternalEvent(gomock.Any(), "test-event").Return(
-					structs.InternalEvent{
-						ID:          eventID,
-						Name:        "test-event",
-						ServiceName: "test-service",
-						RepoUrl:     "https://github.com/test/repo",
-						TeamOwner:   "test-team",
-						Triggers:    []structs.Trigger{},
-						CreatedAt:   fixedTime,
-					}, nil)
+		// Assert
+		assert.NoError(t, err)
+	})
 
-				// CreateInternalEvent fails
-				mockRepo.EXPECT().CreateInternalEvent(gomock.Any(), gomock.Any()).Return(
-					errors.New("db error"))
-			},
-			expectedEvent: structs.InternalEvent{},
-			expectedError: errors.New("failed to create internal event"),
-		},
-	}
+	t.Run("Error - Publisher error", func(t *testing.T) {
+		ctx := context.Background()
+		input := structs.PublisherExternalEventDto{
+			EventName: "error-event",
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Setup
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
+		// Mock publisher with error - use the correct task name "publisher_external_event"
+		mockPublisher.EXPECT().Publish(gomock.Any(), "publisher_external_event", input, gomock.Any()).
+			Return(errors.New("publisher error"))
 
-			mockRepo := repository.NewMockRepository(ctrl)
-			mockPublisher := publisher.NewMockPublisher(ctrl)
+		// Call service
+		err := testService.PublisherExternalEvent(ctx, input)
 
-			if tt.setupMocks != nil {
-				tt.setupMocks(mockRepo)
-			}
-
-			service := NewService(mockRepo, mockPublisher)
-
-			// Execute
-			result, err := service.RegisterTrigger(context.Background(), tt.input)
-
-			// Assert
-			if tt.expectedError != nil {
-				assert.Error(t, err)
-				assert.Equal(t, tt.expectedError.Error(), err.Error())
-			} else {
-				assert.NoError(t, err)
-
-				// For specific test cases, add additional assertions
-				if tt.name == "Success - Add trigger to existing triggers" {
-					assert.Equal(t, 2, len(result.Triggers))
-
-					// First trigger should be the existing one
-					assert.Equal(t, "trigger-service", result.Triggers[0].ServiceName)
-
-					// Second trigger should be the new one
-					assert.Equal(t, "another-service", result.Triggers[1].ServiceName)
-					assert.Equal(t, structs.TriggerType("persistent"), result.Triggers[1].Type)
-					assert.Equal(t, "https://example2.com", result.Triggers[1].BaseUrl)
-					assert.Equal(t, "/webhook2", result.Triggers[1].Path)
-				}
-
-				assert.Equal(t, tt.expectedEvent.ID, result.ID)
-				assert.Equal(t, tt.expectedEvent.Name, result.Name)
-				assert.Equal(t, tt.expectedEvent.ServiceName, result.ServiceName)
-				assert.Equal(t, tt.expectedEvent.RepoUrl, result.RepoUrl)
-				assert.Equal(t, tt.expectedEvent.TeamOwner, result.TeamOwner)
-			}
-		})
-	}
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "publisher error")
+	})
 }
