@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/IsaacDSC/webhook/internal/eventqueue"
+
 	"github.com/IsaacDSC/webhook/internal/intersvc"
 	"github.com/IsaacDSC/webhook/internal/interweb"
 	"github.com/IsaacDSC/webhook/pkg/publisher"
@@ -23,6 +25,7 @@ type Handler struct {
 func NewHandler(service Service, pub publisher.Publisher) *Handler {
 	h := &Handler{service: service}
 
+	publisherHandle := eventqueue.Publisher(pub)
 	h.routes = map[string]func(http.ResponseWriter, *http.Request){
 		// Used for interface
 		"POST /event/create":   interweb.GetCreateEventHandle(h.service.CreateInternalEvent),
@@ -32,7 +35,7 @@ func NewHandler(service Service, pub publisher.Publisher) *Handler {
 		"POST /event/consumer": interweb.GetConsumerHandle(h.service.CreateConsumer),
 
 		// Used for SDK - CLI
-		"POST /event/publisher": interweb.GetPublisherHandle(pub),
+		"POST /event/publisher": publisherHandle.Handler,
 	}
 
 	return h

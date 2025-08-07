@@ -1,18 +1,21 @@
 package setup
 
 import (
+	"github.com/IsaacDSC/webhook/pkg/asynqsvc"
 	"log"
 
-	"github.com/IsaacDSC/webhook/internal/consworker"
+	"github.com/IsaacDSC/webhook/internal/eventqueue"
+	"github.com/IsaacDSC/webhook/pkg/cache"
+	"github.com/IsaacDSC/webhook/pkg/publisher"
+
 	"github.com/IsaacDSC/webhook/internal/infra/cfg"
 	"github.com/IsaacDSC/webhook/internal/infra/middleware"
 	"github.com/IsaacDSC/webhook/internal/interstore"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 
 	"github.com/hibiken/asynq"
 )
 
-func StartWorker(mongodb *mongo.Client) {
+func StartWorker(cache cache.Cache, store interstore.Repository, pub publisher.Publisher) {
 	cfg := cfg.Get()
 
 	srv := asynq.NewServer(
@@ -27,15 +30,16 @@ func StartWorker(mongodb *mongo.Client) {
 		},
 	)
 
-	store := interstore.NewMongoStore(mongodb)
 	mux := asynq.NewServeMux()
 	mux.Use(middleware.AsynqLogger)
-	tasks := map[consworker.TaskName]asynq.HandlerFunc{
-		consworker.PublisherExternalEvent: consworker.GetInternalConsumerHandle(store.GetInternalEvent),
+
+	events := []asynqsvc.AsynqHandle{
+		eventqueue.GetRequestHandle(),
+		eventqueue.GetInternalConsumerHandle(store, cache, pub),
 	}
 
-	for e, h := range tasks {
-		mux.HandleFunc(e.String(), h)
+	for _, event := range events {
+		mux.HandleFunc(event.Event, event.Handler)
 	}
 
 	if err := srv.Run(mux); err != nil {

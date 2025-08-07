@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/hibiken/asynq"
 	"log"
 	"time"
+
+	"github.com/hibiken/asynq"
 )
 
 type Task struct {
@@ -29,7 +30,7 @@ func (t *Task) Publish(ctx context.Context, eventName string, payload any, opts 
 	}
 
 	task := asynq.NewTask(eventName, p)
-	info, err := t.client.Enqueue(task, opts...)
+	info, err := t.client.Enqueue(task, definedOpts...)
 	if err != nil {
 		return fmt.Errorf("could not schedule task: %v", err)
 	}

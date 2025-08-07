@@ -33,130 +33,68 @@ Este sistema de webhook é uma aplicação desenvolvida em Go que permite a comu
 - Webhooks podem ser implementados mesmo em sistemas legados ou monolíticos que não possuem capacidade ou necessidade de adoção de Kafka.
 
 ---
+
 ## Arquitetura do Sistema
 
-----
-### Utilização visão clientes
-![clients_example.png](docs/assets/clients_example.png)
-
----- 
-
 ### Visão Geral da Arquitetura
-![webhook_arch.png](docs/assets/webhook_arch.png)
+
+```mermaid
+graph TB
+    %% Serviços
+    Services[Serviços]
+    
+    %% Sistema Webhook Central
+    subgraph "Sistema Webhook"
+        API[API REST]
+        Worker[Worker]
+        Database[(Banco de Dados)]
+        Queue[(Fila)]
+    end
+    
+    %% Consumidores
+    Consumers[Serviços Consumidores]
+    
+    %% Fluxos
+    Services -->|Criar Eventos<br/>Registrar Gatilhos<br/>Publicar Eventos| API
+    API --> Database
+    API --> Queue
+    Queue --> Worker
+    Worker --> Database
+    Worker -->|Webhooks HTTP| Consumers
+    
+    %% Estilos
+    classDef serviceStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef systemStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef storageStyle fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
+    
+    class Services,Consumers serviceStyle
+    class API,Worker systemStyle
+    class Database,Queue storageStyle
+```
+
+<!-- **Tipos de Gatilho:**
+- **fireForGet**: Dispara e não espera resposta
+- **persistent**: Mantém persistente até sucesso
+- **notPersistent**: Envia uma única vez -->
 
 ----
 
-O sistema é dividido em dois serviços principais:
+## Recomendações de Segurança
 
-1. **Servidor HTTP** - Responsável por expor endpoints que permitem criar eventos internos, registrar gatilhos (triggers) e publicar eventos externos.
+### ⚠️ Comunicação em Rede Privada
 
-2. **Worker** - Responsável pelo processamento assíncrono de tarefas, como o envio de webhooks para os serviços registrados.
+**IMPORTANTE**: Para garantir a segurança da comunicação entre serviços, é **altamente recomendado** que:
 
-### Tecnologias Utilizadas
+- **Todos os serviços que utilizam o sistema de webhook sejam executados em uma rede privada/interna**
+- **Os endpoints de webhook NÃO devem ser expostos publicamente na internet**
+- **Utilize redes privadas virtuais (VPN) ou redes internas (como Docker networks, Kubernetes clusters internos)**
 
-- **Go 1.23.7** - Linguagem de programação principal
-- **MongoDB** - Banco de dados para persistência de eventos e gatilhos
-- **Redis** - Utilizado para gerenciamento de filas de tarefas assíncronas
-- **Asynq** - Biblioteca para processamento de tarefas em background
-- **Docker** - Contêinerização da aplicação
+### Práticas Recomendadas
 
-## Componentes Principais
+1. **Isolamento de Rede**: Configure firewalls e grupos de segurança para permitir comunicação apenas entre serviços autorizados
+2. **Autenticação**: Implemente mecanismos de autenticação entre serviços (tokens, certificados, etc.)
+3. **Criptografia**: Use HTTPS/TLS para comunicação entre serviços, mesmo em redes internas
+4. **Monitoramento**: Implemente logs de auditoria para rastrear todas as comunicações webhook
+5. **Rate Limiting**: Configure limites de taxa para prevenir abuso dos endpoints
 
-### Eventos Internos
-
-Os eventos internos são definidos pela estrutura `InternalEvent` e contêm:
-
-- ID: Identificador único do evento (UUID)
-- Nome: Nome do evento
-- Nome do Serviço: Serviço que criou o evento
-- URL do Repositório: Link para o repositório do serviço
-- Equipe Responsável: Equipe responsável pelo serviço
-- Gatilhos: Lista de serviços que serão notificados quando o evento ocorrer
-- Timestamps: Data de criação, atualização e exclusão
-
-### Gatilhos (Triggers)
-
-Os gatilhos definem como um serviço deseja receber notificações de eventos. São compostos por:
-
-- ID: Identificador único do gatilho (UUID)
-- Nome do Serviço: Serviço que receberá a notificação
-- Tipo: Tipo do gatilho (fireForGet, persistent, notPersistent)
-- URL Base: Endereço base do serviço
-- Caminho: Endpoint específico que receberá o webhook
-- Timestamps: Data de criação, atualização e exclusão
-
-### Tipos de Gatilho
-
-- **fireForGet**: Dispara a notificação e não espera resposta
-- **persistent**: Mantém a notificação persistente até que seja processada com sucesso
-- **notPersistent**: Envia a notificação uma única vez, sem tentativas adicionais em caso de falha
-
-## Fluxo de Funcionamento
-
-1. Um serviço cria um evento interno via endpoint `/event/create`
-2. Outros serviços podem se registrar para receber notificações deste evento via endpoint `/event/register`
-3. Quando ocorre um evento externo, é enviado para o endpoint `/event/publisher`
-4. O sistema verifica os serviços registrados para o evento e envia webhooks para cada um deles
-5. O worker processa as tarefas de envio de webhooks de forma assíncrona, respeitando os tipos de gatilho configurados
-
-## APIs Disponíveis
-
-### Criação de Eventos Internos
-- **Endpoint**: POST /event/create
-- **Descrição**: Cria um novo evento interno no sistema
-
-### Registro de Gatilhos
-- **Endpoint**: POST /event/register
-- **Descrição**: Registra um serviço para receber notificações de um evento específico
-
-### Publicação de Eventos Externos
-- **Endpoint**: POST /event/publisher
-- **Descrição**: Publica um evento externo que será processado e enviado para os serviços registrados
-
-## Configuração do Ambiente
-
-O sistema utiliza Docker Compose para facilitar a execução em ambiente de desenvolvimento e produção. O arquivo `compose.yaml` define os seguintes serviços:
-
-- **server**: Contêiner principal que executa o servidor e o worker
-- **redis**: Serviço Redis para gerenciamento de filas
-- **mongodb**: Banco de dados para persistência
-
-### Variáveis de Ambiente
-
-- **DB_CONNECTION_STRING**: String de conexão com o MongoDB
-- **CACHE_ADDR**: Endereço do servidor Redis
-
-### Recursos Alocados
-
-O serviço principal tem as seguintes configurações de recursos:
-- CPU: limite de 1 CPU, reserva de 0.5 CPU
-- Memória: limite de 1GB, reserva de 512MB
-
-## Executando o Sistema
-
-### Iniciar todos os serviços
-```bash
-docker-compose up
-```
-
-### Iniciar apenas o servidor HTTP
-```bash
-go run . --service=webhook
-```
-
-### Iniciar apenas o worker
-```bash
-go run . --service=worker
-```
-
-### Iniciar ambos os serviços
-```bash
-go run .
-# ou
-go run . --service=all
-```
-
-## Teste de Carga
-
-O sistema possui um módulo para testes de carga utilizando a biblioteca Vegeta, permitindo simular grande volume de requisições para validar a performance e escalabilidade da solução.
-
+---

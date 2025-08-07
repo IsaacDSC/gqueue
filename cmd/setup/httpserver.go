@@ -4,33 +4,25 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/IsaacDSC/webhook/internal/infra/cfg"
-	"github.com/IsaacDSC/webhook/internal/infra/handler"
+	"github.com/IsaacDSC/webhook/internal/backoffice"
+	"github.com/IsaacDSC/webhook/internal/eventqueue"
 	"github.com/IsaacDSC/webhook/internal/infra/middleware"
 	"github.com/IsaacDSC/webhook/internal/interstore"
-	"github.com/IsaacDSC/webhook/internal/intersvc"
 	cache2 "github.com/IsaacDSC/webhook/pkg/cache"
+	"github.com/IsaacDSC/webhook/pkg/httpsvc"
 	"github.com/IsaacDSC/webhook/pkg/publisher"
-	"github.com/hibiken/asynq"
-	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-func StartServer(mongodb *mongo.Client, redisClient *redis.Client) {
-	cfg := cfg.Get()
-
-	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: cfg.Cache.CacheAddr})
-	defer asynqClient.Close()
-
-	cache := cache2.NewStrategy(redisClient)
-	store := interstore.NewMongoStore(mongodb)
-	svc := intersvc.NewWeb(store, cache)
-	pub := publisher.NewPublisher(asynqClient)
-	handlers := handler.NewHandler(svc, pub)
-
+func StartServer(cache cache2.Cache, store interstore.Repository, pub publisher.Publisher) {
 	mux := http.NewServeMux()
-	for p, h := range handlers.GetRoutes() {
-		mux.HandleFunc(p, h)
+
+	routes := []httpsvc.HttpHandle{
+		backoffice.CreateConsumer(cache, store),
+		eventqueue.Publisher(pub),
+	}
+
+	for _, route := range routes {
+		mux.HandleFunc(route.Path, route.Handler)
 	}
 
 	handler := middleware.LoggerMiddleware(mux)
