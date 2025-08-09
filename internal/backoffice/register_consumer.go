@@ -26,6 +26,11 @@ func CreateConsumer(cc cache.Cache, repo Repository) httpsvc.HttpHandle {
 				return
 			}
 
+			if err := payload.Validate(); err != nil {
+				http.Error(w, fmt.Sprintf("invalid event payload: %s", err.Error()), http.StatusBadRequest)
+				return
+			}
+
 			ctx := r.Context()
 			key := cc.Key(domain.CacheKeyEventPrefix, payload.Name)
 			defaultTTL := cc.GetDefaultTTL()

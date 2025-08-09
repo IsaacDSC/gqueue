@@ -17,16 +17,13 @@ import (
 func StartWorker(cache cache.Cache, store interstore.Repository, pub publisher.Publisher) {
 	cfg := cfg.Get()
 
+	asyqCfg := asynq.Config{
+		Concurrency: cfg.AsynqConfig.Concurrency,
+		Queues:      cfg.AsynqConfig.Queues,
+	}
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: cfg.Cache.CacheAddr},
-		asynq.Config{
-			Concurrency: 10,
-			Queues: map[string]int{
-				"critical": 6,
-				"default":  3,
-				"low":      1,
-			},
-		},
+		asyqCfg,
 	)
 
 	mux := asynq.NewServeMux()
@@ -40,6 +37,10 @@ func StartWorker(cache cache.Cache, store interstore.Repository, pub publisher.P
 	for _, event := range events {
 		mux.HandleFunc(event.Event, event.Handler)
 	}
+
+	log.Println("[*] starting worker with configs")
+	log.Println("[*] wq.concurrency", asyqCfg.Concurrency)
+	log.Println("[*] wq.queues", asyqCfg.Queues)
 
 	if err := srv.Run(mux); err != nil {
 		log.Fatalf("could not run server: %v", err)
