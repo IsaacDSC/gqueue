@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/IsaacDSC/webhook/internal/cfg"
-	"github.com/IsaacDSC/webhook/internal/domain"
-	"github.com/IsaacDSC/webhook/pkg/intertime"
-	"github.com/IsaacDSC/webhook/pkg/publisher"
+	"github.com/IsaacDSC/gopherline/internal/cfg"
+	"github.com/IsaacDSC/gopherline/internal/domain"
+	"github.com/IsaacDSC/gopherline/pkg/intertime"
+	"github.com/IsaacDSC/gopherline/pkg/publisher"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )

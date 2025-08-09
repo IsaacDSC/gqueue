@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/IsaacDSC/webhook/pkg/ctxlogger"
+	"github.com/IsaacDSC/gopherline/pkg/ctxlogger"
 )
 
 type HTTPClientTransport struct {

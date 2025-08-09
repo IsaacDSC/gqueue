@@ -3,7 +3,7 @@ package interstore
 import (
 	"context"
 
-	"github.com/IsaacDSC/webhook/internal/domain"
+	"github.com/IsaacDSC/gopherline/internal/domain"
 )
 
 type Repository interface {

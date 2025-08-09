@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/IsaacDSC/webhook/pkg/httpsvc"
-	"github.com/IsaacDSC/webhook/pkg/publisher"
+	"github.com/IsaacDSC/gopherline/pkg/httpsvc"
+	"github.com/IsaacDSC/gopherline/pkg/publisher"
 )
 
 type ExternalPayload struct {

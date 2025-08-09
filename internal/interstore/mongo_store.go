@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/IsaacDSC/webhook/internal/domain"
-	"github.com/IsaacDSC/webhook/pkg/ctxlogger"
+	"github.com/IsaacDSC/gopherline/internal/domain"
+	"github.com/IsaacDSC/gopherline/pkg/ctxlogger"
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"

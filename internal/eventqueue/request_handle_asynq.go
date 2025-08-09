@@ -5,8 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/IsaacDSC/webhook/pkg/asynqsvc"
-	"github.com/IsaacDSC/webhook/pkg/httpclient"
+	"github.com/IsaacDSC/gopherline/pkg/asynqsvc"
+	"github.com/IsaacDSC/gopherline/pkg/httpclient"
 	"github.com/hibiken/asynq"
 	"net/http"
 )

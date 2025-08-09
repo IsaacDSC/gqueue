@@ -1,15 +1,15 @@
 package setup
 
 import (
-	"github.com/IsaacDSC/webhook/internal/cfg"
-	"github.com/IsaacDSC/webhook/pkg/asynqsvc"
+	"github.com/IsaacDSC/gopherline/internal/cfg"
+	"github.com/IsaacDSC/gopherline/pkg/asynqsvc"
 	"log"
 
-	"github.com/IsaacDSC/webhook/internal/eventqueue"
-	"github.com/IsaacDSC/webhook/pkg/cache"
-	"github.com/IsaacDSC/webhook/pkg/publisher"
+	"github.com/IsaacDSC/gopherline/internal/eventqueue"
+	"github.com/IsaacDSC/gopherline/pkg/cache"
+	"github.com/IsaacDSC/gopherline/pkg/publisher"
 
-	"github.com/IsaacDSC/webhook/internal/interstore"
+	"github.com/IsaacDSC/gopherline/internal/interstore"
 
 	"github.com/hibiken/asynq"
 )

@@ -1,4 +1,4 @@
-module github.com/IsaacDSC/webhook
+module github.com/IsaacDSC/gopherline
 
 go 1.23.7
 

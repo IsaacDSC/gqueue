@@ -3,14 +3,14 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/IsaacDSC/webhook/internal/cfg"
+	"github.com/IsaacDSC/gopherline/internal/cfg"
 
 	"github.com/hibiken/asynq"
 
-	"github.com/IsaacDSC/webhook/cmd/setup"
-	"github.com/IsaacDSC/webhook/internal/interstore"
-	"github.com/IsaacDSC/webhook/pkg/cache"
-	"github.com/IsaacDSC/webhook/pkg/publisher"
+	"github.com/IsaacDSC/gopherline/cmd/setup"
+	"github.com/IsaacDSC/gopherline/internal/interstore"
+	"github.com/IsaacDSC/gopherline/pkg/cache"
+	"github.com/IsaacDSC/gopherline/pkg/publisher"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
