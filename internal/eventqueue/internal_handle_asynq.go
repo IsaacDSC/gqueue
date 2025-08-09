@@ -44,7 +44,7 @@ func GetInternalConsumerHandle(repo Repository, cc cache.Cache, publisher publis
 			}
 
 			for _, tt := range event.Triggers {
-				config := payload.GetOpts() //TODO: modificar para usar as configs de triggers
+				config := tt.Option.ToAsynqOptions()
 
 				input := RequestPayload{
 					EventName: event.Name,

@@ -26,7 +26,7 @@ func CreateConsumer(cc cache.Cache, repo Repository) httpsvc.HttpHandle {
 				return
 			}
 
-			if err := payload.Validate(); err != nil {
+			if err := payload.Validate(domain.ValidateTypeExternal); err != nil {
 				http.Error(w, fmt.Sprintf("invalid event payload: %s", err.Error()), http.StatusBadRequest)
 				return
 			}

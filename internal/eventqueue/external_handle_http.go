@@ -27,7 +27,13 @@ func Publisher(pub publisher.Publisher) httpsvc.HttpHandle {
 				return
 			}
 
-			if err := pub.Publish(r.Context(), "event-queue.internal", payload, payload.GetOpts()...); err != nil {
+			if err := payload.Validate(); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			conf := payload.GetOpts()
+			if err := pub.Publish(r.Context(), "event-queue.internal", payload, conf...); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}

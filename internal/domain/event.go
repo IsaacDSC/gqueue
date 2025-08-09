@@ -3,7 +3,10 @@ package domain
 import (
 	"fmt"
 	"github.com/IsaacDSC/webhook/internal/cfg"
+	"github.com/IsaacDSC/webhook/pkg/intertime"
+	"github.com/hibiken/asynq"
 	"strings"
+	"time"
 )
 
 type Event struct {
@@ -14,9 +17,9 @@ type Event struct {
 	Triggers    []Trigger `json:"triggers" bson:"triggers"`
 }
 
-func (e Event) Validate() error {
+func (e Event) Validate(validateType ValidateType) error {
 	for _, trigger := range e.Triggers {
-		if err := trigger.Option.IsValid(); err != nil {
+		if err := trigger.Option.Validate(validateType); err != nil {
 			return fmt.Errorf("invalid trigger option: %w", err)
 		}
 	}
@@ -34,22 +37,34 @@ type Trigger struct {
 }
 
 type Opt struct {
-	MaxRetries int    `json:"max_retries" bson:"max_retries"`
-	Timeout    int    `json:"timeout" bson:"timeout"`
-	Retention  int    `json:"retention" bson:"retention"`
-	UniqueTTL  int    `json:"unique_ttl" bson:"unique_ttl"`
-	QueueType  string `json:"queue_type" bson:"queue_type"`
+	MaxRetries int                `json:"max_retries" bson:"max_retries"`
+	Retention  intertime.Duration `json:"retention" bson:"retention"`
+	ScheduleIn intertime.Duration `json:"schedule_in" bson:"schedule_in"`
+	UniqueTTL  intertime.Duration `json:"unique_ttl" bson:"unique_ttl"`
+	Deadline   *time.Time         `json:"deadline" bson:"deadline"`
+	QueueType  string             `json:"queue_type" bson:"queue_type"`
 }
 
-func (o Opt) IsValid() error {
+type ValidateType string
+
+func (vt ValidateType) String() string {
+	return string(vt)
+}
+
+const (
+	ValidateTypeInternal ValidateType = "internal"
+	ValidateTypeExternal ValidateType = "external"
+)
+
+func (o Opt) Validate(validateType ValidateType) error {
 	c := cfg.Get()
 
 	if o.QueueType == "" {
 		return fmt.Errorf("queue type is required")
 	}
 
-	if !strings.Contains(o.QueueType, "external") {
-		return fmt.Errorf("invalid queue type: %s, you have use prefix external.<queue-name>", o.QueueType)
+	if !strings.Contains(o.QueueType, validateType.String()) {
+		return fmt.Errorf("invalid queue type: %s, you have use prefix %s.<queue-name>", o.QueueType, validateType.String())
 	}
 
 	if !c.AsynqConfig.Queues.Contains(o.QueueType) {
@@ -57,4 +72,34 @@ func (o Opt) IsValid() error {
 	}
 
 	return nil
+}
+
+func (o Opt) ToAsynqOptions() []asynq.Option {
+	opts := []asynq.Option{}
+
+	if o.MaxRetries > 0 {
+		opts = append(opts, asynq.MaxRetry(int(o.MaxRetries)))
+	}
+	if o.Retention > 0 {
+		opts = append(opts, asynq.Retention(time.Duration(o.Retention)))
+	}
+	if o.Deadline != nil {
+		opts = append(opts, asynq.Deadline(*o.Deadline))
+	}
+	if o.UniqueTTL > 0 {
+		opts = append(opts, asynq.Unique(time.Duration(o.UniqueTTL)))
+	}
+	if o.ScheduleIn > 0 {
+		opts = append(opts, asynq.ProcessIn(time.Duration(o.ScheduleIn)))
+	}
+
+	if o.QueueType != "" {
+		opts = append(opts, asynq.Queue(o.QueueType))
+	}
+
+	if o.QueueType == "" {
+		opts = append(opts, asynq.Queue("internal.low"))
+	}
+
+	return opts
 }

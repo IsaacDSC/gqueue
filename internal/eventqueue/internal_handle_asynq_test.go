@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/IsaacDSC/webhook/internal/cfg"
 	"github.com/IsaacDSC/webhook/internal/domain"
 	"github.com/IsaacDSC/webhook/pkg/cache"
 	"github.com/IsaacDSC/webhook/pkg/publisher"
@@ -17,6 +18,19 @@ import (
 )
 
 func TestGetInternalConsumerHandle(t *testing.T) {
+	// Setup test configuration with valid queues
+	testConfig := cfg.Config{
+		AsynqConfig: cfg.AsynqConfig{
+			Queues: cfg.AsynqQueues{
+				"internal.default":       10,
+				"internal.high-priority": 5,
+				"internal.low":           1,
+				"external.default":       10,
+			},
+		},
+	}
+	cfg.SetConfig(testConfig)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -44,9 +58,9 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 						"Authorization": "Bearer token",
 					},
 				},
-				Opts: ConfigOpts{
+				Opts: domain.Opt{
 					MaxRetries: 3,
-					Queue:      "default",
+					QueueType:  "internal.default",
 				},
 			},
 			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
@@ -109,9 +123,9 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 						"X-Trace-ID":   "trace-123",
 					},
 				},
-				Opts: ConfigOpts{
+				Opts: domain.Opt{
 					MaxRetries: 5,
-					Queue:      "high-priority",
+					QueueType:  "internal.high-priority",
 				},
 			},
 			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
@@ -174,7 +188,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					Environment: "test",
 					Headers:     map[string]string{},
 				},
-				Opts: ConfigOpts{},
+				Opts: domain.Opt{},
 			},
 			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
 				key := cache.Key("event-queue.nonexistent.event")
@@ -199,7 +213,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					Environment: "test",
 					Headers:     map[string]string{},
 				},
-				Opts: ConfigOpts{},
+				Opts: domain.Opt{},
 			},
 			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
 				key := cache.Key("event-queue.user.updated")
@@ -245,7 +259,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					Environment: "test",
 					Headers:     map[string]string{},
 				},
-				Opts: ConfigOpts{},
+				Opts: domain.Opt{},
 			},
 			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
 				key := cache.Key("event-queue.archived.event")
@@ -306,6 +320,17 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 }
 
 func TestGetInternalConsumerHandle_InvalidPayload(t *testing.T) {
+	// Setup test configuration with valid queues
+	testConfig := cfg.Config{
+		AsynqConfig: cfg.AsynqConfig{
+			Queues: cfg.AsynqQueues{
+				"internal.default": 10,
+				"external.default": 10,
+			},
+		},
+	}
+	cfg.SetConfig(testConfig)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -329,6 +354,17 @@ func TestGetInternalConsumerHandle_InvalidPayload(t *testing.T) {
 }
 
 func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
+	// Setup test configuration with valid queues
+	testConfig := cfg.Config{
+		AsynqConfig: cfg.AsynqConfig{
+			Queues: cfg.AsynqQueues{
+				"internal.default": 10,
+				"external.default": 10,
+			},
+		},
+	}
+	cfg.SetConfig(testConfig)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -340,7 +376,7 @@ func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
 		EventName: "test.event",
 		Data:      Data{"test": "data"},
 		Metadata:  Metadata{Headers: map[string]string{}},
-		Opts:      ConfigOpts{},
+		Opts:      domain.Opt{QueueType: "internal.default"},
 	}
 
 	key := cache.Key("event-queue.test.event")

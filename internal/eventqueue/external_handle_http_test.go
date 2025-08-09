@@ -10,12 +10,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/IsaacDSC/webhook/internal/cfg"
+	"github.com/IsaacDSC/webhook/internal/domain"
+	"github.com/IsaacDSC/webhook/pkg/intertime"
 	"github.com/IsaacDSC/webhook/pkg/publisher"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
 func TestGetExternalHandle(t *testing.T) {
+	// Setup test configuration with valid queues
+	testConfig := cfg.Config{
+		AsynqConfig: cfg.AsynqConfig{
+			Queues: cfg.AsynqQueues{
+				"internal.default":       10,
+				"internal.high-priority": 5,
+				"internal.notifications": 3,
+				"internal.payments":      2,
+				"internal.low":           1,
+				"external.default":       10,
+			},
+		},
+	}
+	cfg.SetConfig(testConfig)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -44,9 +62,9 @@ func TestGetExternalHandle(t *testing.T) {
 						"Content-Type": "application/json",
 					},
 				},
-				Opts: ConfigOpts{
+				Opts: domain.Opt{
 					MaxRetries: 3,
-					Queue:      "default",
+					QueueType:  "internal.default",
 				},
 			},
 			setupMock: func(m *publisher.MockPublisher) {
@@ -63,8 +81,8 @@ func TestGetExternalHandle(t *testing.T) {
 						assert.Equal(t, "123", payload.Data["user_id"])
 						assert.Equal(t, "test@example.com", payload.Data["email"])
 						assert.Equal(t, "api", payload.Metadata.Source)
-						assert.Equal(t, uint(3), payload.Opts.MaxRetries)
-						assert.Equal(t, "default", payload.Opts.Queue)
+						assert.Equal(t, 3, payload.Opts.MaxRetries)
+						assert.Equal(t, "internal.default", payload.Opts.QueueType)
 					}).
 					Return(nil).
 					Times(1)
@@ -96,12 +114,12 @@ func TestGetExternalHandle(t *testing.T) {
 						"X-Correlation": "corr_def456",
 					},
 				},
-				Opts: ConfigOpts{
+				Opts: domain.Opt{
 					MaxRetries: 5,
-					Retention:  24 * time.Hour,
-					UniqueTtl:  1 * time.Hour,
-					ScheduleIn: 30 * time.Second,
-					Queue:      "high-priority",
+					Retention:  intertime.Duration(24 * time.Hour),
+					UniqueTTL:  intertime.Duration(1 * time.Hour),
+					ScheduleIn: intertime.Duration(30 * time.Second),
+					QueueType:  "internal.high-priority",
 				},
 			},
 			setupMock: func(m *publisher.MockPublisher) {
@@ -119,11 +137,11 @@ func TestGetExternalHandle(t *testing.T) {
 						assert.Equal(t, 99.99, payload.Data["amount"])
 						assert.Equal(t, "checkout-service", payload.Metadata.Source)
 						assert.Equal(t, "production", payload.Metadata.Environment)
-						assert.Equal(t, uint(5), payload.Opts.MaxRetries)
-						assert.Equal(t, "high-priority", payload.Opts.Queue)
-						assert.Equal(t, 24*time.Hour, payload.Opts.Retention)
-						assert.Equal(t, 1*time.Hour, payload.Opts.UniqueTtl)
-						assert.Equal(t, 30*time.Second, payload.Opts.ScheduleIn)
+						assert.Equal(t, 5, payload.Opts.MaxRetries)
+						assert.Equal(t, "internal.high-priority", payload.Opts.QueueType)
+						assert.Equal(t, intertime.Duration(24*time.Hour), payload.Opts.Retention)
+						assert.Equal(t, intertime.Duration(1*time.Hour), payload.Opts.UniqueTTL)
+						assert.Equal(t, intertime.Duration(30*time.Second), payload.Opts.ScheduleIn)
 						// Validate headers
 						assert.Equal(t, "Bearer token123", payload.Metadata.Headers["Authorization"])
 					}).
@@ -152,10 +170,10 @@ func TestGetExternalHandle(t *testing.T) {
 						"X-Service":    "notification-worker",
 					},
 				},
-				Opts: ConfigOpts{
+				Opts: domain.Opt{
 					MaxRetries: 2,
 					Deadline:   func() *time.Time { t := time.Now().Add(5 * time.Minute); return &t }(),
-					Queue:      "notifications",
+					QueueType:  "internal.notifications",
 				},
 			},
 			setupMock: func(m *publisher.MockPublisher) {
@@ -175,8 +193,8 @@ func TestGetExternalHandle(t *testing.T) {
 						assert.Equal(t, "notification-service", payload.Metadata.Source)
 						assert.Equal(t, "1.5", payload.Metadata.Version)
 						assert.Equal(t, "staging", payload.Metadata.Environment)
-						assert.Equal(t, uint(2), payload.Opts.MaxRetries)
-						assert.Equal(t, "notifications", payload.Opts.Queue)
+						assert.Equal(t, 2, payload.Opts.MaxRetries)
+						assert.Equal(t, "internal.notifications", payload.Opts.QueueType)
 						assert.NotNil(t, payload.Opts.Deadline)
 						// Validate headers
 						assert.Equal(t, "notification-worker", payload.Metadata.Headers["X-Service"])
@@ -200,9 +218,9 @@ func TestGetExternalHandle(t *testing.T) {
 					Version:     "1.0",
 					Environment: "test",
 				},
-				Opts: ConfigOpts{
+				Opts: domain.Opt{
 					MaxRetries: 1,
-					Queue:      "payments",
+					QueueType:  "internal.payments",
 				},
 			},
 			setupMock: func(m *publisher.MockPublisher) {
@@ -219,8 +237,8 @@ func TestGetExternalHandle(t *testing.T) {
 						assert.Equal(t, "pay_error123", payload.Data["payment_id"])
 						assert.Equal(t, "insufficient_funds", payload.Data["reason"])
 						assert.Equal(t, "payment-service", payload.Metadata.Source)
-						assert.Equal(t, uint(1), payload.Opts.MaxRetries)
-						assert.Equal(t, "payments", payload.Opts.Queue)
+						assert.Equal(t, 1, payload.Opts.MaxRetries)
+						assert.Equal(t, "internal.payments", payload.Opts.QueueType)
 					}).
 					Return(errors.New("publisher error")).
 					Times(1)
@@ -238,7 +256,7 @@ func TestGetExternalHandle(t *testing.T) {
 					Version:     "1.0",
 					Environment: "test",
 				},
-				Opts: ConfigOpts{},
+				Opts: domain.Opt{QueueType: "internal.default"},
 			},
 			setupMock: func(m *publisher.MockPublisher) {
 				m.EXPECT().
@@ -246,6 +264,7 @@ func TestGetExternalHandle(t *testing.T) {
 						gomock.Any(),
 						"event-queue.internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
+						gomock.Any(),
 					).
 					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts ...interface{}) {
 						// Validate empty/default payload using assert
@@ -255,9 +274,9 @@ func TestGetExternalHandle(t *testing.T) {
 						assert.Equal(t, "1.0", payload.Metadata.Version)
 						assert.Equal(t, "test", payload.Metadata.Environment)
 						// Validate default config options (should be zero values)
-						assert.Equal(t, uint(0), payload.Opts.MaxRetries)
-						assert.Empty(t, payload.Opts.Queue)
-						assert.Equal(t, time.Duration(0), payload.Opts.Retention)
+						assert.Equal(t, 0, payload.Opts.MaxRetries)
+						assert.Equal(t, "internal.default", payload.Opts.QueueType)
+						assert.Equal(t, intertime.Duration(0), payload.Opts.Retention)
 					}).
 					Return(nil).
 					Times(1)
@@ -307,6 +326,17 @@ func TestGetExternalHandle(t *testing.T) {
 }
 
 func TestGetExternalHandle_InvalidJSON(t *testing.T) {
+	// Setup test configuration with valid queues
+	testConfig := cfg.Config{
+		AsynqConfig: cfg.AsynqConfig{
+			Queues: cfg.AsynqQueues{
+				"internal.default": 10,
+				"external.default": 10,
+			},
+		},
+	}
+	cfg.SetConfig(testConfig)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -333,14 +363,8 @@ func TestGetExternalHandle_InvalidJSON(t *testing.T) {
 		{
 			name:        "null_body",
 			requestBody: "null",
-			expectedErr: "", // null is valid JSON but will create empty payload
-			setupMock: func(m *publisher.MockPublisher) {
-				// null JSON creates an empty payload, so we expect Publish to be called
-				m.EXPECT().
-					Publish(gomock.Any(), "event-queue.internal", gomock.Any()).
-					Return(nil).
-					Times(1)
-			},
+			expectedErr: "",                                  // null is valid JSON but creates empty payload which fails validation
+			setupMock:   func(m *publisher.MockPublisher) {}, // No expectations as validation will fail
 		},
 		{
 			name:        "malformed_nested_object",
@@ -364,9 +388,9 @@ func TestGetExternalHandle_InvalidJSON(t *testing.T) {
 
 			httpHandle.Handler(rr, req)
 
-			// For null_body case, it's valid JSON so should succeed
+			// For null_body case, it's valid JSON but creates empty payload which fails validation
 			if tt.name == "null_body" {
-				assert.Equal(t, http.StatusAccepted, rr.Code, "Expected status accepted for null body")
+				assert.Equal(t, http.StatusBadRequest, rr.Code, "Expected bad request for null body due to validation failure")
 			} else {
 				// Should return BadRequest for invalid JSON
 				assert.Equal(t, http.StatusBadRequest, rr.Code, "Expected bad request for invalid JSON")
@@ -382,6 +406,17 @@ func TestGetExternalHandle_InvalidJSON(t *testing.T) {
 }
 
 func TestGetExternalHandle_RequestBodyClosure(t *testing.T) {
+	// Setup test configuration with valid queues
+	testConfig := cfg.Config{
+		AsynqConfig: cfg.AsynqConfig{
+			Queues: cfg.AsynqQueues{
+				"internal.default": 10,
+				"external.default": 10,
+			},
+		},
+	}
+	cfg.SetConfig(testConfig)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -403,7 +438,10 @@ func TestGetExternalHandle_RequestBodyClosure(t *testing.T) {
 			Version:     "1.0",
 			Environment: "test",
 		},
-		Opts: ConfigOpts{MaxRetries: 1},
+		Opts: domain.Opt{
+			MaxRetries: 1,
+			QueueType:  "internal.default",
+		},
 	}
 
 	payloadBytes, _ := json.Marshal(payload)
@@ -421,6 +459,17 @@ func TestGetExternalHandle_RequestBodyClosure(t *testing.T) {
 
 // Benchmark test to measure performance
 func BenchmarkGetExternalHandle(b *testing.B) {
+	// Setup test configuration with valid queues
+	testConfig := cfg.Config{
+		AsynqConfig: cfg.AsynqConfig{
+			Queues: cfg.AsynqQueues{
+				"internal.default": 10,
+				"external.default": 10,
+			},
+		},
+	}
+	cfg.SetConfig(testConfig)
+
 	ctrl := gomock.NewController(b)
 	defer ctrl.Finish()
 
@@ -446,9 +495,9 @@ func BenchmarkGetExternalHandle(b *testing.B) {
 			Version:     "1.0",
 			Environment: "benchmark",
 		},
-		Opts: ConfigOpts{
+		Opts: domain.Opt{
 			MaxRetries: 3,
-			Queue:      "default",
+			QueueType:  "internal.default",
 		},
 	}
 
@@ -470,6 +519,17 @@ func BenchmarkGetExternalHandle(b *testing.B) {
 
 // Test to validate that our payload validations work by intentionally creating a mismatched payload
 func TestGetExternalHandle_PayloadValidation(t *testing.T) {
+	// Setup test configuration with valid queues
+	testConfig := cfg.Config{
+		AsynqConfig: cfg.AsynqConfig{
+			Queues: cfg.AsynqQueues{
+				"internal.wrong-queue": 10,
+				"external.default":     10,
+			},
+		},
+	}
+	cfg.SetConfig(testConfig)
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -488,9 +548,9 @@ func TestGetExternalHandle_PayloadValidation(t *testing.T) {
 			Version:     "1.0",
 			Environment: "test",
 		},
-		Opts: ConfigOpts{
+		Opts: domain.Opt{
 			MaxRetries: 999, // This will be validated in the mock
-			Queue:      "wrong-queue",
+			QueueType:  "internal.wrong-queue",
 		},
 	}
 
@@ -507,7 +567,7 @@ func TestGetExternalHandle_PayloadValidation(t *testing.T) {
 			assert.Equal(t, "user.created", receivedPayload.EventName)
 			assert.Equal(t, "wrong_id", receivedPayload.Data["user_id"])
 			assert.Equal(t, "wrong-source", receivedPayload.Metadata.Source)
-			assert.Equal(t, uint(999), receivedPayload.Opts.MaxRetries)
+			assert.Equal(t, 999, receivedPayload.Opts.MaxRetries)
 			// Log what we actually received for demonstration
 			t.Logf("Received payload - EventName: %s, UserID: %v, Source: %s, MaxRetries: %d",
 				receivedPayload.EventName,
