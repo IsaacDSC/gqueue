@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/IsaacDSC/webhook/internal/cfg"
 
 	"github.com/hibiken/asynq"
 
 	"github.com/IsaacDSC/webhook/cmd/setup"
-	"github.com/IsaacDSC/webhook/internal/infra/cfg"
 	"github.com/IsaacDSC/webhook/internal/interstore"
 	"github.com/IsaacDSC/webhook/pkg/cache"
 	"github.com/IsaacDSC/webhook/pkg/publisher"

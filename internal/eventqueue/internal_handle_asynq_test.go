@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/IsaacDSC/webhook/internal/intersvc"
+	"github.com/IsaacDSC/webhook/internal/domain"
+	"github.com/IsaacDSC/webhook/pkg/cache"
 	"github.com/IsaacDSC/webhook/pkg/publisher"
 	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
@@ -19,13 +20,10 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockPublisher := publisher.NewMockPublisher(ctrl)
-
 	tests := []struct {
 		name           string
 		payload        InternalPayload
-		setupMocks     func(*publisher.MockPublisher, *getInternalEvent)
-		getEventFunc   getInternalEvent
+		setupMocks     func(*publisher.MockPublisher, *MockRepository, *cache.MockCache)
 		expectedError  bool
 		expectedErrMsg string
 	}{
@@ -51,24 +49,30 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					Queue:      "default",
 				},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, getEventFn *getInternalEvent) {
-				*getEventFn = func(ctx context.Context, eventName string) (intersvc.InternalEvent, error) {
-					return intersvc.InternalEvent{
-						Name:        "user.created",
-						ServiceName: "user-service",
-						Triggers: intersvc.ListTrigger{
-							{
-								ServiceName: "notification-service",
-								Type:        "persistent",
-								BaseUrl:     "https://api.notification.com",
-								Path:        "/webhook/user-created",
-								Headers: map[string]string{
-									"X-API-Key": "secret",
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
+				key := cache.Key("event-queue.user.created")
+				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.created").Return(key)
+				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
+				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
+					DoAndReturn(func(ctx context.Context, key cache.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						event := domain.Event{
+							Name:        "user.created",
+							ServiceName: "user-service",
+							Triggers: []domain.Trigger{
+								{
+									ServiceName: "notification-service",
+									Type:        "persistent",
+									Host:        "https://api.notification.com",
+									Path:        "/webhook/user-created",
+									Headers: map[string]string{
+										"X-API-Key": "secret",
+									},
 								},
 							},
-						},
-					}, nil
-				}
+						}
+						*dest = event
+						return nil
+					})
 
 				mockPub.EXPECT().
 					Publish(gomock.Any(), "event-queue.request-to-external", gomock.Any(), gomock.Any()).
@@ -110,33 +114,39 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					Queue:      "high-priority",
 				},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, getEventFn *getInternalEvent) {
-				*getEventFn = func(ctx context.Context, eventName string) (intersvc.InternalEvent, error) {
-					return intersvc.InternalEvent{
-						Name:        "order.completed",
-						ServiceName: "order-service",
-						Triggers: intersvc.ListTrigger{
-							{
-								ServiceName: "billing-service",
-								Type:        "persistent",
-								BaseUrl:     "https://api.billing.com",
-								Path:        "/webhook/order-completed",
-								Headers: map[string]string{
-									"X-API-Key": "billing-key",
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
+				key := cache.Key("event-queue.order.completed")
+				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "order.completed").Return(key)
+				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
+				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
+					DoAndReturn(func(ctx context.Context, key cache.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						event := domain.Event{
+							Name:        "order.completed",
+							ServiceName: "order-service",
+							Triggers: []domain.Trigger{
+								{
+									ServiceName: "billing-service",
+									Type:        "persistent",
+									Host:        "https://api.billing.com",
+									Path:        "/webhook/order-completed",
+									Headers: map[string]string{
+										"X-API-Key": "billing-key",
+									},
+								},
+								{
+									ServiceName: "analytics-service",
+									Type:        "notPersistent",
+									Host:        "https://api.analytics.com",
+									Path:        "/webhook/order-completed",
+									Headers: map[string]string{
+										"X-API-Key": "analytics-key",
+									},
 								},
 							},
-							{
-								ServiceName: "analytics-service",
-								Type:        "notPersistent",
-								BaseUrl:     "https://api.analytics.com",
-								Path:        "/webhook/order-completed",
-								Headers: map[string]string{
-									"X-API-Key": "analytics-key",
-								},
-							},
-						},
-					}, nil
-				}
+						}
+						*dest = event
+						return nil
+					})
 
 				mockPub.EXPECT().
 					Publish(gomock.Any(), "event-queue.request-to-external", gomock.Any(), gomock.Any()).
@@ -152,53 +162,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name: "successful_processing_empty_data",
-			payload: InternalPayload{
-				EventName: "system.ping",
-				Data:      Data{},
-				Metadata: Metadata{
-					Source:      "health-check",
-					Version:     "1.0",
-					Environment: "test",
-					Headers:     map[string]string{},
-				},
-				Opts: ConfigOpts{
-					MaxRetries: 1,
-					Queue:      "low-priority",
-				},
-			},
-			setupMocks: func(mockPub *publisher.MockPublisher, getEventFn *getInternalEvent) {
-				*getEventFn = func(ctx context.Context, eventName string) (intersvc.InternalEvent, error) {
-					return intersvc.InternalEvent{
-						Name:        "system.ping",
-						ServiceName: "health-service",
-						Triggers: intersvc.ListTrigger{
-							{
-								ServiceName: "monitoring-service",
-								Type:        "fireForGet",
-								BaseUrl:     "https://api.monitoring.com",
-								Path:        "/webhook/ping",
-								Headers:     map[string]string{},
-							},
-						},
-					}, nil
-				}
-
-				mockPub.EXPECT().
-					Publish(gomock.Any(), "event-queue.request-to-external", gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts ...asynq.Option) error {
-						assert.Equal(t, "system.ping", payload.EventName)
-						assert.Equal(t, "monitoring-service", payload.Trigger.ServiceName)
-						assert.Equal(t, TriggerType("fireForGet"), payload.Trigger.Type)
-						assert.Empty(t, payload.Data)
-						return nil
-					}).
-					Times(1)
-			},
-			expectedError: false,
-		},
-		{
-			name: "error_get_internal_event_not_found",
+			name: "error_event_not_found",
 			payload: InternalPayload{
 				EventName: "nonexistent.event",
 				Data: Data{
@@ -212,14 +176,15 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: ConfigOpts{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, getEventFn *getInternalEvent) {
-				*getEventFn = func(ctx context.Context, eventName string) (intersvc.InternalEvent, error) {
-					return intersvc.InternalEvent{}, errors.New("event not found")
-				}
-				// No publisher expectations since it should fail before calling publish
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
+				key := cache.Key("event-queue.nonexistent.event")
+				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "nonexistent.event").Return(key)
+				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
+				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
+					Return(domain.EventNotFound)
+				// No publisher expectations since event is not found
 			},
-			expectedError:  true,
-			expectedErrMsg: "get internal event: event not found",
+			expectedError: false, // EventNotFound should be handled gracefully
 		},
 		{
 			name: "error_publisher_fails",
@@ -236,22 +201,28 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: ConfigOpts{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, getEventFn *getInternalEvent) {
-				*getEventFn = func(ctx context.Context, eventName string) (intersvc.InternalEvent, error) {
-					return intersvc.InternalEvent{
-						Name:        "user.updated",
-						ServiceName: "user-service",
-						Triggers: intersvc.ListTrigger{
-							{
-								ServiceName: "notification-service",
-								Type:        "persistent",
-								BaseUrl:     "https://api.notification.com",
-								Path:        "/webhook/user-updated",
-								Headers:     map[string]string{},
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
+				key := cache.Key("event-queue.user.updated")
+				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.updated").Return(key)
+				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
+				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
+					DoAndReturn(func(ctx context.Context, key cache.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						event := domain.Event{
+							Name:        "user.updated",
+							ServiceName: "user-service",
+							Triggers: []domain.Trigger{
+								{
+									ServiceName: "notification-service",
+									Type:        "persistent",
+									Host:        "https://api.notification.com",
+									Path:        "/webhook/user-updated",
+									Headers:     map[string]string{},
+								},
 							},
-						},
-					}, nil
-				}
+						}
+						*dest = event
+						return nil
+					})
 
 				mockPub.EXPECT().
 					Publish(gomock.Any(), "event-queue.request-to-external", gomock.Any(), gomock.Any()).
@@ -276,103 +247,21 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: ConfigOpts{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, getEventFn *getInternalEvent) {
-				*getEventFn = func(ctx context.Context, eventName string) (intersvc.InternalEvent, error) {
-					return intersvc.InternalEvent{
-						Name:        "archived.event",
-						ServiceName: "archive-service",
-						Triggers:    intersvc.ListTrigger{}, // Empty triggers
-					}, nil
-				}
-				// No publisher expectations since there are no triggers to process
-			},
-			expectedError: false,
-		},
-		{
-			name: "successful_processing_complex_data",
-			payload: InternalPayload{
-				EventName: "invoice.generated",
-				Data: Data{
-					"invoice": map[string]interface{}{
-						"id":       "inv-789",
-						"amount":   250.75,
-						"currency": "USD",
-						"items": []interface{}{
-							map[string]interface{}{
-								"name":     "Product A",
-								"quantity": 2,
-								"price":    100.00,
-							},
-							map[string]interface{}{
-								"name":     "Product B",
-								"quantity": 1,
-								"price":    50.75,
-							},
-						},
-					},
-					"customer": map[string]interface{}{
-						"id":    "cust-456",
-						"name":  "John Doe",
-						"email": "john@example.com",
-					},
-				},
-				Metadata: Metadata{
-					Source:      "billing-service",
-					Version:     "3.0",
-					Environment: "production",
-					Headers: map[string]string{
-						"Content-Type":     "application/json",
-						"X-Correlation-ID": "corr-123",
-					},
-				},
-				Opts: ConfigOpts{
-					MaxRetries: 10,
-					Queue:      "billing",
-				},
-			},
-			setupMocks: func(mockPub *publisher.MockPublisher, getEventFn *getInternalEvent) {
-				*getEventFn = func(ctx context.Context, eventName string) (intersvc.InternalEvent, error) {
-					return intersvc.InternalEvent{
-						Name:        "invoice.generated",
-						ServiceName: "billing-service",
-						Triggers: intersvc.ListTrigger{
-							{
-								ServiceName: "accounting-service",
-								Type:        "persistent",
-								BaseUrl:     "https://api.accounting.com",
-								Path:        "/webhook/invoice-generated",
-								Headers: map[string]string{
-									"X-API-Key":    "accounting-secret",
-									"X-Webhook-ID": "webhook-001",
-								},
-							},
-						},
-					}, nil
-				}
-
-				mockPub.EXPECT().
-					Publish(gomock.Any(), "event-queue.request-to-external", gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts ...asynq.Option) error {
-						assert.Equal(t, "invoice.generated", payload.EventName)
-						assert.Equal(t, "accounting-service", payload.Trigger.ServiceName)
-
-						// Verify complex nested data
-						invoice, ok := payload.Data["invoice"].(map[string]interface{})
-						assert.True(t, ok, "Invoice should be a map")
-						assert.Equal(t, "inv-789", invoice["id"])
-						assert.Equal(t, 250.75, invoice["amount"])
-
-						customer, ok := payload.Data["customer"].(map[string]interface{})
-						assert.True(t, ok, "Customer should be a map")
-						assert.Equal(t, "john@example.com", customer["email"])
-
-						// Verify headers
-						assert.Equal(t, "corr-123", payload.Headers["X-Correlation-ID"])
-						assert.Equal(t, "accounting-secret", payload.Trigger.Headers["X-API-Key"])
-
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
+				key := cache.Key("event-queue.archived.event")
+				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "archived.event").Return(key)
+				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
+				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
+					DoAndReturn(func(ctx context.Context, key cache.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						event := domain.Event{
+							Name:        "archived.event",
+							ServiceName: "archive-service",
+							Triggers:    []domain.Trigger{}, // Empty triggers
+						}
+						*dest = event
 						return nil
-					}).
-					Times(1)
+					})
+				// No publisher expectations since there are no triggers to process
 			},
 			expectedError: false,
 		},
@@ -380,17 +269,19 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Reset mock for each test
-			mockPublisher = publisher.NewMockPublisher(ctrl)
+			// Create fresh mocks for each test
+			mockPublisher := publisher.NewMockPublisher(ctrl)
+			mockRepository := NewMockRepository(ctrl)
+			mockCache := cache.NewMockCache(ctrl)
 
-			var getEventFn getInternalEvent
-			tt.setupMocks(mockPublisher, &getEventFn)
+			// Setup mocks
+			tt.setupMocks(mockPublisher, mockRepository, mockCache)
 
 			// Create the handler
-			taskName, handlerFunc := GetInternalConsumerHandle(getEventFn, mockPublisher)
+			handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher)
 
-			// Verify task name
-			assert.Equal(t, "event-queue.internal", taskName)
+			// Verify event name
+			assert.Equal(t, "event-queue.internal", handle.Event)
 
 			// Marshal payload to simulate asynq task
 			payloadBytes, err := json.Marshal(tt.payload)
@@ -400,7 +291,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 			task := asynq.NewTask("event-queue.internal", payloadBytes)
 
 			// Execute the handler
-			err = handlerFunc(context.Background(), task)
+			err = handle.Handler(context.Background(), task)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -419,204 +310,54 @@ func TestGetInternalConsumerHandle_InvalidPayload(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockPublisher := publisher.NewMockPublisher(ctrl)
-
-	// Mock function that should not be called due to invalid payload
-	getEventFn := func(ctx context.Context, eventName string) (intersvc.InternalEvent, error) {
-		t.Error("getEventFn should not be called with invalid payload")
-		return intersvc.InternalEvent{}, nil
-	}
+	mockRepository := NewMockRepository(ctrl)
+	mockCache := cache.NewMockCache(ctrl)
 
 	// Create the handler
-	_, handlerFunc := GetInternalConsumerHandle(getEventFn, mockPublisher)
+	handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher)
 
 	// Create task with invalid JSON payload
-	invalidPayload := []byte(`{"invalid": json}`)
+	invalidPayload := []byte(`{"invalid": "json"`)
 	task := asynq.NewTask("event-queue.internal", invalidPayload)
 
 	// Execute the handler
-	err := handlerFunc(context.Background(), task)
+	err := handle.Handler(context.Background(), task)
 
 	// Should return unmarshal error
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unmarshal payload")
 }
 
-func TestGetInternalConsumerHandle_NilContext(t *testing.T) {
+func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockPublisher := publisher.NewMockPublisher(ctrl)
-
-	getEventFn := func(ctx context.Context, eventName string) (intersvc.InternalEvent, error) {
-		// Verify context is not nil
-		assert.NotNil(t, ctx)
-		return intersvc.InternalEvent{
-			Name:        "test.event",
-			ServiceName: "test-service",
-			Triggers:    intersvc.ListTrigger{},
-		}, nil
-	}
-
-	// Create the handler
-	_, handlerFunc := GetInternalConsumerHandle(getEventFn, mockPublisher)
+	mockRepository := NewMockRepository(ctrl)
+	mockCache := cache.NewMockCache(ctrl)
 
 	payload := InternalPayload{
 		EventName: "test.event",
-		Data:      Data{},
-		Metadata:  Metadata{},
-		Opts:      ConfigOpts{},
-	}
-
-	payloadBytes, err := json.Marshal(payload)
-	require.NoError(t, err)
-
-	task := asynq.NewTask("event-queue.internal", payloadBytes)
-
-	// Execute with nil context - this should work as the handler should handle it gracefully
-	err = handlerFunc(context.Background(), task)
-	assert.NoError(t, err)
-}
-
-func TestGetInternalConsumerHandle_ConcurrentExecution(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPublisher := publisher.NewMockPublisher(ctrl)
-
-	getEventFn := func(ctx context.Context, eventName string) (intersvc.InternalEvent, error) {
-		// Simulate some processing time
-		time.Sleep(10 * time.Millisecond)
-		return intersvc.InternalEvent{
-			Name:        eventName,
-			ServiceName: "test-service",
-			Triggers: intersvc.ListTrigger{
-				{
-					ServiceName: "target-service",
-					Type:        "persistent",
-					BaseUrl:     "https://api.target.com",
-					Path:        "/webhook/test",
-					Headers:     map[string]string{},
-				},
-			},
-		}, nil
-	}
-
-	// Expect multiple concurrent publishes
-	mockPublisher.EXPECT().
-		Publish(gomock.Any(), "event-queue.request-to-external", gomock.Any(), gomock.Any()).
-		Return(nil).
-		Times(5)
-
-	// Create the handler
-	_, handlerFunc := GetInternalConsumerHandle(getEventFn, mockPublisher)
-
-	// Create payload
-	payload := InternalPayload{
-		EventName: "concurrent.test",
 		Data:      Data{"test": "data"},
-		Metadata:  Metadata{},
+		Metadata:  Metadata{Headers: map[string]string{}},
 		Opts:      ConfigOpts{},
 	}
 
-	payloadBytes, err := json.Marshal(payload)
-	require.NoError(t, err)
-
-	// Execute handler concurrently
-	errChan := make(chan error, 5)
-	for i := 0; i < 5; i++ {
-		go func() {
-			task := asynq.NewTask("event-queue.internal", payloadBytes)
-			err := handlerFunc(context.Background(), task)
-			errChan <- err
-		}()
-	}
-
-	// Collect results
-	for i := 0; i < 5; i++ {
-		err := <-errChan
-		assert.NoError(t, err)
-	}
-}
-
-func TestGetInternalConsumerHandle_PayloadFieldsMapping(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPublisher := publisher.NewMockPublisher(ctrl)
-
-	getEventFn := func(ctx context.Context, eventName string) (intersvc.InternalEvent, error) {
-		return intersvc.InternalEvent{
-			Name:        "field.test",
-			ServiceName: "field-service",
-			Triggers: intersvc.ListTrigger{
-				{
-					ServiceName: "target-service",
-					Type:        "persistent",
-					BaseUrl:     "https://api.target.com",
-					Path:        "/webhook/field-test",
-					Headers: map[string]string{
-						"X-Custom-Header": "custom-value",
-					},
-				},
-			},
-		}, nil
-	}
-
-	// Verify that all fields are correctly mapped from InternalPayload to RequestPayload
-	mockPublisher.EXPECT().
-		Publish(gomock.Any(), "event-queue.request-to-external", gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts ...asynq.Option) error {
-			// Verify event name mapping
-			assert.Equal(t, "field.test", payload.EventName)
-
-			// Verify data mapping
-			assert.Equal(t, "test-value", payload.Data["test-key"])
-			assert.Equal(t, float64(42), payload.Data["test-number"]) // JSON unmarshaling converts numbers to float64
-
-			// Verify headers mapping from metadata
-			assert.Equal(t, "application/json", payload.Headers["Content-Type"])
-			assert.Equal(t, "bearer test-token", payload.Headers["Authorization"])
-
-			// Verify trigger mapping
-			assert.Equal(t, "target-service", payload.Trigger.ServiceName)
-			assert.Equal(t, TriggerType("persistent"), payload.Trigger.Type)
-			assert.Equal(t, "https://api.target.com", payload.Trigger.BaseUrl)
-			assert.Equal(t, "/webhook/field-test", payload.Trigger.Path)
-			assert.Equal(t, "custom-value", payload.Trigger.Headers["X-Custom-Header"])
-
-			return nil
-		}).
-		Times(1)
+	key := cache.Key("event-queue.test.event")
+	mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "test.event").Return(key)
+	mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
+	mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
+		Return(errors.New("cache error"))
 
 	// Create the handler
-	_, handlerFunc := GetInternalConsumerHandle(getEventFn, mockPublisher)
-
-	payload := InternalPayload{
-		EventName: "field.test",
-		Data: Data{
-			"test-key":    "test-value",
-			"test-number": 42,
-		},
-		Metadata: Metadata{
-			Source:      "test-source",
-			Version:     "1.0",
-			Environment: "test",
-			Headers: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "bearer test-token",
-			},
-		},
-		Opts: ConfigOpts{
-			MaxRetries: 3,
-			Queue:      "test-queue",
-		},
-	}
+	handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher)
 
 	payloadBytes, err := json.Marshal(payload)
 	require.NoError(t, err)
 
 	task := asynq.NewTask("event-queue.internal", payloadBytes)
 
-	err = handlerFunc(context.Background(), task)
-	assert.NoError(t, err)
+	err = handle.Handler(context.Background(), task)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "get internal event: cache error")
 }

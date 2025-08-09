@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"github.com/IsaacDSC/webhook/internal/cfg"
 	"github.com/IsaacDSC/webhook/pkg/asynqsvc"
 	"log"
 
@@ -8,8 +9,6 @@ import (
 	"github.com/IsaacDSC/webhook/pkg/cache"
 	"github.com/IsaacDSC/webhook/pkg/publisher"
 
-	"github.com/IsaacDSC/webhook/internal/infra/cfg"
-	"github.com/IsaacDSC/webhook/internal/infra/middleware"
 	"github.com/IsaacDSC/webhook/internal/interstore"
 
 	"github.com/hibiken/asynq"
@@ -31,7 +30,7 @@ func StartWorker(cache cache.Cache, store interstore.Repository, pub publisher.P
 	)
 
 	mux := asynq.NewServeMux()
-	mux.Use(middleware.AsynqLogger)
+	mux.Use(AsynqLogger)
 
 	events := []asynqsvc.AsynqHandle{
 		eventqueue.GetRequestHandle(),

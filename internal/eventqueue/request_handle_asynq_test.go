@@ -94,10 +94,10 @@ func TestRequestPayload_mergeHeaders(t *testing.T) {
 
 func TestGetRequestHandle(t *testing.T) {
 	t.Run("returns_correct_queue_name_and_handler", func(t *testing.T) {
-		queueName, handler := GetRequestHandle()
+		handle := GetRequestHandle()
 
-		assert.Equal(t, "event-queue.request-to-external", queueName)
-		assert.NotNil(t, handler)
+		assert.Equal(t, "event-queue.request-to-external", handle.Event)
+		assert.NotNil(t, handle.Handler)
 	})
 }
 
@@ -159,7 +159,7 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Get the handler
-			_, handler := GetRequestHandle()
+			handle := GetRequestHandle()
 
 			// Create task payload
 			taskPayload, err := json.Marshal(tt.payload)
@@ -170,7 +170,7 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 
 			// Execute handler
 			ctx := context.Background()
-			err = handler(ctx, task)
+			err = handle.Handler(ctx, task)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -185,13 +185,13 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 }
 
 func TestGetRequestHandle_Handler_InvalidPayload(t *testing.T) {
-	_, handler := GetRequestHandle()
+	handle := GetRequestHandle()
 
 	// Create task with invalid JSON payload
 	task := asynq.NewTask("test-queue", []byte("invalid json"))
 
 	ctx := context.Background()
-	err := handler(ctx, task)
+	err := handle.Handler(ctx, task)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unmarshal payload:")
