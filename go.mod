@@ -8,10 +8,9 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hibiken/asynq v0.25.1
 	github.com/ilyakaznacheev/cleanenv v1.5.0
-	github.com/redis/go-redis/v9 v9.7.0
+	github.com/redis/go-redis/v9 v9.12.0
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.37.0
-	github.com/testcontainers/testcontainers-go/modules/mongodb v0.37.0
 	github.com/tsenart/vegeta/v12 v12.12.0
 	go.mongodb.org/mongo-driver/v2 v2.2.1
 	go.uber.org/mock v0.5.2
