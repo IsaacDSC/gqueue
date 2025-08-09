@@ -3,7 +3,7 @@ package ctxlogger
 import (
 	"context"
 
-	"github.com/IsaacDSC/gopherline/pkg/logs"
+	"github.com/IsaacDSC/gqueue/pkg/logs"
 )
 
 type LoggerKey struct{}

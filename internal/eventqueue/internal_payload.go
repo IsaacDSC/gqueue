@@ -3,7 +3,7 @@ package eventqueue
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/IsaacDSC/gopherline/internal/domain"
+	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/hibiken/asynq"
 )
 

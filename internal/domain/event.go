@@ -2,8 +2,8 @@ package domain
 
 import (
 	"fmt"
-	"github.com/IsaacDSC/gopherline/internal/cfg"
-	"github.com/IsaacDSC/gopherline/pkg/intertime"
+	"github.com/IsaacDSC/gqueue/internal/cfg"
+	"github.com/IsaacDSC/gqueue/pkg/intertime"
 	"github.com/hibiken/asynq"
 	"strings"
 	"time"

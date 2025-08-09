@@ -1,15 +1,15 @@
 package setup
 
 import (
-	"github.com/IsaacDSC/gopherline/internal/cfg"
-	"github.com/IsaacDSC/gopherline/pkg/asynqsvc"
+	"github.com/IsaacDSC/gqueue/internal/cfg"
+	"github.com/IsaacDSC/gqueue/pkg/asynqsvc"
 	"log"
 
-	"github.com/IsaacDSC/gopherline/internal/eventqueue"
-	"github.com/IsaacDSC/gopherline/pkg/cache"
-	"github.com/IsaacDSC/gopherline/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/internal/eventqueue"
+	"github.com/IsaacDSC/gqueue/pkg/cache"
+	"github.com/IsaacDSC/gqueue/pkg/publisher"
 
-	"github.com/IsaacDSC/gopherline/internal/interstore"
+	"github.com/IsaacDSC/gqueue/internal/interstore"
 
 	"github.com/hibiken/asynq"
 )

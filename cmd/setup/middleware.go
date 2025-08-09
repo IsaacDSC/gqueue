@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/IsaacDSC/gopherline/pkg/ctxlogger"
-	"github.com/IsaacDSC/gopherline/pkg/logs"
+	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
+	"github.com/IsaacDSC/gqueue/pkg/logs"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 )

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/IsaacDSC/gopherline/internal/domain"
-	"github.com/IsaacDSC/gopherline/pkg/cache"
-	"github.com/IsaacDSC/gopherline/pkg/httpsvc"
+	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/pkg/cache"
+	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
 )
 
 type Repository interface {

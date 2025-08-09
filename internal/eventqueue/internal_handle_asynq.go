@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/IsaacDSC/gopherline/pkg/asynqsvc"
-	"github.com/IsaacDSC/gopherline/pkg/logs"
+	"github.com/IsaacDSC/gqueue/pkg/asynqsvc"
+	"github.com/IsaacDSC/gqueue/pkg/logs"
 
-	"github.com/IsaacDSC/gopherline/internal/domain"
-	"github.com/IsaacDSC/gopherline/pkg/cache"
-	"github.com/IsaacDSC/gopherline/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/pkg/cache"
+	"github.com/IsaacDSC/gqueue/pkg/publisher"
 	"github.com/hibiken/asynq"
 )
 

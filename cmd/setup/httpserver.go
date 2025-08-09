@@ -4,12 +4,12 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/IsaacDSC/gopherline/internal/backoffice"
-	"github.com/IsaacDSC/gopherline/internal/eventqueue"
-	"github.com/IsaacDSC/gopherline/internal/interstore"
-	cache2 "github.com/IsaacDSC/gopherline/pkg/cache"
-	"github.com/IsaacDSC/gopherline/pkg/httpsvc"
-	"github.com/IsaacDSC/gopherline/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/internal/backoffice"
+	"github.com/IsaacDSC/gqueue/internal/eventqueue"
+	"github.com/IsaacDSC/gqueue/internal/interstore"
+	cache2 "github.com/IsaacDSC/gqueue/pkg/cache"
+	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
+	"github.com/IsaacDSC/gqueue/pkg/publisher"
 )
 
 func StartServer(cache cache2.Cache, store interstore.Repository, pub publisher.Publisher) {

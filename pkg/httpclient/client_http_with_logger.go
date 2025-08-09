@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/IsaacDSC/gopherline/pkg/ctxlogger"
+	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 )
 
 type HTTPClientTransport struct {

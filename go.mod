@@ -1,4 +1,4 @@
-module github.com/IsaacDSC/gopherline
+module github.com/IsaacDSC/gqueue
 
 go 1.23.7
 

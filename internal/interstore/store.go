@@ -3,7 +3,7 @@ package interstore
 import (
 	"context"
 
-	"github.com/IsaacDSC/gopherline/internal/domain"
+	"github.com/IsaacDSC/gqueue/internal/domain"
 )
 
 type Repository interface {
