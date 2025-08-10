@@ -123,9 +123,20 @@ services:
 
 For more Docker details, see: [README.Docker.md](README.Docker.md)
 
-<!-- **Trigger Types:**
+---
 
-----
+## System Features
+
+### Event Types and Triggers
+
+The webhook system supports various event types and trigger mechanisms:
+
+- **User Events**: Registration, authentication, profile updates
+- **Transaction Events**: Payment processing, order completion
+- **System Events**: Health checks, monitoring alerts
+- **Custom Events**: Configurable business logic events
+
+---
 
 ## Security Recommendations
 
