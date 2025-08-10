@@ -8,13 +8,13 @@ import (
 )
 
 func init() {
-	str := os.Getenv("ASYNQ_QUEUES")
+	str := os.Getenv("WQ_QUEUES")
 	if str != "" {
 		json.Unmarshal([]byte(str), &cfg.AsynqConfig.Queues)
 	}
 
 	if !cfg.AsynqConfig.Queues.IsValid() {
-		panic("invalid ASYNQ_QUEUES")
+		panic("invalid WQ_QUEUES")
 	}
 
 }
@@ -28,7 +28,7 @@ type Cache struct {
 }
 
 type AsynqConfig struct {
-	Concurrency int `env:"ASYNQ_CONCURRENCY"`
+	Concurrency int `env:"WQ_CONCURRENCY"`
 	Queues      AsynqQueues
 }
 
