@@ -1,5 +1,7 @@
 # Gqueue Documentation
 
+![Gqueue.png](docs/assets/Gqueue.png)
+
 ## Introduction
 
 This webhook system is an application developed in Go that enables communication between internal services through events. The project implements an Event-Driven Architecture that allows registration, triggering, and processing of events between different services.
