@@ -1,4 +1,4 @@
-# IWebhook Documentation
+# Gqueue Documentation
 
 ## Introduction
 
@@ -147,3 +147,85 @@ For more Docker details, see: [README.Docker.md](README.Docker.md)
 
 ---
 
+## SDK and CLI Tools
+
+### Go SDK - Workqueue
+
+For easier integration with your Go applications, use the official SDK:
+
+**Repository**: [https://github.com/IsaacDSC/workqueue](https://github.com/IsaacDSC/workqueue)
+
+The Go SDK provides:
+- Simple client for webhook registration and management
+- Type-safe event publishing
+- Built-in retry mechanisms
+- Connection pooling and performance optimizations
+
+#### Installation
+```bash
+go get github.com/IsaacDSC/workqueue
+```
+
+#### Basic Usage
+```go
+import "github.com/IsaacDSC/workqueue"
+
+// Initialize client
+client := workqueue.NewClient("http://your-webhook-service:8080")
+
+// Register a webhook
+webhook := &workqueue.Webhook{
+    Name:        "user-created",
+    Endpoint:    "http://your-service/webhooks/user-created",
+    Description: "Triggered when a new user is created",
+}
+err := client.RegisterWebhook(webhook)
+```
+
+### CLI Tool - WorkqueueCLI
+
+For command-line operations and automation:
+
+**Repository**: [https://github.com/IsaacDSC/workqueuecli](https://github.com/IsaacDSC/workqueuecli)
+
+The CLI tool provides:
+- Webhook registration and management from command line
+- Event triggering for testing purposes
+- System health monitoring
+- Batch operations support
+
+#### Installation
+```bash
+go install github.com/IsaacDSC/workqueuecli@latest
+```
+
+#### Basic Usage
+```bash
+# Register a webhook
+workqueuecli webhook register \
+  --name "user-created" \
+  --endpoint "http://your-service/webhooks/user-created" \
+  --description "User creation webhook"
+
+# Trigger an event
+workqueuecli event trigger \
+  --name "user-created" \
+  --payload '{"user_id": 123, "email": "user@example.com"}'
+
+# List registered webhooks
+workqueuecli webhook list
+```
+
+---
+
+## API Reference
+
+The system provides a REST API for webhook management and event processing. For detailed API documentation and examples, refer to the `client.http` file in the project root.
+
+## Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+## License
+
+This project is licensed under the terms specified in the [LICENSE](LICENSE) file.
