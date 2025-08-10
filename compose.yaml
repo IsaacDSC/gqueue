@@ -1,8 +1,6 @@
 services:
   server:
-    build:
-      context: .
-      target: final
+    image: isaacdsc/gqueue:latest
     ports:
       - 8080:8080
     depends_on:
@@ -90,4 +88,3 @@ services:
 volumes:
   redis-data:
   mongodb-data:
-
