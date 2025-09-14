@@ -340,7 +340,7 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 					BaseUrl:     "http://localhost:99999", // Unreachable port
 					Path:        "/webhook",
 				},
-				Data: map[string]any{"test": "value"},
+				Data:    map[string]any{"test": "value"},
 				Headers: map[string]string{},
 			}
 
@@ -464,5 +464,3 @@ func TestGetRequestHandle_DataPassing(t *testing.T) {
 	assert.Equal(t, float64(42), receivedData["count"]) // JSON numbers are float64
 	assert.Equal(t, true, receivedData["is_active"])
 }
-
-
