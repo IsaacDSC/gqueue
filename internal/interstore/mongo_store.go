@@ -38,7 +38,7 @@ func NewMongoStore(client *mongo.Client) *MongoStore {
 	}
 }
 
-func (r MongoStore) GetInternalEvent(ctx context.Context, eventName string) (domain.Event, error) {
+func (r MongoStore) GetInternalEvent(ctx context.Context, eventName, serviceName string) ([]domain.Event, error) {
 	l := ctxlogger.GetLogger(ctx)
 	filter := bson.D{{Key: "event.name", Value: eventName}}
 	var result Event
@@ -46,13 +46,13 @@ func (r MongoStore) GetInternalEvent(ctx context.Context, eventName string) (dom
 	if err := r.collectionInternalEvent.FindOne(ctx, filter).Decode(&result); err != nil {
 		if errors.Is(mongo.ErrNoDocuments, err) {
 			l.Warn("No documents found", "eventName", eventName)
-			return domain.Event{}, domain.EventNotFound
+			return nil, domain.EventNotFound
 		}
 
-		return domain.Event{}, err
+		return nil, err
 	}
 
-	return result.Event, nil
+	return []domain.Event{result.Event}, nil
 }
 
 func (r MongoStore) Save(ctx context.Context, event domain.Event) error {

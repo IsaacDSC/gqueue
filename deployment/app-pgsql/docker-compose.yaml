@@ -1,16 +1,23 @@
 services:
   server:
-    image: isaacdsc/gqueue:latest
+    build:
+      context: ../../.
+      target: final
     ports:
       - 8080:8080
     depends_on:
-      - redis
-      - mongodb
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      - DB_CONNECTION_STRING=mongodb://root:example@mongodb:27017/
+      - DB_DRIVER=pg
+      - DB_CONNECTION_STRING=postgres://idsc:admin@postgres:5432/gqueue?sslmode=disable
       - CACHE_ADDR=redis:6379
       - WQ_CONCURRENCY=32
-      - WQ_QUEUES='{"internal.critical": 7, "internal.high": 5, "internal.medium": 3, "internal.low": 1, "external.critical": 7, "external.high": 5, "external.medium": 3, "external.low": 1}'
+      - WQ_QUEUES={"internal.critical":7,"internal.high":5,"internal.medium":3,"internal.low":1,"external.critical":7,"external.high":5,"external.medium":3,"external.low":1}
+    networks:
+      - app-network
     deploy:
       resources:
         limits:
@@ -27,10 +34,12 @@ services:
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
     deploy:
       resources:
         limits:
@@ -40,20 +49,24 @@ services:
           cpus: '0.2'
           memory: 256M
 
-  mongodb:
-    image: mongo:latest
+  postgres:
+    image: postgres:15
     ports:
-      - 27017:27017
+      - 5432:5432
     volumes:
-      - mongodb-data:/data/db
+      - postgres-data:/var/lib/postgresql/data
+      - ../tables.sql:/docker-entrypoint-initdb.d/01-tables.sql:ro
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=root
-      - MONGO_INITDB_ROOT_PASSWORD=example
+      - POSTGRES_DB=gqueue
+      - POSTGRES_USER=idsc
+      - POSTGRES_PASSWORD=admin
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [ "CMD-SHELL", "pg_isready -U idsc -d gqueue" ]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - app-network
     deploy:
       resources:
         limits:
@@ -63,18 +76,21 @@ services:
           cpus: '0.5'
           memory: 512M
 
-  mongo-express:
-    image: mongo-express:latest
+  pgadmin:
+    image: dpage/pgadmin4:latest
     ports:
-      - 8081:8081
+      - 8081:80
     environment:
-      - ME_CONFIG_MONGODB_ADMINUSERNAME=root
-      - ME_CONFIG_MONGODB_ADMINPASSWORD=example
-      - ME_CONFIG_MONGODB_URL=mongodb://root:example@mongodb:27017/
-      - ME_CONFIG_BASICAUTH_USERNAME=admin
-      - ME_CONFIG_BASICAUTH_PASSWORD=pass
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
     depends_on:
-      - mongodb
+      - postgres
+    networks:
+      - app-network
     restart: always
     deploy:
       resources:
@@ -85,6 +101,11 @@ services:
           cpus: '0.2'
           memory: 256M
 
+networks:
+  app-network:
+    driver: bridge
+
 volumes:
   redis-data:
-  mongodb-data:
+  postgres-data:
+  pgadmin-data:

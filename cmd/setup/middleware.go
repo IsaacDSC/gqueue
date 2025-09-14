@@ -38,6 +38,7 @@ func AsynqLogger(h asynq.Handler) asynq.Handler {
 
 func LoggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		logger := logs.With(
 			"method", r.Method,
 			"path", r.URL.Path,

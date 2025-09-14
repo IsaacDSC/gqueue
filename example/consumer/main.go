@@ -9,6 +9,7 @@ import (
 func main() {
 	http.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
+		log.Println("[*] Received Headers:", r.Header)
 		log.Println("[*] Received request:", r.Method, r.URL.Path)
 
 		defer r.Body.Close()

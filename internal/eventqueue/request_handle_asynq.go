@@ -1,14 +1,12 @@
 package eventqueue
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/IsaacDSC/gqueue/pkg/asynqsvc"
-	"github.com/IsaacDSC/gqueue/pkg/httpclient"
 	"github.com/hibiken/asynq"
-	"net/http"
 )
 
 type RequestPayload struct {
@@ -30,7 +28,11 @@ func (p RequestPayload) mergeHeaders(headers map[string]string) map[string]strin
 	return p.Headers
 }
 
-func GetRequestHandle() asynqsvc.AsynqHandle {
+type Fetcher interface {
+	NotifyTrigger(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error
+}
+
+func GetRequestHandle(fetch Fetcher) asynqsvc.AsynqHandle {
 	return asynqsvc.AsynqHandle{
 		Event: "event-queue.request-to-external",
 		Handler: func(ctx context.Context, task *asynq.Task) error {
@@ -40,46 +42,11 @@ func GetRequestHandle() asynqsvc.AsynqHandle {
 			}
 
 			headers := payload.mergeHeaders(payload.Trigger.Headers)
-			if err := fetch(ctx, payload.Data, headers, payload.Trigger); err != nil {
+			if err := fetch.NotifyTrigger(ctx, payload.Data, headers, payload.Trigger); err != nil {
 				return fmt.Errorf("fetch trigger: %w", err)
 			}
 
 			return nil
 		},
 	}
-}
-
-func fetch(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
-	payload, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("marshal data: %w", err)
-	}
-
-	url := trigger.GetUrl()
-
-	bodyReader := bytes.NewReader(payload)
-
-	client := httpclient.NewHTTPClientWithLogging(ctx)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bodyReader)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("post request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
 }

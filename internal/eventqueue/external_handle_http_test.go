@@ -49,7 +49,8 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "successful_publish_minimal_payload",
 			payload: InternalPayload{
-				EventName: "user.created",
+				ServiceName: "user-service",
+				EventName:   "user.created",
 				Data: Data{
 					"user_id": "123",
 					"email":   "test@example.com",
@@ -93,7 +94,8 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "successful_publish_full_payload",
 			payload: InternalPayload{
-				EventName: "order.completed",
+				ServiceName: "order-service",
+				EventName:   "order.completed",
 				Data: Data{
 					"order_id":    "ord_123456",
 					"customer_id": "cust_789",
@@ -154,7 +156,8 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "successful_publish_with_deadline",
 			payload: InternalPayload{
-				EventName: "notification.send",
+				ServiceName: "notification-service",
+				EventName:   "notification.send",
 				Data: Data{
 					"user_id":     "user_456",
 					"message":     "Welcome to our platform!",
@@ -208,7 +211,8 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "publisher_error",
 			payload: InternalPayload{
-				EventName: "payment.failed",
+				ServiceName: "payment-service",
+				EventName:   "payment.failed",
 				Data: Data{
 					"payment_id": "pay_error123",
 					"reason":     "insufficient_funds",
@@ -249,8 +253,9 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "empty_payload_with_defaults",
 			payload: InternalPayload{
-				EventName: "system.ping",
-				Data:      Data{},
+				ServiceName: "health-check-service",
+				EventName:   "system.ping",
+				Data:        Data{},
 				Metadata: Metadata{
 					Source:      "health-check",
 					Version:     "1.0",
@@ -431,8 +436,9 @@ func TestGetExternalHandle_RequestBodyClosure(t *testing.T) {
 	httpHandle := Publisher(mockPublisher)
 
 	payload := InternalPayload{
-		EventName: "test.event",
-		Data:      Data{"key": "value"},
+		ServiceName: "test-service",
+		EventName:   "test.event",
+		Data:        Data{"key": "value"},
 		Metadata: Metadata{
 			Source:      "test",
 			Version:     "1.0",
@@ -538,7 +544,8 @@ func TestGetExternalHandle_PayloadValidation(t *testing.T) {
 	// This test demonstrates that our validation logic works
 	// by testing with a payload that intentionally has wrong values
 	payload := InternalPayload{
-		EventName: "user.created",
+		ServiceName: "wrong-service",
+		EventName:   "user.created",
 		Data: Data{
 			"user_id": "wrong_id", // This will be validated in the mock
 			"email":   "wrong@email.com",

@@ -7,15 +7,16 @@ import (
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/pkg/cache"
+	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
 )
 
 type Repository interface {
 	Save(ctx context.Context, event domain.Event) error
+	GetInternalEvent(ctx context.Context, eventName, serviceName string) ([]domain.Event, error)
 }
 
-func CreateConsumer(cc cache.Cache, repo Repository) httpsvc.HttpHandle {
+func CreateConsumer(cc cachemanager.Cache, repo Repository) httpsvc.HttpHandle {
 	return httpsvc.HttpHandle{
 		Path: "POST /event/consumer",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +33,7 @@ func CreateConsumer(cc cache.Cache, repo Repository) httpsvc.HttpHandle {
 			}
 
 			ctx := r.Context()
-			key := cc.Key(domain.CacheKeyEventPrefix, payload.Name)
+			key := eventKey(cc, payload.ServiceName, payload.Name)
 			defaultTTL := cc.GetDefaultTTL()
 
 			if err := cc.Hydrate(ctx, key, &payload, defaultTTL, func(ctx context.Context) (any, error) {

@@ -7,7 +7,7 @@
 //
 
 // Package cache is a generated GoMock package.
-package cache
+package cachemanager
 
 import (
 	context "context"

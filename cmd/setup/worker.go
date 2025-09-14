@@ -1,12 +1,14 @@
 package setup
 
 import (
-	"github.com/IsaacDSC/gqueue/internal/cfg"
-	"github.com/IsaacDSC/gqueue/pkg/asynqsvc"
 	"log"
 
+	"github.com/IsaacDSC/gqueue/internal/cfg"
+	"github.com/IsaacDSC/gqueue/internal/fetcher"
+	"github.com/IsaacDSC/gqueue/pkg/asynqsvc"
+
 	"github.com/IsaacDSC/gqueue/internal/eventqueue"
-	"github.com/IsaacDSC/gqueue/pkg/cache"
+	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/publisher"
 
 	"github.com/IsaacDSC/gqueue/internal/interstore"
@@ -14,7 +16,7 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-func StartWorker(cache cache.Cache, store interstore.Repository, pub publisher.Publisher) {
+func StartWorker(cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher) {
 	cfg := cfg.Get()
 
 	asyqCfg := asynq.Config{
@@ -26,11 +28,12 @@ func StartWorker(cache cache.Cache, store interstore.Repository, pub publisher.P
 		asyqCfg,
 	)
 
+	fetch := fetcher.NewNotification()
 	mux := asynq.NewServeMux()
 	mux.Use(AsynqLogger)
 
 	events := []asynqsvc.AsynqHandle{
-		eventqueue.GetRequestHandle(),
+		eventqueue.GetRequestHandle(fetch),
 		eventqueue.GetInternalConsumerHandle(store, cache, pub),
 	}
 

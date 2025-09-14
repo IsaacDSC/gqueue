@@ -9,7 +9,7 @@ import (
 
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/pkg/cache"
+	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/publisher"
 	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
@@ -37,7 +37,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 	tests := []struct {
 		name           string
 		payload        InternalPayload
-		setupMocks     func(*publisher.MockPublisher, *MockRepository, *cache.MockCache)
+		setupMocks     func(*publisher.MockPublisher, *MockRepository, *cachemanager.MockCache)
 		expectedError  bool
 		expectedErrMsg string
 	}{
@@ -63,28 +63,30 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					QueueType:  "internal.default",
 				},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
-				key := cache.Key("event-queue.user.created")
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache) {
+				key := cachemanager.Key("event-queue.user.created")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.created").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
 				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cache.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						event := domain.Event{
-							Name:        "user.created",
-							ServiceName: "user-service",
-							Triggers: []domain.Trigger{
-								{
-									ServiceName: "notification-service",
-									Type:        "persistent",
-									Host:        "https://api.notification.com",
-									Path:        "/webhook/user-created",
-									Headers: map[string]string{
-										"X-API-Key": "secret",
+					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *[]domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						events := []domain.Event{
+							{
+								Name:        "user.created",
+								ServiceName: "user-service",
+								Triggers: []domain.Trigger{
+									{
+										ServiceName: "notification-service",
+										Type:        "persistent",
+										Host:        "https://api.notification.com",
+										Path:        "/webhook/user-created",
+										Headers: map[string]string{
+											"X-API-Key": "secret",
+										},
 									},
 								},
 							},
 						}
-						*dest = event
+						*dest = events
 						return nil
 					})
 
@@ -128,37 +130,39 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					QueueType:  "internal.high-priority",
 				},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
-				key := cache.Key("event-queue.order.completed")
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache) {
+				key := cachemanager.Key("event-queue.order.completed")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "order.completed").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
 				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cache.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						event := domain.Event{
-							Name:        "order.completed",
-							ServiceName: "order-service",
-							Triggers: []domain.Trigger{
-								{
-									ServiceName: "billing-service",
-									Type:        "persistent",
-									Host:        "https://api.billing.com",
-									Path:        "/webhook/order-completed",
-									Headers: map[string]string{
-										"X-API-Key": "billing-key",
+					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *[]domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						events := []domain.Event{
+							{
+								Name:        "order.completed",
+								ServiceName: "order-service",
+								Triggers: []domain.Trigger{
+									{
+										ServiceName: "billing-service",
+										Type:        "persistent",
+										Host:        "https://api.billing.com",
+										Path:        "/webhook/order-completed",
+										Headers: map[string]string{
+											"X-API-Key": "billing-key",
+										},
 									},
-								},
-								{
-									ServiceName: "analytics-service",
-									Type:        "notPersistent",
-									Host:        "https://api.analytics.com",
-									Path:        "/webhook/order-completed",
-									Headers: map[string]string{
-										"X-API-Key": "analytics-key",
+									{
+										ServiceName: "analytics-service",
+										Type:        "notPersistent",
+										Host:        "https://api.analytics.com",
+										Path:        "/webhook/order-completed",
+										Headers: map[string]string{
+											"X-API-Key": "analytics-key",
+										},
 									},
 								},
 							},
 						}
-						*dest = event
+						*dest = events
 						return nil
 					})
 
@@ -190,8 +194,8 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
-				key := cache.Key("event-queue.nonexistent.event")
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache) {
+				key := cachemanager.Key("event-queue.nonexistent.event")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "nonexistent.event").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
 				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
@@ -215,26 +219,28 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
-				key := cache.Key("event-queue.user.updated")
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache) {
+				key := cachemanager.Key("event-queue.user.updated")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.updated").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
 				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cache.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						event := domain.Event{
-							Name:        "user.updated",
-							ServiceName: "user-service",
-							Triggers: []domain.Trigger{
-								{
-									ServiceName: "notification-service",
-									Type:        "persistent",
-									Host:        "https://api.notification.com",
-									Path:        "/webhook/user-updated",
-									Headers:     map[string]string{},
+					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *[]domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						events := []domain.Event{
+							{
+								Name:        "user.updated",
+								ServiceName: "user-service",
+								Triggers: []domain.Trigger{
+									{
+										ServiceName: "notification-service",
+										Type:        "persistent",
+										Host:        "https://api.notification.com",
+										Path:        "/webhook/user-updated",
+										Headers:     map[string]string{},
+									},
 								},
 							},
 						}
-						*dest = event
+						*dest = events
 						return nil
 					})
 
@@ -261,18 +267,20 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cache.MockCache) {
-				key := cache.Key("event-queue.archived.event")
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache) {
+				key := cachemanager.Key("event-queue.archived.event")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "archived.event").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
 				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cache.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						event := domain.Event{
-							Name:        "archived.event",
-							ServiceName: "archive-service",
-							Triggers:    []domain.Trigger{}, // Empty triggers
+					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *[]domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						events := []domain.Event{
+							{
+								Name:        "archived.event",
+								ServiceName: "archive-service",
+								Triggers:    []domain.Trigger{}, // Empty triggers
+							},
 						}
-						*dest = event
+						*dest = events
 						return nil
 					})
 				// No publisher expectations since there are no triggers to process
@@ -286,7 +294,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 			// Create fresh mocks for each test
 			mockPublisher := publisher.NewMockPublisher(ctrl)
 			mockRepository := NewMockRepository(ctrl)
-			mockCache := cache.NewMockCache(ctrl)
+			mockCache := cachemanager.NewMockCache(ctrl)
 
 			// Setup mocks
 			tt.setupMocks(mockPublisher, mockRepository, mockCache)
@@ -336,7 +344,7 @@ func TestGetInternalConsumerHandle_InvalidPayload(t *testing.T) {
 
 	mockPublisher := publisher.NewMockPublisher(ctrl)
 	mockRepository := NewMockRepository(ctrl)
-	mockCache := cache.NewMockCache(ctrl)
+	mockCache := cachemanager.NewMockCache(ctrl)
 
 	// Create the handler
 	handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher)
@@ -370,7 +378,7 @@ func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
 
 	mockPublisher := publisher.NewMockPublisher(ctrl)
 	mockRepository := NewMockRepository(ctrl)
-	mockCache := cache.NewMockCache(ctrl)
+	mockCache := cachemanager.NewMockCache(ctrl)
 
 	payload := InternalPayload{
 		EventName: "test.event",
@@ -379,7 +387,7 @@ func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
 		Opts:      domain.Opt{QueueType: "internal.default"},
 	}
 
-	key := cache.Key("event-queue.test.event")
+	key := cachemanager.Key("event-queue.test.event")
 	mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "test.event").Return(key)
 	mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
 	mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).

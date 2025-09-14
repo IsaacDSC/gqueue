@@ -8,13 +8,18 @@ import (
 )
 
 type InternalPayload struct {
-	EventName string     `json:"event_name"`
-	Data      Data       `json:"data"`
-	Metadata  Metadata   `json:"metadata"`
-	Opts      domain.Opt `json:"opts"`
+	ServiceName string     `json:"service_name"`
+	EventName   string     `json:"event_name"`
+	Data        Data       `json:"data"`
+	Metadata    Metadata   `json:"metadata"`
+	Opts        domain.Opt `json:"opts"`
 }
 
 func (p InternalPayload) Validate() error {
+	if p.ServiceName == "" {
+		return fmt.Errorf("service name is required")
+	}
+
 	if p.EventName == "" {
 		return fmt.Errorf("event name is required")
 	}

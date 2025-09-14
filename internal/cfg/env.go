@@ -20,6 +20,7 @@ func init() {
 }
 
 type ConfigDatabase struct {
+	Driver string `env:"DB_DRIVER"`
 	DbConn string `env:"DB_CONNECTION_STRING"`
 }
 
