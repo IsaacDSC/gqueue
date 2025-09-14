@@ -12,6 +12,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mockFetcher implements the Fetcher interface for testing
+type mockFetcher struct {
+	notifyTriggerFunc func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error
+}
+
+func (m *mockFetcher) NotifyTrigger(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+	if m.notifyTriggerFunc != nil {
+		return m.notifyTriggerFunc(ctx, data, headers, trigger)
+	}
+	return nil
+}
+
 func TestRequestPayload_mergeHeaders(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -94,7 +106,8 @@ func TestRequestPayload_mergeHeaders(t *testing.T) {
 
 func TestGetRequestHandle(t *testing.T) {
 	t.Run("returns_correct_queue_name_and_handler", func(t *testing.T) {
-		handle := GetRequestHandle()
+		mockFetch := &mockFetcher{}
+		handle := GetRequestHandle(mockFetch)
 
 		assert.Equal(t, "event-queue.request-to-external", handle.Event)
 		assert.NotNil(t, handle.Handler)
@@ -128,6 +141,7 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 	tests := []struct {
 		name           string
 		payload        RequestPayload
+		mockFetcher    *mockFetcher
 		expectedError  bool
 		expectedErrMsg string
 	}{
@@ -152,6 +166,11 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 					"Authorization": "Bearer token",
 				},
 			},
+			mockFetcher: &mockFetcher{
+				notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+					return nil
+				},
+			},
 			expectedError: false,
 		},
 	}
@@ -159,7 +178,7 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Get the handler
-			handle := GetRequestHandle()
+			handle := GetRequestHandle(tt.mockFetcher)
 
 			// Create task payload
 			taskPayload, err := json.Marshal(tt.payload)
@@ -185,7 +204,8 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 }
 
 func TestGetRequestHandle_Handler_InvalidPayload(t *testing.T) {
-	handle := GetRequestHandle()
+	mockFetch := &mockFetcher{}
+	handle := GetRequestHandle(mockFetch)
 
 	// Create task with invalid JSON payload
 	task := asynq.NewTask("test-queue", []byte("invalid json"))
@@ -197,18 +217,18 @@ func TestGetRequestHandle_Handler_InvalidPayload(t *testing.T) {
 	assert.Contains(t, err.Error(), "unmarshal payload:")
 }
 
-func TestFetch(t *testing.T) {
+func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 	tests := []struct {
-		name           string
-		data           map[string]any
-		headers        map[string]string
-		trigger        Trigger
-		serverResponse func(w http.ResponseWriter, r *http.Request)
-		expectedError  bool
-		expectedErrMsg string
+		name                string
+		data                map[string]any
+		headers             map[string]string
+		trigger             Trigger
+		mockNotifyTriggerFn func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error
+		expectedError       bool
+		expectedErrMsg      string
 	}{
 		{
-			name: "successful_fetch",
+			name: "successful_integration_test",
 			data: map[string]any{
 				"user_id": "123",
 				"email":   "test@example.com",
@@ -220,36 +240,21 @@ func TestFetch(t *testing.T) {
 			trigger: Trigger{
 				ServiceName: "user-service",
 				Type:        TriggerTypePersistent,
-				BaseUrl:     "", // Will be set to test server URL
+				BaseUrl:     "http://example.com",
 				Path:        "/webhook",
 			},
-			serverResponse: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
+			mockNotifyTriggerFn: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+				// Verify the merged headers are passed correctly
+				assert.Equal(t, "Bearer token", headers["Authorization"])
+				assert.Equal(t, "webhook-client", headers["User-Agent"])
+				return nil
 			},
 			expectedError: false,
 		},
 		{
-			name: "server_returns_error_status",
+			name: "fetcher_returns_error",
 			data: map[string]any{
 				"user_id": "123",
-			},
-			headers: map[string]string{},
-			trigger: Trigger{
-				ServiceName: "user-service",
-				Type:        TriggerTypePersistent,
-				BaseUrl:     "", // Will be set to test server URL
-				Path:        "/webhook",
-			},
-			serverResponse: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusInternalServerError)
-			},
-			expectedError:  true,
-			expectedErrMsg: "unexpected status code: 500",
-		},
-		{
-			name: "invalid_data_for_json_marshal",
-			data: map[string]any{
-				"invalid_channel": make(chan int), // This will cause JSON marshal to fail
 			},
 			headers: map[string]string{},
 			trigger: Trigger{
@@ -258,27 +263,39 @@ func TestFetch(t *testing.T) {
 				BaseUrl:     "http://example.com",
 				Path:        "/webhook",
 			},
-			serverResponse: func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
+			mockNotifyTriggerFn: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+				return assert.AnError
 			},
 			expectedError:  true,
-			expectedErrMsg: "marshal data:",
+			expectedErrMsg: "fetch trigger:",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var testServer *httptest.Server
-
-			// Only create server if we don't expect a marshal error
-			if !contains(tt.expectedErrMsg, "marshal data:") {
-				testServer = httptest.NewServer(http.HandlerFunc(tt.serverResponse))
-				defer testServer.Close()
-				tt.trigger.BaseUrl = testServer.URL
+			mockFetch := &mockFetcher{
+				notifyTriggerFunc: tt.mockNotifyTriggerFn,
 			}
 
+			handle := GetRequestHandle(mockFetch)
+
+			payload := RequestPayload{
+				EventName: "user.created",
+				Trigger:   tt.trigger,
+				Data:      tt.data,
+				Headers:   tt.headers,
+			}
+
+			// Create task payload
+			taskPayload, err := json.Marshal(payload)
+			require.NoError(t, err)
+
+			// Create asynq task
+			task := asynq.NewTask("test-queue", taskPayload)
+
+			// Execute handler
 			ctx := context.Background()
-			err := fetch(ctx, tt.data, tt.headers, tt.trigger)
+			err = handle.Handler(ctx, task)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -292,121 +309,160 @@ func TestFetch(t *testing.T) {
 	}
 }
 
-func TestFetch_InvalidURL(t *testing.T) {
-	ctx := context.Background()
-	data := map[string]any{"test": "value"}
-	headers := map[string]string{}
-
-	// Create trigger with invalid URL scheme
-	trigger := Trigger{
-		ServiceName: "test-service",
-		Type:        TriggerTypePersistent,
-		BaseUrl:     "://invalid-url",
-		Path:        "/webhook",
+func TestMockFetcher_ErrorScenarios(t *testing.T) {
+	tests := []struct {
+		name           string
+		mockError      error
+		expectedErrMsg string
+	}{
+		{
+			name:           "network_error_simulation",
+			mockError:      assert.AnError,
+			expectedErrMsg: "fetch trigger:",
+		},
 	}
 
-	err := fetch(ctx, data, headers, trigger)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockFetch := &mockFetcher{
+				notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+					return tt.mockError
+				},
+			}
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "create request:")
+			handle := GetRequestHandle(mockFetch)
+
+			payload := RequestPayload{
+				EventName: "user.created",
+				Trigger: Trigger{
+					ServiceName: "user-service",
+					Type:        TriggerTypePersistent,
+					BaseUrl:     "http://localhost:99999", // Unreachable port
+					Path:        "/webhook",
+				},
+				Data: map[string]any{"test": "value"},
+				Headers: map[string]string{},
+			}
+
+			// Create task payload
+			taskPayload, err := json.Marshal(payload)
+			require.NoError(t, err)
+
+			// Create asynq task
+			task := asynq.NewTask("test-queue", taskPayload)
+
+			ctx := context.Background()
+			err = handle.Handler(ctx, task)
+
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectedErrMsg)
+		})
+	}
 }
 
-func TestFetch_NetworkError(t *testing.T) {
-	ctx := context.Background()
-	data := map[string]any{"test": "value"}
-	headers := map[string]string{}
+func TestGetRequestHandle_HeaderMerging(t *testing.T) {
+	// Track the headers received by the mock fetcher
+	var receivedHeaders map[string]string
 
-	// Create trigger with unreachable URL
-	trigger := Trigger{
-		ServiceName: "test-service",
-		Type:        TriggerTypePersistent,
-		BaseUrl:     "http://localhost:99999", // Unreachable port
-		Path:        "/webhook",
+	mockFetch := &mockFetcher{
+		notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+			receivedHeaders = headers
+			return nil
+		},
 	}
 
-	err := fetch(ctx, data, headers, trigger)
+	handle := GetRequestHandle(mockFetch)
 
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "post request:")
-}
-
-func TestFetch_VerifyRequestHeaders(t *testing.T) {
-	// Track the request received by the server
-	var receivedRequest *http.Request
-
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedRequest = r
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer testServer.Close()
-
-	ctx := context.Background()
-	data := map[string]any{
-		"user_id": "123",
-		"email":   "test@example.com",
-	}
-	headers := map[string]string{
-		"Authorization": "Bearer token",
-		"User-Agent":    "webhook-client",
-		"X-Custom":      "custom-value",
+	payload := RequestPayload{
+		EventName: "user.created",
+		Trigger: Trigger{
+			ServiceName: "user-service",
+			Type:        TriggerTypePersistent,
+			BaseUrl:     "http://example.com",
+			Path:        "/webhook",
+			Headers: map[string]string{
+				"X-Service": "webhook-service",
+			},
+		},
+		Data: map[string]any{
+			"user_id": "123",
+			"email":   "test@example.com",
+		},
+		Headers: map[string]string{
+			"Authorization": "Bearer token",
+			"User-Agent":    "webhook-client",
+			"X-Custom":      "custom-value",
+		},
 	}
 
-	trigger := Trigger{
-		ServiceName: "user-service",
-		Type:        TriggerTypePersistent,
-		BaseUrl:     testServer.URL,
-		Path:        "/webhook",
-	}
-
-	err := fetch(ctx, data, headers, trigger)
+	// Create task payload
+	taskPayload, err := json.Marshal(payload)
 	require.NoError(t, err)
 
-	// Verify headers were set correctly
-	assert.Equal(t, "application/json", receivedRequest.Header.Get("Content-Type"))
-	assert.Equal(t, "Bearer token", receivedRequest.Header.Get("Authorization"))
-	assert.Equal(t, "webhook-client", receivedRequest.Header.Get("User-Agent"))
-	assert.Equal(t, "custom-value", receivedRequest.Header.Get("X-Custom"))
-}
-
-func TestFetch_VerifyRequestBody(t *testing.T) {
-	var receivedBody map[string]interface{}
-
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		err := json.NewDecoder(r.Body).Decode(&receivedBody)
-		assert.NoError(t, err)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer testServer.Close()
+	// Create asynq task
+	task := asynq.NewTask("test-queue", taskPayload)
 
 	ctx := context.Background()
-	data := map[string]any{
+	err = handle.Handler(ctx, task)
+	require.NoError(t, err)
+
+	// Verify headers were merged correctly (Headers should override Trigger.Headers)
+	assert.Equal(t, "Bearer token", receivedHeaders["Authorization"])
+	assert.Equal(t, "webhook-client", receivedHeaders["User-Agent"])
+	assert.Equal(t, "custom-value", receivedHeaders["X-Custom"])
+	assert.Equal(t, "webhook-service", receivedHeaders["X-Service"])
+}
+
+func TestGetRequestHandle_DataPassing(t *testing.T) {
+	// Track the data received by the mock fetcher
+	var receivedData map[string]any
+
+	mockFetch := &mockFetcher{
+		notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+			receivedData = data
+			return nil
+		},
+	}
+
+	handle := GetRequestHandle(mockFetch)
+
+	expectedData := map[string]any{
 		"user_id":   "123",
 		"email":     "test@example.com",
 		"metadata":  map[string]interface{}{"source": "api"},
 		"count":     42,
 		"is_active": true,
 	}
-	headers := map[string]string{}
 
-	trigger := Trigger{
-		ServiceName: "user-service",
-		Type:        TriggerTypePersistent,
-		BaseUrl:     testServer.URL,
-		Path:        "/webhook",
+	payload := RequestPayload{
+		EventName: "user.created",
+		Trigger: Trigger{
+			ServiceName: "user-service",
+			Type:        TriggerTypePersistent,
+			BaseUrl:     "http://example.com",
+			Path:        "/webhook",
+		},
+		Data:    expectedData,
+		Headers: map[string]string{},
 	}
 
-	err := fetch(ctx, data, headers, trigger)
+	// Create task payload
+	taskPayload, err := json.Marshal(payload)
 	require.NoError(t, err)
 
-	// Verify body was sent correctly
-	assert.Equal(t, "123", receivedBody["user_id"])
-	assert.Equal(t, "test@example.com", receivedBody["email"])
-	assert.Equal(t, map[string]interface{}{"source": "api"}, receivedBody["metadata"])
-	assert.Equal(t, float64(42), receivedBody["count"]) // JSON numbers are float64
-	assert.Equal(t, true, receivedBody["is_active"])
+	// Create asynq task
+	task := asynq.NewTask("test-queue", taskPayload)
+
+	ctx := context.Background()
+	err = handle.Handler(ctx, task)
+	require.NoError(t, err)
+
+	// Verify data was passed correctly
+	assert.Equal(t, "123", receivedData["user_id"])
+	assert.Equal(t, "test@example.com", receivedData["email"])
+	assert.Equal(t, map[string]interface{}{"source": "api"}, receivedData["metadata"])
+	assert.Equal(t, float64(42), receivedData["count"]) // JSON numbers are float64
+	assert.Equal(t, true, receivedData["is_active"])
 }
 
-// Helper function to check if a string contains a substring
-func contains(str, substr string) bool {
-	return len(substr) > 0 && len(str) >= len(substr) && str[:len(substr)] == substr
-}
+
