@@ -17,6 +17,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
+const appName = "gqueue"
+
 // go run . --service=server
 // go run . --service=webhook
 // go run . --service=archived-notification
@@ -60,7 +62,7 @@ func main() {
 		store = interstore.NewMongoStore(mongodb)
 	}
 
-	cc := cachemanager.NewStrategy(cacheClient)
+	cc := cachemanager.NewStrategy(appName, cacheClient)
 	pub := publisher.NewPublisher(asynqClient)
 
 	service := flag.String("service", "all", "service to run")

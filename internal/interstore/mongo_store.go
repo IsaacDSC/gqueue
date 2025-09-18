@@ -38,7 +38,7 @@ func NewMongoStore(client *mongo.Client) *MongoStore {
 	}
 }
 
-func (r MongoStore) GetInternalEvent(ctx context.Context, eventName, serviceName string) ([]domain.Event, error) {
+func (r MongoStore) GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) ([]domain.Event, error) {
 	l := ctxlogger.GetLogger(ctx)
 	filter := bson.D{{Key: "event.name", Value: eventName}}
 	var result Event

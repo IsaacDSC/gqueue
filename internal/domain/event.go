@@ -2,18 +2,44 @@ package domain
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/pkg/intertime"
 	"github.com/hibiken/asynq"
-	"strings"
-	"time"
 )
+
+type TypeEvent int
+
+const (
+	TypeEventTrigger TypeEvent = iota + 1
+	TypeEventSchedule
+)
+
+var typeEventList = [3]string{"trigger", "trigger", "schedule"}
+
+func (te TypeEvent) NewTypeEvent(input string) (TypeEvent, error) {
+	for i := range typeEventList {
+		if typeEventList[i] == input {
+			return TypeEvent(i), nil
+		}
+	}
+
+	return -1, fmt.Errorf("invalid type event: %s", input)
+}
+
+func (te TypeEvent) String() string {
+	return typeEventList[te]
+}
 
 type Event struct {
 	Name        string    `json:"name" bson:"name"`
 	ServiceName string    `json:"service_name" bson:"service_name"`
 	RepoURL     string    `json:"repo_url" bson:"repo_url"`
 	TeamOwner   string    `json:"team_owner" bson:"team_owner"`
+	TypeEvent   TypeEvent `json:"type_event" bson:"type_event"`
+	State       string    `json:"state" bson:"state"`
 	Triggers    []Trigger `json:"triggers" bson:"triggers"`
 }
 

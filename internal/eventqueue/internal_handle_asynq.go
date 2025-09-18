@@ -16,7 +16,7 @@ import (
 )
 
 type Repository interface {
-	GetInternalEvent(ctx context.Context, eventName, serviceName string) ([]domain.Event, error)
+	GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) ([]domain.Event, error)
 }
 
 func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, publisher publisher.Publisher) asynqsvc.AsynqHandle {
@@ -32,7 +32,7 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, publisher
 			key := cc.Key(domain.CacheKeyEventPrefix, payload.EventName)
 
 			err := cc.Once(ctx, key, &events, cc.GetDefaultTTL(), func(ctx context.Context) (any, error) {
-				return repo.GetInternalEvent(ctx, payload.EventName, payload.ServiceName)
+				return repo.GetInternalEvent(ctx, payload.EventName, payload.ServiceName, "trigger", "active")
 			})
 
 			if errors.Is(err, domain.EventNotFound) {

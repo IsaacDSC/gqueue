@@ -31,6 +31,7 @@ func StartServer(
 		backoffice.CreateConsumer(cache, store),
 		backoffice.GetEvents(cache, store),
 		backoffice.TaskArchivedHandle(taskManager),
+		backoffice.GetRegisterTaskConsumerArchived(cache, store),
 		eventqueue.Publisher(pub),
 	}
 

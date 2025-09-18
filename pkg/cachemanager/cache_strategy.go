@@ -3,10 +3,12 @@ package cachemanager
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	redis "github.com/redis/go-redis/v9"
 	"strings"
 	"time"
+
+	redis "github.com/redis/go-redis/v9"
 )
 
 // Fn defines a function type that takes a context and returns any value and an error.
@@ -22,19 +24,21 @@ func (k Key) String() string {
 
 // Strategy provides caching methods using a Redis client.
 type Strategy struct {
-	client *redis.Client
+	appPrefix string
+	client    *redis.Client
 }
 
 var _ Cache = (*Strategy)(nil)
 
 // NewStrategy creates a new Strategy with the given Redis client.
-func NewStrategy(client *redis.Client) *Strategy {
-	return &Strategy{client: client}
+func NewStrategy(appPrefix string, client *redis.Client) *Strategy {
+	return &Strategy{appPrefix: appPrefix, client: client}
 }
 
-// Key constructs a cache key by joining the provided parameters with a hyphen.
+// Key constructs a cache key by joining the provided parameters with a separator.
 func (s Strategy) Key(params ...string) Key {
-	return Key(strings.Join(params, "-"))
+	params = append([]string{s.appPrefix}, params...)
+	return Key(strings.Join(params, ":"))
 }
 
 // GetDefaultTTL for cache entries, can be adjusted as needed.
@@ -103,6 +107,42 @@ func (s Strategy) Once(ctx context.Context, key Key, value any, ttl time.Duratio
 
 	if err := json.Unmarshal(valueBytes, value); err != nil {
 		return fmt.Errorf("error unmarshalling value after setting key %s: %w", key.String(), err)
+	}
+
+	return nil
+}
+
+func (s Strategy) IncrementValue(ctx context.Context, key Key, value any) error {
+	val, err := s.client.Get(ctx, key.String()).Result()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return fmt.Errorf("error getting value for key %s: %w", key.String(), err)
+	}
+
+	var result []any
+	if !errors.Is(err, redis.Nil) {
+		json.Unmarshal([]byte(val), &result)
+	}
+
+	allreadyExists := false
+	for i := range result {
+		if result[i] == value {
+			allreadyExists = true
+			result[i] = value
+			break
+		}
+	}
+
+	if !allreadyExists {
+		result = append(result, value)
+	}
+
+	b, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("error marshalling value for key %s: %w", key.String(), err)
+	}
+
+	if err := s.client.Set(ctx, key.String(), b, -1).Err(); err != nil {
+		return fmt.Errorf("error setting value for key %s: %w", key.String(), err)
 	}
 
 	return nil

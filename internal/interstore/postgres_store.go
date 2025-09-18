@@ -38,11 +38,11 @@ func NewPostgresStore(db *sql.DB) *PostgresStore {
 	}
 }
 
-func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, serviceName string) ([]domain.Event, error) {
+func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) ([]domain.Event, error) {
 	l := ctxlogger.GetLogger(ctx)
 
 	if eventName != "" {
-		uniqueKey := r.getUniqueKey(eventName, serviceName)
+		uniqueKey := r.getUniqueKey(eventName, serviceName, eventType, state)
 		event, err := r.getEventByUniqueKey(ctx, uniqueKey)
 		if err != nil {
 			if errors.Is(err, domain.EventNotFound) {
@@ -93,11 +93,15 @@ func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
 		return fmt.Errorf("failed to marshal triggers: %w", err)
 	}
 
-	uniqueKey := r.getUniqueKey(event.Name, event.ServiceName)
+	if event.State == "" {
+		event.State = "active"
+	}
+
+	uniqueKey := r.getUniqueKey(event.Name, event.ServiceName, event.TypeEvent.String(), event.State)
 
 	query := `
-		INSERT INTO events (id, unique_key, name, service_name, repo_url, team_owner, triggers, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO events (id, unique_key, name, service_name, repo_url, team_owner, type_event, state, triggers, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
 	now := time.Now()
@@ -108,6 +112,8 @@ func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
 		event.ServiceName,
 		event.RepoURL,
 		event.TeamOwner,
+		event.TypeEvent.String(),
+		event.State,
 		triggersJSON,
 		now,
 		now,
@@ -156,6 +162,6 @@ func (r *PostgresStore) getEventByUniqueKey(ctx context.Context, uniqueKey strin
 	return event, nil
 }
 
-func (r *PostgresStore) getUniqueKey(eventName, serviceName string) string {
-	return fmt.Sprintf("%s_%s", eventName, serviceName)
+func (r *PostgresStore) getUniqueKey(eventName, serviceName, eventType, state string) string {
+	return fmt.Sprintf("%s:%s:%s:%s", eventName, serviceName, eventType, state)
 }

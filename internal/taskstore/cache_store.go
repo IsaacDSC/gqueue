@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/task"
 	"github.com/redis/go-redis/v9"
 )
@@ -28,7 +29,7 @@ func NewCache(cache *redis.Client) *Cache {
 }
 
 func (c Cache) FindAllConsumers(ctx context.Context) (task.QueueConsumers, error) {
-	cResult, err := c.cache.Get(ctx, "gqueue.archived.consumers").Result()
+	cResult, err := c.cache.Get(ctx, "gqueue:consumers:schedule:archived").Result()
 	if errors.Is(err, redis.Nil) {
 		return nil, task.ErrorNotFound
 	}
@@ -37,10 +38,13 @@ func (c Cache) FindAllConsumers(ctx context.Context) (task.QueueConsumers, error
 		return nil, fmt.Errorf("failed to get consumers: %w", err)
 	}
 
-	var queueOnConsumers task.QueueConsumers
-	if err := json.Unmarshal([]byte(cResult), &queueOnConsumers); err != nil {
+	var results []domain.Event
+	if err := json.Unmarshal([]byte(cResult), &results); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal consumers: %w", err)
 	}
+
+	var queueOnConsumers task.QueueConsumers
+	// TODO: implementation
 
 	return queueOnConsumers, nil
 }

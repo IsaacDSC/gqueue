@@ -7,6 +7,6 @@ import (
 )
 
 type Repository interface {
-	GetInternalEvent(ctx context.Context, eventName, serviceName string) ([]domain.Event, error)
+	GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) ([]domain.Event, error)
 	Save(ctx context.Context, event domain.Event) error
 }

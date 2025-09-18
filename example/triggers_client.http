@@ -1,0 +1,39 @@
+### Environment Variables
+@host = http://localhost:8080
+@service_name = my-service
+@repo_url = http://github.com/my-org/my-repo
+@team_owner = my-team
+
+
+
+### REGISTER A NEW CONSUMER
+POST {{host}}/event/consumer
+Content-Type: application/json
+
+{
+  "name": "payment.processed",
+  "service_name": "{{service_name}}",
+  "repo_url": "{{repo_url}}",
+  "team_owner": "{{team_owner}}",
+  "triggers": [
+    {
+      "service_name": "{{service_name}}",
+      "type": "persistent",
+      "host": "http://localhost:3333",
+      "path": "/wq/payment/processed",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "option": {
+        "queue_type": "external.medium",
+        "max_retries": 3,
+        "retention": "168h",
+        "unique_ttl": "60s"
+      }
+    }
+  ]
+}
+
+### GET ALL CONSUMERS
+GET {{host}}/events/{{service_name}}
+Accept: application/json

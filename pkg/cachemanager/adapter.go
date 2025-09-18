@@ -10,4 +10,5 @@ type Cache interface {
 	Hydrate(ctx context.Context, key Key, value any, ttl time.Duration, fn Fn) error
 	Once(ctx context.Context, key Key, value any, ttl time.Duration, fn Fn) error
 	GetDefaultTTL() time.Duration
+	IncrementValue(ctx context.Context, key Key, value any) error
 }
