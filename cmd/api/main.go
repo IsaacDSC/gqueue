@@ -18,9 +18,9 @@ import (
 const appName = "gqueue"
 
 // go run . --service=server
-// go run . --service=webhook
+// go run . --service=worker
 // go run . --service=archived-notification
-// go run . --service=all
+// go run . [server, worker]
 func main() {
 	cfg := cfg.Get()
 	ctx := context.Background()
@@ -61,7 +61,6 @@ func main() {
 		return
 	}
 
-	go setup.StartArchivedNotify(ctx, store, cacheClient)
 	go setup.StartServer(cacheClient, cc, store, pub)
 	setup.StartWorker(cc, store, pub)
 
