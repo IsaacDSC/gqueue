@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/internal/task"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -38,51 +39,44 @@ func NewPostgresStore(db *sql.DB) *PostgresStore {
 	}
 }
 
-func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) ([]domain.Event, error) {
+var _ Repository = (*PostgresStore)(nil)
+
+func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) (domain.Event, error) {
 	l := ctxlogger.GetLogger(ctx)
 
-	if eventName != "" {
-		uniqueKey := r.getUniqueKey(eventName, serviceName, eventType, state)
-		event, err := r.getEventByUniqueKey(ctx, uniqueKey)
-		if err != nil {
-			if errors.Is(err, domain.EventNotFound) {
-				return nil, nil
-			}
-			l.Error("Error on get internal event by unique key", "error", err)
-			return nil, fmt.Errorf("failed to get internal event by unique key: %w", err)
-		}
-
-		return []domain.Event{event}, nil
-	}
+	uniqueKey := r.getUniqueKey(eventName, serviceName, eventType, state)
 
 	query := `
-		SELECT name, service_name, repo_url, team_owner, triggers 
-		FROM events 
-		WHERE service_name = $1 AND deleted_at IS NULL
-	`
-
-	rows, err := r.db.Query(query, serviceName)
-	if err != nil {
-		l.Error("Error on get internal events", "error", err)
-		return nil, fmt.Errorf("failed to get internal events: %w", err)
-	}
+			SELECT name, service_name, repo_url, team_owner, triggers
+			FROM events
+			WHERE unique_key = $1 AND deleted_at IS NULL
+		`
 
 	var event domain.Event
-	var events []domain.Event
 	var triggersJSON []byte
-	for rows.Next() {
-		if err := rows.Scan(&event.Name, &event.ServiceName, &event.RepoURL, &event.TeamOwner, &triggersJSON); err != nil {
-			return nil, err
-		}
 
-		if err := json.Unmarshal(triggersJSON, &event.Triggers); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal triggers: %w", err)
-		}
+	err := r.db.QueryRowContext(ctx, query, uniqueKey).Scan(
+		&event.Name,
+		&event.ServiceName,
+		&event.RepoURL,
+		&event.TeamOwner,
+		&triggersJSON,
+	)
 
-		events = append(events, event)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			l.Warn("No documents found", "unique key", uniqueKey)
+			return domain.Event{}, task.ErrorNotFound
+		}
+		l.Error("Error on get internal event by unique key", "error", err)
+		return domain.Event{}, fmt.Errorf("failed to get internal event: %w", err)
 	}
 
-	return events, nil
+	if err := json.Unmarshal(triggersJSON, &event.Triggers); err != nil {
+		return domain.Event{}, fmt.Errorf("failed to unmarshal triggers: %w", err)
+	}
+
+	return event, nil
 }
 
 func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
@@ -127,39 +121,59 @@ func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
 	return nil
 }
 
-func (r *PostgresStore) getEventByUniqueKey(ctx context.Context, uniqueKey string) (domain.Event, error) {
+const modelEventFields = `
+	name,
+	service_name,
+	repo_url,
+	team_owner,
+	type_event,
+	state,
+	triggers
+`
+
+// State: archived | active
+func (r *PostgresStore) GetAllSchedulers(ctx context.Context, state string) ([]domain.Event, error) {
 	l := ctxlogger.GetLogger(ctx)
 
-	query := `
-		SELECT name, service_name, repo_url, team_owner, triggers 
-		FROM events 
-		WHERE unique_key = $1 AND deleted_at IS NULL
-	`
+	query := fmt.Sprintf(`SELECT %s FROM events WHERE type_event = 'schedule' AND state = $1 AND deleted_at IS NULL`, modelEventFields)
 
-	var event domain.Event
-	var triggersJSON []byte
-
-	err := r.db.QueryRowContext(ctx, query, uniqueKey).Scan(
-		&event.Name,
-		&event.ServiceName,
-		&event.RepoURL,
-		&event.TeamOwner,
-		&triggersJSON,
-	)
+	rows, err := r.db.QueryContext(ctx, query, state)
+	if errors.Is(err, sql.ErrNoRows) {
+		l.Warn("Not found schedulers", "tag", "PostgresStore.GetAllSchedulers")
+		return nil, task.ErrorNotFound
+	}
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			l.Warn("No documents found", "unique key", uniqueKey)
-			return domain.Event{}, domain.EventNotFound
+		l.Error("Error on get all schedulers", "tag", "PostgresStore.GetAllSchedulers", "error", err)
+		return nil, fmt.Errorf("failed to get all schedulers: %w", err)
+	}
+
+	defer rows.Close()
+
+	var events []domain.Event
+	for rows.Next() {
+		var event ModelEvent
+		if err := rows.Scan(
+			&event.Name,
+			&event.ServiceName,
+			&event.RepoURL,
+			&event.TeamOwner,
+			&event.TypeEvent,
+			&event.State,
+			&event.Triggers,
+		); err != nil {
+			l.Error("Error on scan row", "error", err)
+			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
-		return domain.Event{}, fmt.Errorf("failed to get internal event: %w", err)
+		events = append(events, event.ToDomain())
 	}
 
-	if err := json.Unmarshal(triggersJSON, &event.Triggers); err != nil {
-		return domain.Event{}, fmt.Errorf("failed to unmarshal triggers: %w", err)
+	if err := rows.Err(); err != nil {
+		l.Error("Error on get all schedulers", "error", err)
+		return nil, fmt.Errorf("failed to get all schedulers: %w", err)
 	}
 
-	return event, nil
+	return events, nil
 }
 
 func (r *PostgresStore) getUniqueKey(eventName, serviceName, eventType, state string) string {

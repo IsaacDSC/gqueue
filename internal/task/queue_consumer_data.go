@@ -6,12 +6,3 @@ type Consumer struct {
 }
 
 type QueueConsumers map[Queue][]Consumer
-
-func (q QueueConsumers) RmNotContains(listQueues Queues) {
-	for queue := range q {
-		if !listQueues.Contains(queue) {
-			delete(q, queue)
-		}
-	}
-
-}

@@ -12,12 +12,13 @@ import (
 )
 
 type Cacher interface {
-	FindAllConsumers(ctx context.Context) (task.QueueConsumers, error)
-	FindAllQueues(ctx context.Context) (task.Queues, error)
+	FindAllTriggers(ctx context.Context) ([]domain.Event, error)
+	FindAllQueues(ctx context.Context) ([]task.Queue, error)
 	FindArchivedTasks(ctx context.Context, queue string) ([]string, error)
 	GetMsgArchivedTask(ctx context.Context, queue, task string) (task.RawMsg, error)
 	RemoveMsgArchivedTask(ctx context.Context, queue, task string) error
 	RemoveItemsArchivedTasks(ctx context.Context, queue string, tasks ...string) error
+	SetArchivedTasks(ctx context.Context, events []domain.Event) error
 }
 
 type Cache struct {
@@ -28,8 +29,12 @@ func NewCache(cache *redis.Client) *Cache {
 	return &Cache{cache: cache}
 }
 
-func (c Cache) FindAllConsumers(ctx context.Context) (task.QueueConsumers, error) {
-	cResult, err := c.cache.Get(ctx, "gqueue:consumers:schedule:archived").Result()
+var _ Cacher = (*Cache)(nil)
+
+const archivedKey = "gqueue:consumers:schedule:archived"
+
+func (c Cache) FindAllTriggers(ctx context.Context) ([]domain.Event, error) {
+	cResult, err := c.cache.Get(ctx, archivedKey).Result()
 	if errors.Is(err, redis.Nil) {
 		return nil, task.ErrorNotFound
 	}
@@ -43,13 +48,10 @@ func (c Cache) FindAllConsumers(ctx context.Context) (task.QueueConsumers, error
 		return nil, fmt.Errorf("failed to unmarshal consumers: %w", err)
 	}
 
-	var queueOnConsumers task.QueueConsumers
-	// TODO: implementation
-
-	return queueOnConsumers, nil
+	return results, nil
 }
 
-func (c Cache) FindAllQueues(ctx context.Context) (task.Queues, error) {
+func (c Cache) FindAllQueues(ctx context.Context) ([]task.Queue, error) {
 	const key = "asynq:queues"
 	qResult, err := c.cache.SMembers(ctx, key).Result()
 
@@ -61,7 +63,7 @@ func (c Cache) FindAllQueues(ctx context.Context) (task.Queues, error) {
 		return nil, fmt.Errorf("failed to get queues: %w", err)
 	}
 
-	queues := make(task.Queues, len(qResult))
+	queues := make([]task.Queue, len(qResult))
 	for i, q := range qResult {
 		queues[i] = task.Queue(q)
 	}
@@ -113,6 +115,19 @@ func (c Cache) RemoveMsgArchivedTask(ctx context.Context, queue, task string) er
 func (c Cache) Remove(ctx context.Context, key string) error {
 	if err := c.cache.Del(ctx, key).Err(); err != nil {
 		return fmt.Errorf("failed to remove key %s: %w", key, err)
+	}
+
+	return nil
+}
+
+func (c Cache) SetArchivedTasks(ctx context.Context, events []domain.Event) error {
+	b, err := json.Marshal(events)
+	if err != nil {
+		return fmt.Errorf("failed to marshal events: %w", err)
+	}
+
+	if err := c.cache.Set(ctx, archivedKey, b, -1).Err(); err != nil {
+		return fmt.Errorf("failed to set archived tasks: %w", err)
 	}
 
 	return nil

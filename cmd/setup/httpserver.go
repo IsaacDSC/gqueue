@@ -25,7 +25,7 @@ func StartServer(
 	mux := http.NewServeMux()
 	taskStore := taskstore.NewCache(rdsclient)
 	fetch := fetcher.NewNotification()
-	taskManager := task.NewTaskManager(taskStore, fetch)
+	taskManager := task.NewTaskManager(store, taskStore, fetch)
 
 	routes := []httpsvc.HttpHandle{
 		backoffice.CreateConsumer(cache, store),

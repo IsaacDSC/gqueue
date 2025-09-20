@@ -20,8 +20,8 @@ func main() {
 		w.Write([]byte("Hello, Webhook!"))
 	})
 
-	log.Println("[*] Server started on :8081")
-	http.ListenAndServe(":8081", nil)
+	log.Println("[*] Server started on :3333")
+	http.ListenAndServe(":3333", nil)
 }
 
 // curl example:

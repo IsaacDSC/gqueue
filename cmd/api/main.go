@@ -13,8 +13,6 @@ import (
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/publisher"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const appName = "gqueue"
@@ -35,31 +33,9 @@ func main() {
 		panic(err)
 	}
 
-	var store interstore.Repository
-	if cfg.ConfigDatabase.Driver == "pg" {
-		conn, err := interstore.NewPostgresStoreFromDSN(cfg.ConfigDatabase.DbConn)
-		if err != nil {
-			panic(err)
-		}
-
-		store = conn
-	} else {
-		mongodb, err := mongo.Connect(options.Client().ApplyURI(cfg.ConfigDatabase.DbConn))
-		if err != nil {
-			panic(err)
-		}
-
-		defer func() {
-			if err = mongodb.Disconnect(ctx); err != nil {
-				panic(err)
-			}
-		}()
-
-		if err := mongodb.Ping(ctx, nil); err != nil {
-			panic(err)
-		}
-
-		store = interstore.NewMongoStore(mongodb)
+	store, err := interstore.NewPostgresStoreFromDSN(cfg.ConfigDatabase.DbConn)
+	if err != nil {
+		panic(err)
 	}
 
 	cc := cachemanager.NewStrategy(appName, cacheClient)
@@ -81,11 +57,11 @@ func main() {
 
 	// TODO: adicionar graceful shutdown
 	if *service == "archived-notification" {
-		setup.StartArchivedNotify(ctx, cacheClient)
+		setup.StartArchivedNotify(ctx, store, cacheClient)
 		return
 	}
 
-	go setup.StartArchivedNotify(ctx, cacheClient)
+	go setup.StartArchivedNotify(ctx, store, cacheClient)
 	go setup.StartServer(cacheClient, cc, store, pub)
 	setup.StartWorker(cc, store, pub)
 

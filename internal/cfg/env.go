@@ -2,9 +2,10 @@ package cfg
 
 import (
 	"encoding/json"
-	"github.com/ilyakaznacheev/cleanenv"
 	"os"
 	"strings"
+
+	"github.com/ilyakaznacheev/cleanenv"
 )
 
 func init() {
@@ -77,4 +78,13 @@ func Get() Config {
 
 func SetConfig(c Config) {
 	cfg = c
+}
+
+func localDebug() {
+	os.Setenv("WQ_QUEUES", `{"internal.default":1,"external.default":1}`)
+	os.Setenv("CACHE_ADDR", "localhost:6379")
+	os.Setenv("DB_DRIVER", "pg")
+	os.Setenv("DB_CONNECTION_STRING", "postgresql://idsc:admin@localhost:5432/gqueue?sslmode=disable")
+	os.Setenv("WQ_CONCURRENCY", "32")
+	os.Setenv("WQ_QUEUES", `{"internal.critical": 7, "internal.high": 5, "internal.medium": 3, "internal.low": 1, "external.critical": 7, "external.high": 5, "external.medium": 3, "external.low": 1}`)
 }
