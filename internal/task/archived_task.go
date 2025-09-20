@@ -65,7 +65,7 @@ func (n TaskManager) NotifyListeners(ctx context.Context) error {
 		return fmt.Errorf("failed to get consumers on cache: %w", err)
 	}
 
-	msgs, err := n.getMsgsArchived(ctx)
+	msgs, err := n.GetMsgsArchived(ctx)
 	if err != nil {
 		l.Error("Failed to get archived messages", "error", err)
 		return fmt.Errorf("failed to get archived messages: %w", err)
@@ -118,7 +118,7 @@ func (n TaskManager) NotifyListeners(ctx context.Context) error {
 	return nil
 }
 
-func (n TaskManager) getMsgsArchived(ctx context.Context) ([]TaskArchivedData, error) {
+func (n TaskManager) GetMsgsArchived(ctx context.Context) ([]TaskArchivedData, error) {
 	l := ctxlogger.GetLogger(ctx)
 
 	queues, err := n.cm.FindAllQueues(ctx)
