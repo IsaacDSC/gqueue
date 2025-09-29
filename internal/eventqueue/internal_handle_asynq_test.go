@@ -44,7 +44,8 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "successful_processing_single_trigger",
 			payload: InternalPayload{
-				EventName: "user.created",
+				ServiceName: "user-service",
+				EventName:   "user.created",
 				Data: Data{
 					"user_id": "123",
 					"email":   "test@example.com",
@@ -68,25 +69,23 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.created").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
 				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *[]domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						events := []domain.Event{
-							{
-								Name:        "user.created",
-								ServiceName: "user-service",
-								Triggers: []domain.Trigger{
-									{
-										ServiceName: "notification-service",
-										Type:        "persistent",
-										Host:        "https://api.notification.com",
-										Path:        "/webhook/user-created",
-										Headers: map[string]string{
-											"X-API-Key": "secret",
-										},
+					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						event := domain.Event{
+							Name:        "user.created",
+							ServiceName: "user-service",
+							Triggers: []domain.Trigger{
+								{
+									ServiceName: "notification-service",
+									Type:        "persistent",
+									Host:        "https://api.notification.com",
+									Path:        "/webhook/user-created",
+									Headers: map[string]string{
+										"X-API-Key": "secret",
 									},
 								},
 							},
 						}
-						*dest = events
+						*dest = event
 						return nil
 					})
 
@@ -110,7 +109,8 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "successful_processing_multiple_triggers",
 			payload: InternalPayload{
-				EventName: "order.completed",
+				ServiceName: "order-service",
+				EventName:   "order.completed",
 				Data: Data{
 					"order_id":    "order-123",
 					"customer_id": "customer-456",
@@ -135,34 +135,32 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "order.completed").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
 				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *[]domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						events := []domain.Event{
-							{
-								Name:        "order.completed",
-								ServiceName: "order-service",
-								Triggers: []domain.Trigger{
-									{
-										ServiceName: "billing-service",
-										Type:        "persistent",
-										Host:        "https://api.billing.com",
-										Path:        "/webhook/order-completed",
-										Headers: map[string]string{
-											"X-API-Key": "billing-key",
-										},
+					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						event := domain.Event{
+							Name:        "order.completed",
+							ServiceName: "order-service",
+							Triggers: []domain.Trigger{
+								{
+									ServiceName: "billing-service",
+									Type:        "persistent",
+									Host:        "https://api.billing.com",
+									Path:        "/webhook/order-completed",
+									Headers: map[string]string{
+										"X-API-Key": "billing-key",
 									},
-									{
-										ServiceName: "analytics-service",
-										Type:        "notPersistent",
-										Host:        "https://api.analytics.com",
-										Path:        "/webhook/order-completed",
-										Headers: map[string]string{
-											"X-API-Key": "analytics-key",
-										},
+								},
+								{
+									ServiceName: "analytics-service",
+									Type:        "notPersistent",
+									Host:        "https://api.analytics.com",
+									Path:        "/webhook/order-completed",
+									Headers: map[string]string{
+										"X-API-Key": "analytics-key",
 									},
 								},
 							},
 						}
-						*dest = events
+						*dest = event
 						return nil
 					})
 
@@ -182,7 +180,8 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "error_event_not_found",
 			payload: InternalPayload{
-				EventName: "nonexistent.event",
+				ServiceName: "api-service",
+				EventName:   "nonexistent.event",
 				Data: Data{
 					"key": "value",
 				},
@@ -207,7 +206,8 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "error_publisher_fails",
 			payload: InternalPayload{
-				EventName: "user.updated",
+				ServiceName: "user-service",
+				EventName:   "user.updated",
 				Data: Data{
 					"user_id": "456",
 				},
@@ -224,23 +224,21 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.updated").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
 				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *[]domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						events := []domain.Event{
-							{
-								Name:        "user.updated",
-								ServiceName: "user-service",
-								Triggers: []domain.Trigger{
-									{
-										ServiceName: "notification-service",
-										Type:        "persistent",
-										Host:        "https://api.notification.com",
-										Path:        "/webhook/user-updated",
-										Headers:     map[string]string{},
-									},
+					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						event := domain.Event{
+							Name:        "user.updated",
+							ServiceName: "user-service",
+							Triggers: []domain.Trigger{
+								{
+									ServiceName: "notification-service",
+									Type:        "persistent",
+									Host:        "https://api.notification.com",
+									Path:        "/webhook/user-updated",
+									Headers:     map[string]string{},
 								},
 							},
 						}
-						*dest = events
+						*dest = event
 						return nil
 					})
 
@@ -255,7 +253,8 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "successful_processing_no_triggers",
 			payload: InternalPayload{
-				EventName: "archived.event",
+				ServiceName: "archive-service",
+				EventName:   "archived.event",
 				Data: Data{
 					"archive_id": "archive-123",
 				},
@@ -272,15 +271,13 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "archived.event").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
 				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *[]domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						events := []domain.Event{
-							{
-								Name:        "archived.event",
-								ServiceName: "archive-service",
-								Triggers:    []domain.Trigger{}, // Empty triggers
-							},
+					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
+						event := domain.Event{
+							Name:        "archived.event",
+							ServiceName: "archive-service",
+							Triggers:    []domain.Trigger{}, // Empty triggers
 						}
-						*dest = events
+						*dest = event
 						return nil
 					})
 				// No publisher expectations since there are no triggers to process
@@ -381,10 +378,11 @@ func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
 	mockCache := cachemanager.NewMockCache(ctrl)
 
 	payload := InternalPayload{
-		EventName: "test.event",
-		Data:      Data{"test": "data"},
-		Metadata:  Metadata{Headers: map[string]string{}},
-		Opts:      domain.Opt{QueueType: "internal.default"},
+		ServiceName: "test-service",
+		EventName:   "test.event",
+		Data:        Data{"test": "data"},
+		Metadata:    Metadata{Headers: map[string]string{}},
+		Opts:        domain.Opt{QueueType: "internal.default"},
 	}
 
 	key := cachemanager.Key("event-queue.test.event")

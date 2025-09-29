@@ -6,10 +6,7 @@ import (
 
 	"github.com/IsaacDSC/gqueue/internal/backoffice"
 	"github.com/IsaacDSC/gqueue/internal/eventqueue"
-	"github.com/IsaacDSC/gqueue/internal/fetcher"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
-	"github.com/IsaacDSC/gqueue/internal/task"
-	"github.com/IsaacDSC/gqueue/internal/taskstore"
 	cache2 "github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
 	"github.com/IsaacDSC/gqueue/pkg/publisher"
@@ -23,14 +20,10 @@ func StartServer(
 	pub publisher.Publisher,
 ) {
 	mux := http.NewServeMux()
-	taskStore := taskstore.NewCache(rdsclient)
-	fetch := fetcher.NewNotification()
-	taskManager := task.NewTaskManager(store, taskStore, fetch)
 
 	routes := []httpsvc.HttpHandle{
 		backoffice.CreateConsumer(cache, store),
 		backoffice.GetEvents(cache, store),
-		backoffice.TaskArchivedHandle(taskManager),
 		backoffice.GetRegisterTaskConsumerArchived(cache, store),
 		eventqueue.Publisher(pub),
 	}

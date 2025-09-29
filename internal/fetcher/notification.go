@@ -22,10 +22,11 @@ func (n Notification) NotifyTrigger(ctx context.Context, data map[string]any, he
 	return fetch(ctx, url, data, headers)
 }
 
+func (n Notification) NotifyConsumer(ctx context.Context, url string, data map[string]any, headers map[string]string) error {
+	return fetch(ctx, url, data, headers)
+}
+
 func (n Notification) NotifyScheduler(ctx context.Context, url string, data any, headers map[string]string) error {
-	fmt.Println("####")
-	fmt.Println("Fetching data...", url)
-	fmt.Println("####")
 	return fetch(ctx, url, data, headers)
 }
 

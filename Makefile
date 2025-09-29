@@ -50,7 +50,12 @@ clean:
 # Executar testes
 test:
 	@echo "$(GREEN)Executando testes...$(NC)"
-	@$(GO) test ./... -v
+	@WQ_QUEUES='{"internal.default":1,"external.default":1}' $(GO) test ./... -v
+
+# Executar testes do fetcher
+test-fetcher:
+	@echo "$(GREEN)Executando testes do fetcher...$(NC)"
+	@WQ_QUEUES='{"internal.default":1,"external.default":1}' $(GO) test ./internal/fetcher -v
 
 # Docker
 docker-build:
@@ -74,6 +79,7 @@ help:
 	@echo "  $(GREEN)make run-all$(NC)      - Executa ambos os serviços"
 	@echo "  $(GREEN)make load-test$(NC)    - Executa teste de carga"
 	@echo "  $(GREEN)make test$(NC)         - Executa os testes"
+	@echo "  $(GREEN)make test-fetcher$(NC) - Executa os testes do fetcher"
 	@echo "  $(GREEN)make clean$(NC)        - Remove binários gerados"
 	@echo "  $(GREEN)make docker-build$(NC) - Constrói a imagem Docker"
 	@echo "  $(GREEN)make docker-up$(NC)    - Inicia os serviços com Docker Compose"
