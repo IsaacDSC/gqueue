@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
@@ -51,7 +52,6 @@ func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, service
 			FROM events
 			WHERE unique_key = $1 AND deleted_at IS NULL
 		`
-
 	var event domain.Event
 	var triggersJSON []byte
 
@@ -66,7 +66,7 @@ func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, service
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			l.Warn("No documents found", "unique key", uniqueKey)
-			return domain.Event{}, task.ErrorNotFound
+			return domain.Event{}, domain.EventNotFound
 		}
 		l.Error("Error on get internal event by unique key", "error", err)
 		return domain.Event{}, fmt.Errorf("failed to get internal event: %w", err)
@@ -77,6 +77,54 @@ func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, service
 	}
 
 	return event, nil
+}
+
+func (r *PostgresStore) GetInternalEvents(ctx context.Context, filters domain.FilterEvents) ([]domain.Event, error) {
+	var sqlFilter string
+
+	if len(filters.State) > 0 {
+		sqlFilter += fmt.Sprintf("state IN ('%s')", strings.Join(filters.State, "', '"))
+	}
+
+	if len(filters.TeamOwner) > 0 {
+		sqlFilter += fmt.Sprintf("AND team_owner IN ('%s')", strings.Join(filters.TeamOwner, "', '"))
+	}
+
+	if len(filters.ServiceName) > 0 {
+		sqlFilter += fmt.Sprintf("AND service_name IN ('%s')", strings.Join(filters.ServiceName, "', '"))
+	}
+
+	query := fmt.Sprintf(`SELECT %s FROM events WHERE %s LIMIT %d OFFSET %d`, modelEventFields, sqlFilter, filters.Limit, filters.Page-1)
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query events: %w", err)
+	}
+
+	defer rows.Close()
+
+	events := make([]domain.Event, 0)
+	for rows.Next() {
+		var event ModelEvent
+		if err := rows.Scan(
+			&event.Name,
+			&event.ServiceName,
+			&event.RepoURL,
+			&event.TeamOwner,
+			&event.TypeEvent,
+			&event.State,
+			&event.Triggers,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		events = append(events, event.ToDomain())
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate over events: %w", err)
+	}
+
+	return events, nil
 }
 
 func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {

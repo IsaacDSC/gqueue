@@ -2,11 +2,9 @@ package eventqueue
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
-	"github.com/IsaacDSC/gqueue/pkg/asynqsvc"
-	"github.com/hibiken/asynq"
+	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 )
 
 type RequestPayload struct {
@@ -32,13 +30,14 @@ type Fetcher interface {
 	NotifyTrigger(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error
 }
 
-func GetRequestHandle(fetch Fetcher) asynqsvc.AsynqHandle {
-	return asynqsvc.AsynqHandle{
+func GetRequestHandle(fetch Fetcher) asyncadapter.Handle[RequestPayload] {
+	return asyncadapter.Handle[RequestPayload]{
 		Event: "event-queue.request-to-external",
-		Handler: func(ctx context.Context, task *asynq.Task) error {
-			var payload RequestPayload
-			if err := json.Unmarshal(task.Payload(), &payload); err != nil {
-				return fmt.Errorf("unmarshal payload: %w", err)
+		Handler: func(c asyncadapter.AsyncCtx[RequestPayload]) error {
+			ctx := c.Context()
+			payload, err := c.Payload()
+			if err != nil {
+				return fmt.Errorf("get payload: %w", err)
 			}
 
 			headers := payload.mergeHeaders(payload.Trigger.Headers)

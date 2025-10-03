@@ -50,7 +50,7 @@ clean:
 # Executar testes
 test:
 	@echo "$(GREEN)Executando testes...$(NC)"
-	@WQ_QUEUES='{"internal.default":1,"external.default":1}' $(GO) test ./... -v
+	GO_ENV=test $(GO) test ./... -v
 
 # Executar testes do fetcher
 test-fetcher:

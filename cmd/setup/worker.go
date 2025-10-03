@@ -17,24 +17,34 @@ import (
 )
 
 func StartWorker(cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher) {
+	fetch := fetcher.NewNotification()
+	startUsingAsynq(cache, store, pub, fetch)
+}
+
+func startUsingGooglePubSub(cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher) {
+	// fetch := fetcher.NewNotification()
+
+}
+
+func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher, fetch *fetcher.Notification) {
 	cfg := cfg.Get()
 
 	asyqCfg := asynq.Config{
 		Concurrency: cfg.AsynqConfig.Concurrency,
 		Queues:      cfg.AsynqConfig.Queues,
 	}
+
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: cfg.Cache.CacheAddr},
 		asyqCfg,
 	)
 
-	fetch := fetcher.NewNotification()
 	mux := asynq.NewServeMux()
 	mux.Use(AsynqLogger)
 
 	events := []asynqsvc.AsynqHandle{
-		eventqueue.GetRequestHandle(fetch),
-		eventqueue.GetInternalConsumerHandle(store, cache, pub),
+		eventqueue.GetRequestHandle(fetch).ToAsynqHandler(),
+		eventqueue.GetInternalConsumerHandle(store, cache, pub).ToAsynqHandler(),
 	}
 
 	for _, event := range events {

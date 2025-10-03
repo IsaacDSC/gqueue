@@ -7,5 +7,5 @@ import (
 )
 
 type Publisher interface {
-	Publish(ctx context.Context, eventName string, payload any, opts ...asynq.Option) error
+	Publish(ctx context.Context, topicName string, payload any, opts ...asynq.Option) error
 }

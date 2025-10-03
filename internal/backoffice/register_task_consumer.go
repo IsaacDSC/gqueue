@@ -14,6 +14,7 @@ import (
 type Repository interface {
 	Save(ctx context.Context, event domain.Event) error
 	GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) (domain.Event, error)
+	GetInternalEvents(ctx context.Context, filters domain.FilterEvents) ([]domain.Event, error)
 }
 
 func CreateConsumer(cc cachemanager.Cache, repo Repository) httpsvc.HttpHandle {

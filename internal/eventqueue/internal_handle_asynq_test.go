@@ -9,6 +9,7 @@ import (
 
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/publisher"
 	"github.com/hibiken/asynq"
@@ -306,11 +307,11 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 			payloadBytes, err := json.Marshal(tt.payload)
 			require.NoError(t, err)
 
-			// Create asynq task
-			task := asynq.NewTask("event-queue.internal", payloadBytes)
+			// Create AsyncCtx wrapper
+			asyncCtx := asyncadapter.NewAsyncCtx[InternalPayload](context.Background(), payloadBytes)
 
 			// Execute the handler
-			err = handle.Handler(context.Background(), task)
+			err = handle.Handler(asyncCtx)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -348,10 +349,11 @@ func TestGetInternalConsumerHandle_InvalidPayload(t *testing.T) {
 
 	// Create task with invalid JSON payload
 	invalidPayload := []byte(`{"invalid": "json"`)
-	task := asynq.NewTask("event-queue.internal", invalidPayload)
+	// Create AsyncCtx wrapper with invalid payload
+	asyncCtx := asyncadapter.NewAsyncCtx[InternalPayload](context.Background(), invalidPayload)
 
 	// Execute the handler
-	err := handle.Handler(context.Background(), task)
+	err := handle.Handler(asyncCtx)
 
 	// Should return unmarshal error
 	assert.Error(t, err)
@@ -397,9 +399,10 @@ func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
 	payloadBytes, err := json.Marshal(payload)
 	require.NoError(t, err)
 
-	task := asynq.NewTask("event-queue.internal", payloadBytes)
+	// Create AsyncCtx wrapper
+	asyncCtx := asyncadapter.NewAsyncCtx[InternalPayload](context.Background(), payloadBytes)
 
-	err = handle.Handler(context.Background(), task)
+	err = handle.Handler(asyncCtx)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "get internal event: cache error")
 }

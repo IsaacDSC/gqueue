@@ -7,10 +7,21 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/IsaacDSC/gqueue/internal/eventqueue"
 )
+
+func init() {
+	// Set required environment variables for tests
+	os.Setenv("GO_ENV", "test")
+	os.Setenv("WQ_QUEUES", `{"internal.critical": 7, "internal.high": 5, "internal.medium": 3, "internal.low": 1, "external.critical": 7, "external.high": 5, "external.medium": 3, "external.low": 1}`)
+	os.Setenv("CACHE_ADDR", "localhost:6379")
+	os.Setenv("DB_DRIVER", "pg")
+	os.Setenv("DB_CONNECTION_STRING", "postgresql://test:test@localhost:5432/test?sslmode=disable")
+	os.Setenv("WQ_CONCURRENCY", "32")
+}
 
 func TestNotification_NotifyTrigger(t *testing.T) {
 	tests := []struct {

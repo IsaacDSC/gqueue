@@ -14,6 +14,8 @@ type Task struct {
 	client *asynq.Client
 }
 
+var _ Publisher = (*Task)(nil)
+
 func NewPublisher(client *asynq.Client) *Task {
 	return &Task{client: client}
 }

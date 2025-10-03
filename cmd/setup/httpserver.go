@@ -23,6 +23,7 @@ func StartServer(
 
 	routes := []httpsvc.HttpHandle{
 		backoffice.CreateConsumer(cache, store),
+		backoffice.GetEvent(cache, store),
 		backoffice.GetEvents(cache, store),
 		backoffice.GetRegisterTaskConsumerArchived(cache, store),
 		eventqueue.Publisher(pub),

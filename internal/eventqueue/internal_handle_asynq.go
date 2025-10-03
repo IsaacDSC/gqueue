@@ -2,36 +2,36 @@ package eventqueue
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
-	"github.com/IsaacDSC/gqueue/pkg/asynqsvc"
+	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/IsaacDSC/gqueue/pkg/logs"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/publisher"
-	"github.com/hibiken/asynq"
 )
 
 type Repository interface {
 	GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) (domain.Event, error)
 }
 
-func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, publisher publisher.Publisher) asynqsvc.AsynqHandle {
-	return asynqsvc.AsynqHandle{
+func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, publisher publisher.Publisher) asyncadapter.Handle[InternalPayload] {
+	return asyncadapter.Handle[InternalPayload]{
 		Event: "event-queue.internal",
-		Handler: func(ctx context.Context, task *asynq.Task) error {
-			var payload InternalPayload
-			if err := json.Unmarshal(task.Payload(), &payload); err != nil {
-				return fmt.Errorf("unmarshal payload: %w", err)
+		Handler: func(c asyncadapter.AsyncCtx[InternalPayload]) error {
+			ctx := c.Context()
+
+			payload, err := c.Payload()
+			if err != nil {
+				return fmt.Errorf("get payload: %w", err)
 			}
 
 			var event domain.Event
 			key := cc.Key(domain.CacheKeyEventPrefix, payload.EventName)
 
-			err := cc.Once(ctx, key, &event, cc.GetDefaultTTL(), func(ctx context.Context) (any, error) {
+			err = cc.Once(ctx, key, &event, cc.GetDefaultTTL(), func(ctx context.Context) (any, error) {
 				return repo.GetInternalEvent(ctx, payload.EventName, payload.ServiceName, "trigger", "active")
 			})
 

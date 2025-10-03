@@ -17,7 +17,7 @@ type ExternalPayload struct {
 
 func Publisher(pub publisher.Publisher) httpsvc.HttpHandle {
 	return httpsvc.HttpHandle{
-		Path: "POST /event/publisher",
+		Path: "POST /api/v1/event/publisher",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			var payload InternalPayload
 

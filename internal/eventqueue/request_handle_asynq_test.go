@@ -5,12 +5,23 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
-	"github.com/hibiken/asynq"
+	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	// Set required environment variables for tests
+	os.Setenv("GO_ENV", "test")
+	os.Setenv("WQ_QUEUES", `{"internal.critical": 7, "internal.high": 5, "internal.medium": 3, "internal.low": 1, "external.critical": 7, "external.high": 5, "external.medium": 3, "external.low": 1}`)
+	os.Setenv("CACHE_ADDR", "localhost:6379")
+	os.Setenv("DB_DRIVER", "pg")
+	os.Setenv("DB_CONNECTION_STRING", "postgresql://test:test@localhost:5432/test?sslmode=disable")
+	os.Setenv("WQ_CONCURRENCY", "32")
+}
 
 // mockFetcher implements the Fetcher interface for testing
 type mockFetcher struct {
@@ -184,12 +195,11 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 			taskPayload, err := json.Marshal(tt.payload)
 			require.NoError(t, err)
 
-			// Create asynq task
-			task := asynq.NewTask("test-queue", taskPayload)
+			// Create AsyncCtx wrapper
+			asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), taskPayload)
 
 			// Execute handler
-			ctx := context.Background()
-			err = handle.Handler(ctx, task)
+			err = handle.Handler(asyncCtx)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -207,11 +217,10 @@ func TestGetRequestHandle_Handler_InvalidPayload(t *testing.T) {
 	mockFetch := &mockFetcher{}
 	handle := GetRequestHandle(mockFetch)
 
-	// Create task with invalid JSON payload
-	task := asynq.NewTask("test-queue", []byte("invalid json"))
+	// Create AsyncCtx wrapper with invalid payload
+	asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), []byte("invalid json"))
 
-	ctx := context.Background()
-	err := handle.Handler(ctx, task)
+	err := handle.Handler(asyncCtx)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unmarshal payload:")
@@ -290,12 +299,11 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 			taskPayload, err := json.Marshal(payload)
 			require.NoError(t, err)
 
-			// Create asynq task
-			task := asynq.NewTask("test-queue", taskPayload)
+			// Create AsyncCtx wrapper
+			asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), taskPayload)
 
 			// Execute handler
-			ctx := context.Background()
-			err = handle.Handler(ctx, task)
+			err = handle.Handler(asyncCtx)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -348,11 +356,9 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 			taskPayload, err := json.Marshal(payload)
 			require.NoError(t, err)
 
-			// Create asynq task
-			task := asynq.NewTask("test-queue", taskPayload)
-
-			ctx := context.Background()
-			err = handle.Handler(ctx, task)
+			// Create AsyncCtx wrapper
+			asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), taskPayload)
+			err = handle.Handler(asyncCtx)
 
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), tt.expectedErrMsg)
@@ -399,11 +405,9 @@ func TestGetRequestHandle_HeaderMerging(t *testing.T) {
 	taskPayload, err := json.Marshal(payload)
 	require.NoError(t, err)
 
-	// Create asynq task
-	task := asynq.NewTask("test-queue", taskPayload)
-
-	ctx := context.Background()
-	err = handle.Handler(ctx, task)
+	// Create AsyncCtx wrapper
+	asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), taskPayload)
+	err = handle.Handler(asyncCtx)
 	require.NoError(t, err)
 
 	// Verify headers were merged correctly (Headers should override Trigger.Headers)
@@ -450,11 +454,9 @@ func TestGetRequestHandle_DataPassing(t *testing.T) {
 	taskPayload, err := json.Marshal(payload)
 	require.NoError(t, err)
 
-	// Create asynq task
-	task := asynq.NewTask("test-queue", taskPayload)
-
-	ctx := context.Background()
-	err = handle.Handler(ctx, task)
+	// Create AsyncCtx wrapper
+	asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), taskPayload)
+	err = handle.Handler(asyncCtx)
 	require.NoError(t, err)
 
 	// Verify data was passed correctly

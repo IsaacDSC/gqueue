@@ -1,0 +1,14 @@
+{
+  "service_name": "my-app",
+  "event_name": "payment.processed",
+  "data": {
+    "key": "value"
+  },
+  "metadata": {
+    "correlation_id": "5e4dd662-9eba-4321-9c97-0b4ee0942f8b"
+  },
+  "opts": {
+    "max_retries": 3,
+    "queue_type": "internal.high"
+  }
+}
