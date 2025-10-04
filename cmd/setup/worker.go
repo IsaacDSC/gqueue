@@ -54,7 +54,7 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 	cfg := cfg.Get()
 
 	queues := domain.GetTopics()
-	cuncurrency := cfg.AsynqConfig.Concurrency
+	concurrency := cfg.AsynqConfig.Concurrency
 
 	handlers := []gpubsub.Handle{
 		wtrhandler.NewDeadLatterQueue().ToGPubSubHandler(pub),
@@ -121,7 +121,7 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 				MaxExtension:           60 * time.Minute,
 				MaxOutstandingMessages: 1000,
 				MaxOutstandingBytes:    1e9,
-				NumGoroutines:          cuncurrency,
+				NumGoroutines:          concurrency,
 			}
 
 			if err := subscription.Receive(ctx, handler.Handler); err != nil {
@@ -136,7 +136,7 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 	}
 
 	log.Println("[*] starting worker with configs")
-	log.Println("[*] wq.concurrency", (len(queues)*len(handlers))*cuncurrency)
+	log.Println("[*] wq.concurrency", (len(queues)*len(handlers))*concurrency)
 	log.Println("[*] wq.queues", queues)
 	log.Println("[*] Worker started. Press Ctrl+C to gracefully shutdown...")
 
