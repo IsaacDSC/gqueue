@@ -9,6 +9,7 @@ import (
 )
 
 func init() {
+	// localDebug()
 	str := os.Getenv("WQ_QUEUES")
 	if str != "" {
 		json.Unmarshal([]byte(str), &cfg.AsynqConfig.Queues)
@@ -33,6 +34,7 @@ type Cache struct {
 type AsynqConfig struct {
 	Concurrency int `env:"WQ_CONCURRENCY"`
 	Queues      AsynqQueues
+	WorkerType  string `env:"WQ_WORKER_TYPE"`
 }
 
 type AsynqQueues map[string]int
@@ -81,11 +83,13 @@ func SetConfig(c Config) {
 	cfg = c
 }
 
-func localDebug() {
-	os.Setenv("WQ_QUEUES", `{"internal.default":1,"external.default":1}`)
-	os.Setenv("CACHE_ADDR", "localhost:6379")
-	os.Setenv("DB_DRIVER", "pg")
-	os.Setenv("DB_CONNECTION_STRING", "postgresql://idsc:admin@localhost:5432/gqueue?sslmode=disable")
-	os.Setenv("WQ_CONCURRENCY", "32")
-	os.Setenv("WQ_QUEUES", `{"internal.critical": 7, "internal.high": 5, "internal.medium": 3, "internal.low": 1, "external.critical": 7, "external.high": 5, "external.medium": 3, "external.low": 1}`)
-}
+// func localDebug() {
+// 	os.Setenv("WQ_QUEUES", `{"internal.default":1,"external.default":1}`)
+// 	os.Setenv("CACHE_ADDR", "localhost:6379")
+// 	os.Setenv("DB_DRIVER", "pg")
+// 	os.Setenv("DB_CONNECTION_STRING", "postgresql://idsc:admin@localhost:5432/gqueue?sslmode=disable")
+// 	os.Setenv("WQ_CONCURRENCY", "32")
+// 	os.Setenv("WQ_QUEUES", `{"internal.critical": 7, "internal.high": 5, "internal.medium": 3, "internal.low": 1, "external.critical": 7, "external.high": 5, "external.medium": 3, "external.low": 1}`)
+// 	os.Setenv("WQ_WORKER_TYPE", "googlepubsub")
+// 	os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8085")
+// }

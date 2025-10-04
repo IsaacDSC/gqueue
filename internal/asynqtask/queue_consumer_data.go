@@ -1,4 +1,4 @@
-package task
+package asynqtask
 
 type Consumer struct {
 	Host    string            `json:"host"`

@@ -1,0 +1,13 @@
+# Include any files or directories that you don't want to be copied to your
+# container here (e.g., local build artifacts, temporary files, etc.).
+
+**/.DS_Store
+**/.git
+**/.gitignore
+**/.vscode
+**/.idea
+**/node_modules
+**/npm-debug.log
+*.log
+*.tmp
+*.temp

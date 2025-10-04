@@ -1,4 +1,4 @@
-package taskstore
+package asynqstore
 
 import (
 	"context"
@@ -6,16 +6,16 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/IsaacDSC/gqueue/internal/asynqtask"
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/internal/task"
 	"github.com/redis/go-redis/v9"
 )
 
 type Cacher interface {
 	FindAllTriggers(ctx context.Context) ([]domain.Event, error)
-	FindAllQueues(ctx context.Context) ([]task.Queue, error)
+	FindAllQueues(ctx context.Context) ([]asynqtask.Queue, error)
 	FindArchivedTasks(ctx context.Context, queue string) ([]string, error)
-	GetMsgArchivedTask(ctx context.Context, queue, task string) (task.RawMsg, error)
+	GetMsgArchivedTask(ctx context.Context, queue, task string) (asynqtask.RawMsg, error)
 	RemoveMsgArchivedTask(ctx context.Context, queue, task string) error
 	RemoveItemsArchivedTasks(ctx context.Context, queue string, tasks ...string) error
 	SetArchivedTasks(ctx context.Context, events []domain.Event) error
@@ -36,7 +36,7 @@ const archivedKey = "gqueue:consumers:schedule:archived"
 func (c Cache) FindAllTriggers(ctx context.Context) ([]domain.Event, error) {
 	cResult, err := c.cache.Get(ctx, archivedKey).Result()
 	if errors.Is(err, redis.Nil) {
-		return nil, task.ErrorNotFound
+		return nil, asynqtask.ErrorNotFound
 	}
 
 	if err != nil {
@@ -51,21 +51,21 @@ func (c Cache) FindAllTriggers(ctx context.Context) ([]domain.Event, error) {
 	return results, nil
 }
 
-func (c Cache) FindAllQueues(ctx context.Context) ([]task.Queue, error) {
+func (c Cache) FindAllQueues(ctx context.Context) ([]asynqtask.Queue, error) {
 	const key = "asynq:queues"
 	qResult, err := c.cache.SMembers(ctx, key).Result()
 
 	if errors.Is(err, redis.Nil) {
-		return nil, task.ErrorNotFound
+		return nil, asynqtask.ErrorNotFound
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get queues: %w", err)
 	}
 
-	queues := make([]task.Queue, len(qResult))
+	queues := make([]asynqtask.Queue, len(qResult))
 	for i, q := range qResult {
-		queues[i] = task.Queue(q)
+		queues[i] = asynqtask.Queue(q)
 	}
 
 	return queues, nil
@@ -91,7 +91,7 @@ func (c Cache) RemoveItemsArchivedTasks(ctx context.Context, queue string, tasks
 	return nil
 }
 
-func (c Cache) GetMsgArchivedTask(ctx context.Context, queue, taskName string) (task.RawMsg, error) {
+func (c Cache) GetMsgArchivedTask(ctx context.Context, queue, taskName string) (asynqtask.RawMsg, error) {
 	const archivedTaskKey = "asynq:{%s}:t:%s"
 	key := fmt.Sprintf(archivedTaskKey, queue, taskName)
 	result, err := c.cache.HGet(ctx, key, "msg").Result()
@@ -99,7 +99,7 @@ func (c Cache) GetMsgArchivedTask(ctx context.Context, queue, taskName string) (
 		return "", fmt.Errorf("failed to fetch DLQ task: %w", err)
 	}
 
-	return task.RawMsg(result), nil
+	return asynqtask.RawMsg(result), nil
 }
 
 func (c Cache) RemoveMsgArchivedTask(ctx context.Context, queue, task string) error {

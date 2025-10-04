@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/internal/backoffice"
-	"github.com/IsaacDSC/gqueue/internal/eventqueue"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
+	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
 	cache2 "github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
 	"github.com/IsaacDSC/gqueue/pkg/publisher"
@@ -26,7 +26,7 @@ func StartServer(
 		backoffice.GetEvent(cache, store),
 		backoffice.GetEvents(cache, store),
 		backoffice.GetRegisterTaskConsumerArchived(cache, store),
-		eventqueue.Publisher(pub),
+		wtrhandler.Publisher(pub),
 	}
 
 	for _, route := range routes {

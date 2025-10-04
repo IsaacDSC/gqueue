@@ -10,7 +10,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/IsaacDSC/gqueue/internal/eventqueue"
+	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
 )
 
 func init() {
@@ -28,7 +28,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 		name           string
 		data           map[string]any
 		headers        map[string]string
-		trigger        eventqueue.Trigger
+		trigger        wtrhandler.Trigger
 		serverResponse serverResponse
 		wantErr        bool
 		errContains    string
@@ -44,9 +44,9 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"Authorization": "Bearer token123",
 				"X-Custom":      "custom-value",
 			},
-			trigger: eventqueue.Trigger{
+			trigger: wtrhandler.Trigger{
 				ServiceName: "test-service",
-				Type:        eventqueue.TriggerTypePersistent,
+				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/webhook",
 			},
@@ -65,9 +65,9 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			headers: map[string]string{
 				"Content-Type": "application/json",
 			},
-			trigger: eventqueue.Trigger{
+			trigger: wtrhandler.Trigger{
 				ServiceName: "user-service",
-				Type:        eventqueue.TriggerTypeNotPersistent,
+				Type:        wtrhandler.TriggerTypeNotPersistent,
 				BaseUrl:     "",
 				Path:        "/users/webhook",
 			},
@@ -83,9 +83,9 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"ping": "pong",
 			},
 			headers: map[string]string{},
-			trigger: eventqueue.Trigger{
+			trigger: wtrhandler.Trigger{
 				ServiceName: "ping-service",
-				Type:        eventqueue.TriggerTypeFireForGet,
+				Type:        wtrhandler.TriggerTypeFireForGet,
 				BaseUrl:     "",
 				Path:        "/ping",
 			},
@@ -101,9 +101,9 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"test": "boundary",
 			},
 			headers: map[string]string{},
-			trigger: eventqueue.Trigger{
+			trigger: wtrhandler.Trigger{
 				ServiceName: "boundary-service",
-				Type:        eventqueue.TriggerTypePersistent,
+				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/boundary",
 			},
@@ -119,9 +119,9 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"invalid": "data",
 			},
 			headers: map[string]string{},
-			trigger: eventqueue.Trigger{
+			trigger: wtrhandler.Trigger{
 				ServiceName: "validation-service",
-				Type:        eventqueue.TriggerTypePersistent,
+				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/validate",
 			},
@@ -138,9 +138,9 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"sensitive": "data",
 			},
 			headers: map[string]string{},
-			trigger: eventqueue.Trigger{
+			trigger: wtrhandler.Trigger{
 				ServiceName: "auth-service",
-				Type:        eventqueue.TriggerTypePersistent,
+				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/secure",
 			},
@@ -157,9 +157,9 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"event": "not-found",
 			},
 			headers: map[string]string{},
-			trigger: eventqueue.Trigger{
+			trigger: wtrhandler.Trigger{
 				ServiceName: "missing-service",
-				Type:        eventqueue.TriggerTypePersistent,
+				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/missing",
 			},
@@ -176,9 +176,9 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"event": "server-error",
 			},
 			headers: map[string]string{},
-			trigger: eventqueue.Trigger{
+			trigger: wtrhandler.Trigger{
 				ServiceName: "error-service",
-				Type:        eventqueue.TriggerTypePersistent,
+				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/error",
 			},
@@ -195,9 +195,9 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"redirect": "test",
 			},
 			headers: map[string]string{},
-			trigger: eventqueue.Trigger{
+			trigger: wtrhandler.Trigger{
 				ServiceName: "redirect-service",
-				Type:        eventqueue.TriggerTypePersistent,
+				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/redirect",
 			},
@@ -214,9 +214,9 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"complex": "url",
 			},
 			headers: map[string]string{},
-			trigger: eventqueue.Trigger{
+			trigger: wtrhandler.Trigger{
 				ServiceName: "complex-service",
-				Type:        eventqueue.TriggerTypePersistent,
+				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/api/v1/webhooks",
 			},
@@ -265,9 +265,9 @@ func TestNotification_NotifyTrigger_InvalidData(t *testing.T) {
 		"channel": make(chan int),
 	}
 
-	trigger := eventqueue.Trigger{
+	trigger := wtrhandler.Trigger{
 		ServiceName: "test-service",
-		Type:        eventqueue.TriggerTypePersistent,
+		Type:        wtrhandler.TriggerTypePersistent,
 		BaseUrl:     "http://example.com",
 		Path:        "/webhook",
 	}

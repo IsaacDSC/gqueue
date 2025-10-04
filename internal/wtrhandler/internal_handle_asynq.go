@@ -1,4 +1,4 @@
-package eventqueue
+package wtrhandler
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/IsaacDSC/gqueue/pkg/logs"
+	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
@@ -17,9 +18,9 @@ type Repository interface {
 	GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) (domain.Event, error)
 }
 
-func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, publisher publisher.Publisher) asyncadapter.Handle[InternalPayload] {
+func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publisher.Publisher) asyncadapter.Handle[InternalPayload] {
 	return asyncadapter.Handle[InternalPayload]{
-		Event: "event-queue.internal",
+		Event: domain.EventQueueInternal,
 		Handler: func(c asyncadapter.AsyncCtx[InternalPayload]) error {
 			ctx := c.Context()
 
@@ -36,7 +37,6 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, publisher
 			})
 
 			if errors.Is(err, domain.EventNotFound) {
-				// TODO: DEVE SER DISCARTADO O EVENTO >> SALVAR EVENTOS DISCARTADOS >> USAR O PADRÃO DO ASYNQ DE DISCARD
 				logs.Warn("Event not found", "eventName", payload.EventName)
 				return nil
 			}
@@ -62,7 +62,9 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, publisher
 					},
 				}
 
-				if err := publisher.Publish(ctx, "event-queue.request-to-external", input, config...); err != nil {
+				topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueRequestToExternal)
+				opts := publisher.Opts{Attributes: make(map[string]string), AsynqOpts: config}
+				if err := pub.Publish(ctx, topic, input, opts); err != nil {
 					return fmt.Errorf("publish internal event: %w", err)
 				}
 			}
