@@ -41,7 +41,6 @@ func (p *PubSubGoogle) Publish(ctx context.Context, topicName string, payload an
 
 	topic := p.client.Topic(topicName)
 	result := topic.Publish(ctx, &pubsub.Message{
-		ID:         uuid.New().String(),
 		Data:       bytesPayload,
 		Attributes: attributes,
 	})
