@@ -10,21 +10,25 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      pubsub-emulator:
+        condition: service_healthy
     environment:
       - DB_DRIVER=pg
       - DB_CONNECTION_STRING=postgres://idsc:admin@postgres:5432/gqueue?sslmode=disable
       - CACHE_ADDR=redis:6379
       - WQ_CONCURRENCY=32
       - WQ_QUEUES={"internal.critical":7,"internal.high":5,"internal.medium":3,"internal.low":1,"external.critical":7,"external.high":5,"external.medium":3,"external.low":1}
+      - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
+      - WQ_WORKER_TYPE=googlepubsub
     networks:
       - app-network
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
 
   redis:
@@ -34,7 +38,7 @@ services:
     volumes:
       - redis-data:/data
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,10 +47,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.2'
+          cpus: "0.2"
           memory: 256M
 
   postgres:
@@ -61,7 +65,7 @@ services:
       - POSTGRES_USER=idsc
       - POSTGRES_PASSWORD=admin
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U idsc -d gqueue" ]
+      test: ["CMD-SHELL", "pg_isready -U idsc -d gqueue"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -70,10 +74,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
 
   pgadmin:
@@ -95,11 +99,32 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.2'
+          cpus: "0.2"
           memory: 256M
+
+  pubsub-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    container_name: pubsub-emulator
+    ports:
+      - "8085:8085"
+    command: >
+      /bin/bash -c "
+        gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=test-project
+      "
+    environment:
+      - PUBSUB_EMULATOR_HOST=0.0.0.0:8085
+      - PUBSUB_PROJECT_ID=test-project
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - app-network
 
 networks:
   app-network:
