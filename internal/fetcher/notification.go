@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/IsaacDSC/gqueue/internal/eventqueue"
+	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
 	"github.com/IsaacDSC/gqueue/pkg/httpclient"
 )
 
@@ -17,7 +17,7 @@ func NewNotification() *Notification {
 	return &Notification{}
 }
 
-func (n Notification) NotifyTrigger(ctx context.Context, data map[string]any, headers map[string]string, trigger eventqueue.Trigger) error {
+func (n Notification) NotifyTrigger(ctx context.Context, data map[string]any, headers map[string]string, trigger wtrhandler.Trigger) error {
 	url := trigger.GetUrl()
 	return fetch(ctx, url, data, headers)
 }

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/internal/task"
+	"github.com/IsaacDSC/gqueue/internal/asynqtask"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -188,7 +188,7 @@ func (r *PostgresStore) GetAllSchedulers(ctx context.Context, state string) ([]d
 	rows, err := r.db.QueryContext(ctx, query, state)
 	if errors.Is(err, sql.ErrNoRows) {
 		l.Warn("Not found schedulers", "tag", "PostgresStore.GetAllSchedulers")
-		return nil, task.ErrorNotFound
+		return nil, asynqtask.ErrorNotFound
 	}
 
 	if err != nil {

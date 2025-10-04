@@ -18,7 +18,7 @@ import (
 	"github.com/IsaacDSC/gqueue/pkg/gpubsub"
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 
-	"github.com/IsaacDSC/gqueue/internal/eventqueue"
+	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/publisher"
 
@@ -57,9 +57,9 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 	cuncurrency := cfg.AsynqConfig.Concurrency
 
 	handlers := []gpubsub.Handle{
-		eventqueue.NewDeadLatterQueue().ToGPubSubHandler(pub),
-		eventqueue.GetRequestHandle(fetch).ToGPubSubHandler(pub),
-		eventqueue.GetInternalConsumerHandle(store, cache, pub).ToGPubSubHandler(pub),
+		wtrhandler.NewDeadLatterQueue().ToGPubSubHandler(pub),
+		wtrhandler.GetRequestHandle(fetch).ToGPubSubHandler(pub),
+		wtrhandler.GetInternalConsumerHandle(store, cache, pub).ToGPubSubHandler(pub),
 	}
 
 	var wg sync.WaitGroup
@@ -179,8 +179,8 @@ func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub 
 	mux.Use(AsynqLogger)
 
 	events := []asynqsvc.AsynqHandle{
-		eventqueue.GetRequestHandle(fetch).ToAsynqHandler(),
-		eventqueue.GetInternalConsumerHandle(store, cache, pub).ToAsynqHandler(),
+		wtrhandler.GetRequestHandle(fetch).ToAsynqHandler(),
+		wtrhandler.GetInternalConsumerHandle(store, cache, pub).ToAsynqHandler(),
 	}
 
 	for _, event := range events {
