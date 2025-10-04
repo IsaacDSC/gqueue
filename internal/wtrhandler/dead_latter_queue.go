@@ -11,7 +11,7 @@ import (
 // TODO: implement logic
 func NewDeadLatterQueue() asyncadapter.Handle[pubsub.Message] {
 	return asyncadapter.Handle[pubsub.Message]{
-		Event: domain.EventQueueDeadLatter,
+		Event: domain.EventQueueDeadLetter,
 		Handler: func(c asyncadapter.AsyncCtx[pubsub.Message]) error {
 			log.Println("[*] DeadLatterQueue, received msg")
 

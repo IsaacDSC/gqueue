@@ -68,7 +68,7 @@ func (h Handle[T]) ToGPubSubHandler(pub publisher.Publisher) gpubsub.Handle {
 	archivedMsg := func(ctx context.Context, msg *pubsub.Message) {
 		defer msg.Ack()
 		time.Sleep(time.Second * 5)
-		topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueDeadLatter)
+		topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueDeadLetter)
 		if err := pub.Publish(ctx, topic, msg, publisher.Opts{
 			Attributes: msg.Attributes,
 		}); err != nil {
