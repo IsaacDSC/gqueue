@@ -92,8 +92,6 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 			subscriptionName := topicutils.BuildSubscriptionName(topicName)
 			subscription := clientPubsub.Subscription(subscriptionName)
 
-			subscription.Delete(ctx)
-
 			subExists, err := subscription.Exists(ctx)
 			if err != nil {
 				log.Printf("[!] Error checking if subscription %s exists: %v", subscriptionName, err)
