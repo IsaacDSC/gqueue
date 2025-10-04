@@ -30,6 +30,8 @@ services:
         reservations:
           cpus: "0.5"
           memory: 512M
+    profiles:
+      - test
 
   redis:
     image: redis:latest
@@ -52,6 +54,9 @@ services:
         reservations:
           cpus: "0.2"
           memory: 256M
+    profiles:
+      - test
+      - infra
 
   postgres:
     image: postgres:15
@@ -79,6 +84,9 @@ services:
         reservations:
           cpus: "0.5"
           memory: 512M
+    profiles:
+      - test
+      - infra
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -104,6 +112,8 @@ services:
         reservations:
           cpus: "0.2"
           memory: 256M
+    profiles:
+      - debug
 
   pubsub-emulator:
     image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
@@ -125,6 +135,28 @@ services:
       start_period: 40s
     networks:
       - app-network
+    profiles:
+      - test
+      - infra
+
+  consumer:
+    build:
+      context: ../../example/consumer
+      target: final
+    ports:
+      - 3333:3333
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    profiles:
+      - test
 
 networks:
   app-network:
