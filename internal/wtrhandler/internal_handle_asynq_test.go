@@ -12,7 +12,6 @@ import (
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/publisher"
-	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -91,8 +90,8 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					})
 
 				mockPub.EXPECT().
-					Publish(gomock.Any(), "event-queue.request-to-external", gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts ...asynq.Option) error {
+					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts publisher.Opts) error {
 						assert.Equal(t, "user.created", payload.EventName)
 						assert.Equal(t, "notification-service", payload.Trigger.ServiceName)
 						assert.Equal(t, TriggerType("persistent"), payload.Trigger.Type)
@@ -166,8 +165,8 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					})
 
 				mockPub.EXPECT().
-					Publish(gomock.Any(), "event-queue.request-to-external", gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts ...asynq.Option) error {
+					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts publisher.Opts) error {
 						assert.Equal(t, "order.completed", payload.EventName)
 						assert.Contains(t, []string{"billing-service", "analytics-service"}, payload.Trigger.ServiceName)
 						assert.Equal(t, "order-123", payload.Data["order_id"])
@@ -244,7 +243,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					})
 
 				mockPub.EXPECT().
-					Publish(gomock.Any(), "event-queue.request-to-external", gomock.Any(), gomock.Any()).
+					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
 					Return(errors.New("publisher connection failed")).
 					Times(1)
 			},

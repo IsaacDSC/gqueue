@@ -72,7 +72,7 @@ func TestGetExternalHandle(t *testing.T) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"event-queue.internal",
+						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
@@ -128,7 +128,7 @@ func TestGetExternalHandle(t *testing.T) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"event-queue.internal",
+						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
@@ -183,7 +183,7 @@ func TestGetExternalHandle(t *testing.T) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"event-queue.internal",
+						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
@@ -231,7 +231,7 @@ func TestGetExternalHandle(t *testing.T) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"event-queue.internal",
+						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
@@ -267,7 +267,7 @@ func TestGetExternalHandle(t *testing.T) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"event-queue.internal",
+						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
@@ -429,7 +429,7 @@ func TestGetExternalHandle_RequestBodyClosure(t *testing.T) {
 
 	// Setup mock to expect successful publish
 	mockPublisher.EXPECT().
-		Publish(gomock.Any(), "event-queue.internal", gomock.Any(), gomock.Any()).
+		Publish(gomock.Any(), "your-project-id-event-queue-internal", gomock.Any(), gomock.Any()).
 		Return(nil).
 		Times(1)
 
@@ -565,8 +565,8 @@ func TestGetExternalHandle_PayloadValidation(t *testing.T) {
 	mockPublisher.EXPECT().
 		Publish(
 			gomock.Any(),
-			"event-queue.internal",
-			gomock.AssignableToTypeOf(InternalPayload{}),
+			"your-project-id-event-queue-internal",
+			gomock.Any(),
 			gomock.Any(),
 		).
 		Do(func(ctx context.Context, eventName string, receivedPayload InternalPayload, opts ...interface{}) {
