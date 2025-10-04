@@ -20,11 +20,13 @@ func NewPublisher(client *asynq.Client) *Task {
 	return &Task{client: client}
 }
 
-func (t *Task) Publish(ctx context.Context, eventName string, payload any, opts ...asynq.Option) error {
+func (t *Task) Publish(ctx context.Context, eventName string, payload any, opts Opts) error {
 	defaultOpts := NewDefaultOpt()
-	definedOpts := make([]asynq.Option, 0, len(defaultOpts)+len(opts))
+
+	asynqopts := opts.AsynqOpts
+	definedOpts := make([]asynq.Option, 0, len(defaultOpts)+len(asynqopts))
 	definedOpts = append(definedOpts, defaultOpts...)
-	definedOpts = append(definedOpts, opts...)
+	definedOpts = append(definedOpts, asynqopts...)
 
 	p, err := json.Marshal(payload)
 	if err != nil {

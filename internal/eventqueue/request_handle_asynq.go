@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 )
 
@@ -32,7 +33,7 @@ type Fetcher interface {
 
 func GetRequestHandle(fetch Fetcher) asyncadapter.Handle[RequestPayload] {
 	return asyncadapter.Handle[RequestPayload]{
-		Event: "event-queue.request-to-external",
+		Event: domain.EventQueueRequestToExternal,
 		Handler: func(c asyncadapter.AsyncCtx[RequestPayload]) error {
 			ctx := c.Context()
 			payload, err := c.Payload()

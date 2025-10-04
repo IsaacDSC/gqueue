@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
 	"github.com/IsaacDSC/gqueue/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 )
 
 type ExternalPayload struct {
@@ -33,7 +35,9 @@ func Publisher(pub publisher.Publisher) httpsvc.HttpHandle {
 			}
 
 			conf := payload.GetOpts()
-			if err := pub.Publish(r.Context(), "event-queue.internal", payload, conf...); err != nil {
+			opts := publisher.Opts{Attributes: make(map[string]string), AsynqOpts: conf}
+			topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueInternal)
+			if err := pub.Publish(r.Context(), topic, payload, opts); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}

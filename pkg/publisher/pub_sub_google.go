@@ -5,30 +5,47 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"cloud.google.com/go/pubsub/v2"
+	"cloud.google.com/go/pubsub"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
-	"github.com/hibiken/asynq"
+	"github.com/google/uuid"
 )
 
 type PubSubGoogle struct {
-	pub *pubsub.Publisher
+	client *pubsub.Client
 }
 
 var _ Publisher = (*PubSubGoogle)(nil)
 
-func NewPubSubGoogle(pub *pubsub.Publisher) *PubSubGoogle {
-	return &PubSubGoogle{pub: pub}
+func NewPubSubGoogle(client *pubsub.Client) *PubSubGoogle {
+	return &PubSubGoogle{client: client}
 }
 
-func (p *PubSubGoogle) Publish(ctx context.Context, topicName string, payload any, opts ...asynq.Option) error {
+func (p *PubSubGoogle) Publish(ctx context.Context, topicName string, payload any, opts Opts) error {
 	l := ctxlogger.GetLogger(ctx)
+	l.Info("[*] Publisher msg to topic", "topic", topicName)
 
 	bytesPayload, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("could not marshal payload: %v", err)
 	}
 
-	result := p.pub.Publish(ctx, &pubsub.Message{Data: bytesPayload})
+	attributes := make(map[string]string)
+	if len(opts.Attributes) == 0 {
+		attributes = map[string]string{
+			"max_attempts": "3",
+			"topic":        topicName,
+		}
+	} else {
+		attributes = opts.Attributes
+	}
+
+	topic := p.client.Topic(topicName)
+	result := topic.Publish(ctx, &pubsub.Message{
+		ID:         uuid.New().String(),
+		Data:       bytesPayload,
+		Attributes: attributes,
+	})
+
 	id, err := result.Get(ctx)
 	if err != nil {
 		return fmt.Errorf("could not publish message: %v", err)
