@@ -62,6 +62,11 @@ test-fetcher:
 	@echo "$(GREEN)Executando testes do fetcher...$(NC)"
 	@WQ_QUEUES='{"internal.default":1,"external.default":1}' $(GO) test ./internal/fetcher -v
 
+# Executar testes do deadletter
+test-deadletter:
+	@echo "$(GREEN)Executando testes do deadletter...$(NC)"
+	@GO_ENV=test WQ_QUEUES='{"internal.default":1,"external.default":1}' $(GO) test ./internal/wtrhandler -v -run "TestNewDeadLatterQueue|TestDeadLetter"
+
 # Docker
 docker-build:
 	@echo "$(GREEN)Construindo imagem Docker...$(NC)"
@@ -84,6 +89,10 @@ generate-mocks: install-mockgen
 	@echo "$(GREEN)Gerando mocks...$(NC)"
 	@echo "$(BLUE)Gerando mock para Repository...$(NC)"
 	@$(MOCKGEN) -source=internal/wtrhandler/internal_handle_asynq.go -destination=internal/wtrhandler/repository_mock.go -package=wtrhandler Repository
+	@echo "$(BLUE)Gerando mock para DeadLetter...$(NC)"
+	@$(MOCKGEN) -source=internal/wtrhandler/deadletter_asynq_handle.go -destination=internal/wtrhandler/deadletter_mock.go -package=wtrhandler DeadLetterStore
+	@echo "$(BLUE)Gerando mock para Fetcher...$(NC)"
+	@$(MOCKGEN) -source=internal/wtrhandler/request_handle_asynq.go -destination=internal/wtrhandler/fetcher_mock.go -package=wtrhandler Fetcher
 	@echo "$(BLUE)Gerando mock para Cache...$(NC)"
 	@$(MOCKGEN) -source=pkg/cachemanager/adapter.go -destination=pkg/cachemanager/cache_mock.go -package=cachemanager
 	@echo "$(BLUE)Gerando mock para Publisher...$(NC)"
@@ -97,6 +106,16 @@ check-mocks:
 	@echo "$(GREEN)Verificando se os mocks existem...$(NC)"
 	@if [ ! -f "internal/wtrhandler/repository_mock.go" ]; then \
 		echo "$(YELLOW)⚠️  Repository mock não encontrado!$(NC)"; \
+		echo "Execute 'make generate-mocks' para gerar os mocks"; \
+		exit 1; \
+	fi
+	@if [ ! -f "internal/wtrhandler/deadletter_mock.go" ]; then \
+		echo "$(YELLOW)⚠️  DeadLetter mock não encontrado!$(NC)"; \
+		echo "Execute 'make generate-mocks' para gerar os mocks"; \
+		exit 1; \
+	fi
+	@if [ ! -f "internal/wtrhandler/fetcher_mock.go" ]; then \
+		echo "$(YELLOW)⚠️  Fetcher mock não encontrado!$(NC)"; \
 		echo "Execute 'make generate-mocks' para gerar os mocks"; \
 		exit 1; \
 	fi
@@ -117,6 +136,10 @@ clean-mocks:
 	@echo "$(GREEN)Removendo mocks...$(NC)"
 	@echo "$(BLUE)Removendo Repository mock...$(NC)"
 	@rm -f internal/wtrhandler/repository_mock.go
+	@echo "$(BLUE)Removendo DeadLetter mock...$(NC)"
+	@rm -f internal/wtrhandler/deadletter_mock.go
+	@echo "$(BLUE)Removendo Fetcher mock...$(NC)"
+	@rm -f internal/wtrhandler/fetcher_mock.go
 	@echo "$(BLUE)Removendo Cache mock...$(NC)"
 	@rm -f pkg/cachemanager/cache_mock.go
 	@echo "$(BLUE)Removendo Publisher mock...$(NC)"
@@ -135,6 +158,7 @@ help:
 	@echo "  $(GREEN)make test$(NC)            - Executa os testes"
 	@echo "  $(GREEN)make test-with-mocks$(NC) - Executa os testes com verificação de mocks"
 	@echo "  $(GREEN)make test-fetcher$(NC)    - Executa os testes do fetcher"
+	@echo "  $(GREEN)make test-deadletter$(NC) - Executa os testes do deadletter"
 	@echo "  $(GREEN)make generate-mocks$(NC)  - Gera todos os mocks"
 	@echo "  $(GREEN)make update-mocks$(NC)    - Atualiza todos os mocks"
 	@echo "  $(GREEN)make check-mocks$(NC)     - Verifica se os mocks existem"

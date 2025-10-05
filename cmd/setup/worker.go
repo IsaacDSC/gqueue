@@ -57,7 +57,7 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 	concurrency := cfg.AsynqConfig.Concurrency
 
 	handlers := []gpubsub.Handle{
-		wtrhandler.NewDeadLatterQueue().ToGPubSubHandler(pub),
+		wtrhandler.NewDeadLatterQueue(store, fetch).ToGPubSubHandler(pub),
 		wtrhandler.GetRequestHandle(fetch).ToGPubSubHandler(pub),
 		wtrhandler.GetInternalConsumerHandle(store, cache, pub).ToGPubSubHandler(pub),
 	}

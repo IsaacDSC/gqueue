@@ -7,7 +7,6 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
-	"github.com/google/uuid"
 )
 
 type PubSubGoogle struct {
