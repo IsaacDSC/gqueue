@@ -7,6 +7,7 @@ import (
 
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/pkg/intertime"
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 )
 
@@ -34,6 +35,7 @@ func (te TypeEvent) String() string {
 }
 
 type Event struct {
+	ID          uuid.UUID `json:"id" bson:"id"`
 	Name        string    `json:"name" bson:"name"`
 	ServiceName string    `json:"service_name" bson:"service_name"`
 	RepoURL     string    `json:"repo_url" bson:"repo_url"`

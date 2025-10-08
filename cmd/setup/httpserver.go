@@ -22,10 +22,12 @@ func StartServer(
 	mux := http.NewServeMux()
 
 	routes := []httpsvc.HttpHandle{
+		backoffice.GetHealthCheckHandler(),
 		backoffice.CreateConsumer(cache, store),
 		backoffice.GetEvent(cache, store),
 		backoffice.GetEvents(cache, store),
 		backoffice.GetRegisterTaskConsumerArchived(cache, store),
+		backoffice.RemoveEvent(cache, store),
 		wtrhandler.Publisher(pub),
 	}
 
