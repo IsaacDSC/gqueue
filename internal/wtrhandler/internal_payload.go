@@ -1,8 +1,9 @@
-package eventqueue
+package wtrhandler
 
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/hibiken/asynq"
 )

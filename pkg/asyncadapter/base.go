@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/IsaacDSC/gqueue/pkg/asynqsvc"
-	"github.com/hibiken/asynq"
 )
 
 type AdapterType string
@@ -15,6 +12,10 @@ type AsyncCtx[T any] struct {
 	ctx         context.Context
 	payload     T
 	bytePayload []byte
+}
+
+func (c AsyncCtx[T]) Bytes() []byte {
+	return c.bytePayload
 }
 
 func (c AsyncCtx[T]) Payload() (T, error) {
@@ -34,20 +35,4 @@ func (c AsyncCtx[T]) Context() context.Context {
 type Handle[T any] struct {
 	Event   string
 	Handler func(c AsyncCtx[T]) error
-}
-
-func (h Handle[T]) ToAsynqHandler() asynqsvc.AsynqHandle {
-	return asynqsvc.AsynqHandle{
-		Event: h.Event,
-		Handler: func(ctx context.Context, task *asynq.Task) error {
-			if err := h.Handler(AsyncCtx[T]{
-				ctx:         ctx,
-				bytePayload: task.Payload(),
-			}); err != nil {
-				return fmt.Errorf("handle task: %w", err)
-			}
-
-			return nil
-		},
-	}
 }

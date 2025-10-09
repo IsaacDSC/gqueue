@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/internal/task"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -48,14 +47,14 @@ func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, service
 	uniqueKey := r.getUniqueKey(eventName, serviceName, eventType, state)
 
 	query := `
-			SELECT name, service_name, repo_url, team_owner, triggers
+			SELECT id, name, service_name, repo_url, team_owner, triggers
 			FROM events
 			WHERE unique_key = $1 AND deleted_at IS NULL
 		`
 	var event domain.Event
 	var triggersJSON []byte
-
 	err := r.db.QueryRowContext(ctx, query, uniqueKey).Scan(
+		&event.ID,
 		&event.Name,
 		&event.ServiceName,
 		&event.RepoURL,
@@ -107,6 +106,7 @@ func (r *PostgresStore) GetInternalEvents(ctx context.Context, filters domain.Fi
 	for rows.Next() {
 		var event ModelEvent
 		if err := rows.Scan(
+			&event.ID,
 			&event.Name,
 			&event.ServiceName,
 			&event.RepoURL,
@@ -170,6 +170,7 @@ func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
 }
 
 const modelEventFields = `
+	id,
 	name,
 	service_name,
 	repo_url,
@@ -188,7 +189,7 @@ func (r *PostgresStore) GetAllSchedulers(ctx context.Context, state string) ([]d
 	rows, err := r.db.QueryContext(ctx, query, state)
 	if errors.Is(err, sql.ErrNoRows) {
 		l.Warn("Not found schedulers", "tag", "PostgresStore.GetAllSchedulers")
-		return nil, task.ErrorNotFound
+		return nil, domain.EventNotFound
 	}
 
 	if err != nil {
@@ -202,6 +203,7 @@ func (r *PostgresStore) GetAllSchedulers(ctx context.Context, state string) ([]d
 	for rows.Next() {
 		var event ModelEvent
 		if err := rows.Scan(
+			&event.ID,
 			&event.Name,
 			&event.ServiceName,
 			&event.RepoURL,
@@ -222,6 +224,16 @@ func (r *PostgresStore) GetAllSchedulers(ctx context.Context, state string) ([]d
 	}
 
 	return events, nil
+}
+
+func (r *PostgresStore) DisabledEvent(ctx context.Context, eventID uuid.UUID) error {
+	query := `UPDATE events SET state = 'disabled', unique_key = $2, deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL;`
+	_, err := r.db.Exec(query, eventID, fmt.Sprintf("disabled.%s", uuid.New().String()))
+	if err != nil {
+		return fmt.Errorf("failed to disable event: %w", err)
+	}
+
+	return nil
 }
 
 func (r *PostgresStore) getUniqueKey(eventName, serviceName, eventType, state string) string {

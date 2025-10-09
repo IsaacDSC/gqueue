@@ -1,4 +1,4 @@
-package task
+package asynqtask
 
 type Queue string
 

@@ -13,7 +13,6 @@ import (
 	context "context"
 	reflect "reflect"
 
-	asynq "github.com/hibiken/asynq"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,20 +41,15 @@ func (m *MockPublisher) EXPECT() *MockPublisherMockRecorder {
 }
 
 // Publish mocks base method.
-func (m *MockPublisher) Publish(ctx context.Context, eventName string, payload any, opts ...asynq.Option) error {
+func (m *MockPublisher) Publish(ctx context.Context, topicName string, payload any, opts Opts) error {
 	m.ctrl.T.Helper()
-	varargs := []any{ctx, eventName, payload}
-	for _, a := range opts {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "Publish", varargs...)
+	ret := m.ctrl.Call(m, "Publish", ctx, topicName, payload, opts)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Publish indicates an expected call of Publish.
-func (mr *MockPublisherMockRecorder) Publish(ctx, eventName, payload any, opts ...any) *gomock.Call {
+func (mr *MockPublisherMockRecorder) Publish(ctx, topicName, payload, opts any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]any{ctx, eventName, payload}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockPublisher)(nil).Publish), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockPublisher)(nil).Publish), ctx, topicName, payload, opts)
 }

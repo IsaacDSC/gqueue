@@ -1,7 +1,7 @@
 ### Example create event
 
 curl -X POST \
- http://localhost:8080/event/consumer \
+ http://localhost:8080/api/v1/event/consumer \
  -H "Content-Type: application/json" \
  -H "Accept: application/json" \
  -d @example/event_data.json

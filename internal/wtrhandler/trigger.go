@@ -1,4 +1,4 @@
-package eventqueue
+package wtrhandler
 
 import (
 	"fmt"
