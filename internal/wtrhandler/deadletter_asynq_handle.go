@@ -26,7 +26,7 @@ func NewDeadLatterQueue(store DeadLetterStore, fetcher Fetcher) asyncadapter.Han
 				return fmt.Errorf("failed to get payload: %w", err)
 			}
 
-			// TODO: realizar um filtro por eventName para evitrar
+			// TODO: realizar um filtro por eventName para evitar
 			events, err := store.GetAllSchedulers(ctx, "archived")
 			if errors.Is(err, domain.EventNotFound) {
 				return nil
