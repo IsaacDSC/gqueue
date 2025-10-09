@@ -37,12 +37,12 @@ func (h Handle[T]) ToGPubSubHandler(pub publisher.Publisher) gpubsub.Handle {
 
 		retryCount, err := strconv.Atoi(strRetryCount)
 		if err != nil {
-			panic(err)
+			panic(err) //TODO: adicionar validação e tratamento de erro melhor
 		}
 
 		maxRetryAttempts, err := strconv.Atoi(strMaxRetryCount)
 		if err != nil {
-			panic(err)
+			panic(err) //TODO: adicionar validação e tratamento de erro melhor
 		}
 
 		if retryCount >= maxRetryAttempts {
