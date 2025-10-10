@@ -14,6 +14,7 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/fetcher"
+	"github.com/IsaacDSC/gqueue/internal/storests"
 	"github.com/IsaacDSC/gqueue/pkg/asynqsvc"
 	"github.com/IsaacDSC/gqueue/pkg/gpubsub"
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
@@ -27,7 +28,7 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-func StartWorker(clientPubsub *pubsub.Client, cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher) {
+func StartWorker(clientPubsub *pubsub.Client, cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher, insightsStore *storests.Store) {
 	fetch := fetcher.NewNotification()
 
 	cfg := cfg.Get()
@@ -35,14 +36,14 @@ func StartWorker(clientPubsub *pubsub.Client, cache cachemanager.Cache, store in
 
 	fmt.Println("[*] worker type", workerType)
 	if workerType == "googlepubsub" {
-		startUsingGooglePubSub(clientPubsub, cache, store, pub, fetch)
+		startUsingGooglePubSub(clientPubsub, cache, store, pub, fetch, insightsStore)
 	} else {
-		startUsingAsynq(cache, store, pub, fetch)
+		startUsingAsynq(cache, store, pub, fetch, insightsStore)
 	}
 
 }
 
-func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher, fetch *fetcher.Notification) {
+func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher, fetch *fetcher.Notification, insightsStore *storests.Store) {
 	ctx := context.Background()
 
 	sigChan := make(chan os.Signal, 1)
@@ -58,8 +59,8 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 
 	handlers := []gpubsub.Handle{
 		wtrhandler.NewDeadLatterQueue(store, fetch).ToGPubSubHandler(pub),
-		wtrhandler.GetRequestHandle(fetch).ToGPubSubHandler(pub),
-		wtrhandler.GetInternalConsumerHandle(store, cache, pub).ToGPubSubHandler(pub),
+		wtrhandler.GetRequestHandle(fetch, insightsStore).ToGPubSubHandler(pub),
+		wtrhandler.GetInternalConsumerHandle(store, cache, pub, insightsStore).ToGPubSubHandler(pub),
 	}
 
 	var wg sync.WaitGroup
@@ -157,7 +158,7 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 	}
 }
 
-func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher, fetch *fetcher.Notification) {
+func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher, fetch *fetcher.Notification, insightsStore *storests.Store) {
 	cfg := cfg.Get()
 
 	asyqCfg := asynq.Config{
@@ -177,8 +178,8 @@ func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub 
 	mux.Use(AsynqLogger)
 
 	events := []asynqsvc.AsynqHandle{
-		wtrhandler.GetRequestHandle(fetch).ToAsynqHandler(),
-		wtrhandler.GetInternalConsumerHandle(store, cache, pub).ToAsynqHandler(),
+		wtrhandler.GetRequestHandle(fetch, insightsStore).ToAsynqHandler(),
+		wtrhandler.GetInternalConsumerHandle(store, cache, pub, insightsStore).ToAsynqHandler(),
 	}
 
 	for _, event := range events {

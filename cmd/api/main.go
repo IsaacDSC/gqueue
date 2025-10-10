@@ -10,6 +10,7 @@ import (
 	vkit "cloud.google.com/go/pubsub/apiv1"
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/internal/storests"
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/grpc/codes"
 
@@ -24,6 +25,7 @@ import (
 
 const appName = "gqueue"
 
+// TODO: rename to --scope=...
 // go run . --service=server
 // go run . --service=worker
 // go run . --service=archived-notification
@@ -69,6 +71,8 @@ func main() {
 		panic(err)
 	}
 
+	insights := storests.NewStore(cacheClient)
+
 	store, err := interstore.NewPostgresStoreFromDSN(cfg.ConfigDatabase.DbConn)
 	if err != nil {
 		panic(err)
@@ -88,7 +92,7 @@ func main() {
 	flag.Parse()
 
 	if *service == "worker" {
-		setup.StartWorker(clientPubsub, cc, store, pub)
+		setup.StartWorker(clientPubsub, cc, store, pub, insights)
 		return
 	}
 
@@ -105,6 +109,6 @@ func main() {
 	}
 
 	go setup.StartServer(cacheClient, cc, store, pub)
-	setup.StartWorker(clientPubsub, cc, store, pub)
+	setup.StartWorker(clientPubsub, cc, store, pub, insights)
 
 }

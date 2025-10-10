@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
+	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/IsaacDSC/gqueue/pkg/logs"
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 
@@ -18,16 +20,40 @@ type Repository interface {
 	GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) (domain.Event, error)
 }
 
-func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publisher.Publisher) asyncadapter.Handle[InternalPayload] {
+type PublisherInsights interface {
+	Published(ctx context.Context, input domain.PublisherInsights) error
+}
+
+func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publisher.Publisher, insights PublisherInsights) asyncadapter.Handle[InternalPayload] {
+
+	insertInsights := func(ctx context.Context, payload InternalPayload, started time.Time, isSuccess bool) {
+		l := ctxlogger.GetLogger(ctx)
+		finished := time.Now()
+
+		if err := insights.Published(ctx, domain.PublisherInsights{
+			TopicName:    payload.EventName,
+			TimeStarted:  started,
+			TimeEnded:    finished,
+			TimeDuration: time.Duration(finished.Sub(started).Milliseconds()),
+			ACK:          true,
+		}); err != nil {
+			l.Warn("not save metric", "type", "publisher", "error", err.Error())
+		}
+
+	}
+
 	return asyncadapter.Handle[InternalPayload]{
 		Event: domain.EventQueueInternal,
-		Handler: func(c asyncadapter.AsyncCtx[InternalPayload]) error {
+		Handler: func(c asyncadapter.AsyncCtx[InternalPayload]) (err error) {
 			ctx := c.Context()
 
 			payload, err := c.Payload()
 			if err != nil {
-				return fmt.Errorf("get payload: %w", err)
+				err = fmt.Errorf("get payload: %w", err)
+				return
 			}
+
+			defer insertInsights(ctx, payload, time.Now(), err == nil)
 
 			var event domain.Event
 			key := cc.Key(domain.CacheKeyEventPrefix, payload.EventName)
@@ -43,7 +69,8 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publi
 
 			if err != nil {
 				logs.Error("error on consuming internal event", "eventName", payload.EventName, "error", err)
-				return fmt.Errorf("get internal event: %w", err)
+				err = fmt.Errorf("get internal event: %w", err)
+				return
 			}
 
 			for _, tt := range event.Triggers {
@@ -64,12 +91,13 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publi
 
 				topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueRequestToExternal)
 				opts := publisher.Opts{Attributes: make(map[string]string), AsynqOpts: config}
-				if err := pub.Publish(ctx, topic, input, opts); err != nil {
-					return fmt.Errorf("publish internal event: %w", err)
+				if err = pub.Publish(ctx, topic, input, opts); err != nil {
+					err = fmt.Errorf("publish internal event: %w", err)
+					return
 				}
 			}
 
-			return nil
+			return
 		},
 	}
 }

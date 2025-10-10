@@ -55,3 +55,41 @@ func (mr *MockRepositoryMockRecorder) GetInternalEvent(ctx, eventName, serviceNa
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInternalEvent", reflect.TypeOf((*MockRepository)(nil).GetInternalEvent), ctx, eventName, serviceName, eventType, state)
 }
+
+// MockPublisherInsights is a mock of PublisherInsights interface.
+type MockPublisherInsights struct {
+	ctrl     *gomock.Controller
+	recorder *MockPublisherInsightsMockRecorder
+	isgomock struct{}
+}
+
+// MockPublisherInsightsMockRecorder is the mock recorder for MockPublisherInsights.
+type MockPublisherInsightsMockRecorder struct {
+	mock *MockPublisherInsights
+}
+
+// NewMockPublisherInsights creates a new mock instance.
+func NewMockPublisherInsights(ctrl *gomock.Controller) *MockPublisherInsights {
+	mock := &MockPublisherInsights{ctrl: ctrl}
+	mock.recorder = &MockPublisherInsightsMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPublisherInsights) EXPECT() *MockPublisherInsightsMockRecorder {
+	return m.recorder
+}
+
+// Published mocks base method.
+func (m *MockPublisherInsights) Published(ctx context.Context, input domain.PublisherInsights) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Published", ctx, input)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Published indicates an expected call of Published.
+func (mr *MockPublisherInsightsMockRecorder) Published(ctx, input any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Published", reflect.TypeOf((*MockPublisherInsights)(nil).Published), ctx, input)
+}
