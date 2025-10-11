@@ -6,29 +6,29 @@ import (
 )
 
 type ConsumerMetric struct {
-	TopicName    string
-	ConsumerName string
-	TimeStarted  time.Time
-	TimeEnded    time.Time
-	TimeDuration time.Duration
-	ACK          bool
+	TopicName      string
+	ConsumerName   string
+	TimeStarted    time.Time
+	TimeEnded      time.Time
+	TimeDurationMs int64
+	ACK            bool
 }
 
 type PublisherMetric struct {
-	TopicName    string
-	TimeStarted  time.Time
-	TimeEnded    time.Time
-	TimeDuration time.Duration
-	ACK          bool
+	TopicName      string
+	TimeStarted    time.Time
+	TimeEnded      time.Time
+	TimeDurationMs int64
+	ACK            bool
 }
 
 type Metric struct {
-	TopicName    string
-	ConsumerName string
-	TimeStarted  time.Time
-	TimeEnded    time.Time
-	TimeDuration time.Duration
-	ACK          bool
+	TopicName      string
+	ConsumerName   string
+	TimeStarted    time.Time
+	TimeEnded      time.Time
+	TimeDurationMs int64
+	ACK            bool
 }
 
 type Metrics []Metric
@@ -119,11 +119,11 @@ type SegmentationPublished map[string][]PublisherMetric
 func (sp SegmentationPublished) add(metric Metric) {
 	key := metric.TopicName
 	sp[key] = append(sp[key], PublisherMetric{
-		TopicName:    metric.TopicName,
-		TimeStarted:  metric.TimeStarted,
-		TimeEnded:    metric.TimeEnded,
-		TimeDuration: metric.TimeDuration,
-		ACK:          metric.ACK,
+		TopicName:      metric.TopicName,
+		TimeStarted:    metric.TimeStarted,
+		TimeEnded:      metric.TimeEnded,
+		TimeDurationMs: metric.TimeDurationMs,
+		ACK:            metric.ACK,
 	})
 }
 

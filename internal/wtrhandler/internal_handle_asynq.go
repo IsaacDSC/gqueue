@@ -31,11 +31,11 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publi
 		finished := time.Now()
 
 		if err := insights.Published(ctx, domain.PublisherMetric{
-			TopicName:    payload.EventName,
-			TimeStarted:  started,
-			TimeEnded:    finished,
-			TimeDuration: time.Duration(finished.Sub(started).Milliseconds()),
-			ACK:          true,
+			TopicName:      payload.EventName,
+			TimeStarted:    started,
+			TimeEnded:      finished,
+			TimeDurationMs: finished.Sub(started).Milliseconds(),
+			ACK:            true,
 		}); err != nil {
 			l.Warn("not save metric", "type", "publisher", "error", err.Error())
 		}

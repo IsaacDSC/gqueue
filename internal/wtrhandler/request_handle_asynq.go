@@ -43,12 +43,12 @@ func GetRequestHandle(fetch Fetcher, insights ConsumerInsights) asyncadapter.Han
 		l := ctxlogger.GetLogger(ctx)
 		finished := time.Now()
 		if err := insights.Consumed(ctx, domain.ConsumerMetric{
-			TopicName:    payload.EventName,
-			ConsumerName: payload.Trigger.ServiceName,
-			TimeStarted:  started,
-			TimeEnded:    finished,
-			TimeDuration: time.Duration(finished.Sub(started).Milliseconds()),
-			ACK:          isSuccess,
+			TopicName:      payload.EventName,
+			ConsumerName:   payload.Trigger.ServiceName,
+			TimeStarted:    started,
+			TimeEnded:      finished,
+			TimeDurationMs: finished.Sub(started).Milliseconds(),
+			ACK:            isSuccess,
 		}); err != nil {
 			l.Warn("not save metric", "type", "consumer", "error", err.Error())
 		}
