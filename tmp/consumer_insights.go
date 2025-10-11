@@ -7,5 +7,5 @@ import (
 )
 
 type ConsumerInsights interface {
-	Consumed(ctx context.Context, input domain.ConsumerInsights) error
+	Consumed(ctx context.Context, input domain.ConsumerMetric) error
 }

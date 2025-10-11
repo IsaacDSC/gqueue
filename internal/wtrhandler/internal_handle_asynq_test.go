@@ -106,7 +106,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 
 				mockInsights.EXPECT().
 					Published(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, input domain.PublisherInsights) error {
+					DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
 						assert.Equal(t, "user.created", input.TopicName)
 						assert.True(t, input.ACK)
 						assert.NotZero(t, input.TimeStarted)
@@ -188,7 +188,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 
 				mockInsights.EXPECT().
 					Published(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, input domain.PublisherInsights) error {
+					DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
 						assert.Equal(t, "order.completed", input.TopicName)
 						assert.True(t, input.ACK)
 						assert.NotZero(t, input.TimeStarted)
@@ -224,7 +224,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				// Insights is called even when event is not found
 				mockInsights.EXPECT().
 					Published(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, input domain.PublisherInsights) error {
+					DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
 						assert.Equal(t, "nonexistent.event", input.TopicName)
 						assert.True(t, input.ACK)
 						assert.NotZero(t, input.TimeStarted)
@@ -281,7 +281,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 
 				mockInsights.EXPECT().
 					Published(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, input domain.PublisherInsights) error {
+					DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
 						assert.Equal(t, "user.updated", input.TopicName)
 						assert.True(t, input.ACK)
 						assert.NotZero(t, input.TimeStarted)
@@ -326,7 +326,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				// Insights is called even when there are no triggers to process
 				mockInsights.EXPECT().
 					Published(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, input domain.PublisherInsights) error {
+					DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
 						assert.Equal(t, "archived.event", input.TopicName)
 						assert.True(t, input.ACK)
 						assert.NotZero(t, input.TimeStarted)
@@ -451,7 +451,7 @@ func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
 	// Insights is called even when cache error occurs
 	mockInsights.EXPECT().
 		Published(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, input domain.PublisherInsights) error {
+		DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
 			assert.Equal(t, "test.event", input.TopicName)
 			assert.True(t, input.ACK)
 			assert.NotZero(t, input.TimeStarted)

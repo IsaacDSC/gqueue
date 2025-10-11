@@ -7,5 +7,5 @@ import (
 )
 
 type PublisherInsights interface {
-	Published(ctx context.Context, input domain.PublisherInsights) error
+	Published(ctx context.Context, input domain.PublisherMetric) error
 }

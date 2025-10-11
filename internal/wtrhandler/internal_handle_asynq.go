@@ -21,7 +21,7 @@ type Repository interface {
 }
 
 type PublisherInsights interface {
-	Published(ctx context.Context, input domain.PublisherInsights) error
+	Published(ctx context.Context, input domain.PublisherMetric) error
 }
 
 func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publisher.Publisher, insights PublisherInsights) asyncadapter.Handle[InternalPayload] {
@@ -30,7 +30,7 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publi
 		l := ctxlogger.GetLogger(ctx)
 		finished := time.Now()
 
-		if err := insights.Published(ctx, domain.PublisherInsights{
+		if err := insights.Published(ctx, domain.PublisherMetric{
 			TopicName:    payload.EventName,
 			TimeStarted:  started,
 			TimeEnded:    finished,
@@ -45,6 +45,7 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publi
 	return asyncadapter.Handle[InternalPayload]{
 		Event: domain.EventQueueInternal,
 		Handler: func(c asyncadapter.AsyncCtx[InternalPayload]) (err error) {
+			started := time.Now()
 			ctx := c.Context()
 
 			payload, err := c.Payload()
@@ -53,7 +54,7 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publi
 				return
 			}
 
-			defer insertInsights(ctx, payload, time.Now(), err == nil)
+			defer insertInsights(ctx, payload, started, err == nil)
 
 			var event domain.Event
 			key := cc.Key(domain.CacheKeyEventPrefix, payload.EventName)

@@ -34,7 +34,7 @@ type Fetcher interface {
 }
 
 type ConsumerInsights interface {
-	Consumed(ctx context.Context, input domain.ConsumerInsights) error
+	Consumed(ctx context.Context, input domain.ConsumerMetric) error
 }
 
 func GetRequestHandle(fetch Fetcher, insights ConsumerInsights) asyncadapter.Handle[RequestPayload] {
@@ -42,13 +42,13 @@ func GetRequestHandle(fetch Fetcher, insights ConsumerInsights) asyncadapter.Han
 	insertInsights := func(ctx context.Context, payload RequestPayload, started time.Time, isSuccess bool) {
 		l := ctxlogger.GetLogger(ctx)
 		finished := time.Now()
-		if err := insights.Consumed(ctx, domain.ConsumerInsights{
+		if err := insights.Consumed(ctx, domain.ConsumerMetric{
 			TopicName:    payload.EventName,
 			ConsumerName: payload.Trigger.ServiceName,
 			TimeStarted:  started,
 			TimeEnded:    finished,
 			TimeDuration: time.Duration(finished.Sub(started).Milliseconds()),
-			ACK:          true,
+			ACK:          isSuccess,
 		}); err != nil {
 			l.Warn("not save metric", "type", "consumer", "error", err.Error())
 		}

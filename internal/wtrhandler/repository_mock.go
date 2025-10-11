@@ -81,7 +81,7 @@ func (m *MockPublisherInsights) EXPECT() *MockPublisherInsightsMockRecorder {
 }
 
 // Published mocks base method.
-func (m *MockPublisherInsights) Published(ctx context.Context, input domain.PublisherInsights) error {
+func (m *MockPublisherInsights) Published(ctx context.Context, input domain.PublisherMetric) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Published", ctx, input)
 	ret0, _ := ret[0].(error)

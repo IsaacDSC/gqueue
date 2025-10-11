@@ -80,7 +80,7 @@ func (m *MockConsumerInsights) EXPECT() *MockConsumerInsightsMockRecorder {
 }
 
 // Consumed mocks base method.
-func (m *MockConsumerInsights) Consumed(ctx context.Context, input domain.ConsumerInsights) error {
+func (m *MockConsumerInsights) Consumed(ctx context.Context, input domain.ConsumerMetric) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Consumed", ctx, input)
 	ret0, _ := ret[0].(error)

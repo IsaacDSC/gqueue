@@ -192,7 +192,7 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 			setupMocks: func(mockInsights *MockConsumerInsights) {
 				mockInsights.EXPECT().
 					Consumed(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, input domain.ConsumerInsights) error {
+					DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
 						assert.Equal(t, "user.created", input.TopicName)
 						assert.Equal(t, "user-service", input.ConsumerName)
 						assert.True(t, input.ACK)
@@ -294,7 +294,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 			setupMocks: func(mockInsights *MockConsumerInsights) {
 				mockInsights.EXPECT().
 					Consumed(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, input domain.ConsumerInsights) error {
+					DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
 						assert.Equal(t, "user.created", input.TopicName)
 						assert.Equal(t, "user-service", input.ConsumerName)
 						assert.True(t, input.ACK)
@@ -322,7 +322,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 			setupMocks: func(mockInsights *MockConsumerInsights) {
 				mockInsights.EXPECT().
 					Consumed(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, input domain.ConsumerInsights) error {
+					DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
 						assert.Equal(t, "user.created", input.TopicName)
 						assert.Equal(t, "user-service", input.ConsumerName)
 						assert.True(t, input.ACK)
@@ -401,7 +401,7 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 			mockInsights := NewMockConsumerInsights(ctrl)
 			mockInsights.EXPECT().
 				Consumed(gomock.Any(), gomock.Any()).
-				DoAndReturn(func(ctx context.Context, input domain.ConsumerInsights) error {
+				DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
 					assert.Equal(t, "user.created", input.TopicName)
 					assert.Equal(t, "user-service", input.ConsumerName)
 					assert.True(t, input.ACK)
@@ -453,7 +453,7 @@ func TestGetRequestHandle_HeaderMerging(t *testing.T) {
 	mockInsights := NewMockConsumerInsights(ctrl)
 	mockInsights.EXPECT().
 		Consumed(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, input domain.ConsumerInsights) error {
+		DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
 			assert.Equal(t, "user.created", input.TopicName)
 			assert.Equal(t, "user-service", input.ConsumerName)
 			assert.True(t, input.ACK)
@@ -518,7 +518,7 @@ func TestGetRequestHandle_DataPassing(t *testing.T) {
 	mockInsights := NewMockConsumerInsights(ctrl)
 	mockInsights.EXPECT().
 		Consumed(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, input domain.ConsumerInsights) error {
+		DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
 			assert.Equal(t, "user.created", input.TopicName)
 			assert.Equal(t, "user-service", input.ConsumerName)
 			assert.True(t, input.ACK)
