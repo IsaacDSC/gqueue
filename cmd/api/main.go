@@ -98,7 +98,7 @@ func main() {
 
 	// TODO: adicionar graceful shutdown
 	if *service == "server" {
-		setup.StartServer(cacheClient, cc, store, pub)
+		setup.StartServer(cacheClient, cc, store, pub, insights)
 		return
 	}
 
@@ -108,7 +108,7 @@ func main() {
 		return
 	}
 
-	go setup.StartServer(cacheClient, cc, store, pub)
+	go setup.StartServer(cacheClient, cc, store, pub, insights)
 	setup.StartWorker(clientPubsub, cc, store, pub, insights)
 
 }

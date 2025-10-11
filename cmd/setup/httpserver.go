@@ -1,10 +1,12 @@
 package setup
 
 import (
+	"context"
 	"log"
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/internal/backoffice"
+	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
 	cache2 "github.com/IsaacDSC/gqueue/pkg/cachemanager"
@@ -13,11 +15,16 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+type InsightsStore interface {
+	GetAll(ctx context.Context) (output domain.Metrics, err error)
+}
+
 func StartServer(
 	rdsclient *redis.Client,
 	cache cache2.Cache,
 	store interstore.Repository,
 	pub publisher.Publisher,
+	insightsStore InsightsStore,
 ) {
 	mux := http.NewServeMux()
 
@@ -28,6 +35,7 @@ func StartServer(
 		backoffice.GetEvents(cache, store),
 		backoffice.GetRegisterTaskConsumerArchived(cache, store),
 		backoffice.RemoveEvent(cache, store),
+		backoffice.GetInsightsHandle(insightsStore),
 		wtrhandler.Publisher(pub),
 	}
 
