@@ -19,6 +19,16 @@ curl -X GET \
 
 ### Publisher data
 
-http://localhost:8080/api/v1/event/publisher \
--H "Content-type: application-json" \
+curl -X POST \
+ http://localhost:8080/api/v1/event/publisher \
+ -H "Content-Type: application/json" \
 -d @example/publisher_data.json
+
+### DELETE event
+
+curl -i -X DELETE \\n"http://localhost:8080/api/v1/event/90171244-59e8-467c-bdff-f08721df8d2a"
+
+### GET insights
+
+curl -X GET \
+http://localhost:8080/api/v1/insights | jq

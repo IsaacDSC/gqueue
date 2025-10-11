@@ -37,7 +37,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 	tests := []struct {
 		name           string
 		payload        InternalPayload
-		setupMocks     func(*publisher.MockPublisher, *MockRepository, *cachemanager.MockCache)
+		setupMocks     func(*publisher.MockPublisher, *MockRepository, *cachemanager.MockCache, *MockPublisherInsights)
 		expectedError  bool
 		expectedErrMsg string
 	}{
@@ -64,7 +64,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					QueueType:  "internal.default",
 				},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache) {
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
 				key := cachemanager.Key("event-queue.user.created")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.created").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
@@ -103,6 +103,17 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 						return nil
 					}).
 					Times(1)
+
+				mockInsights.EXPECT().
+					Published(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
+						assert.Equal(t, "user.created", input.TopicName)
+						assert.True(t, input.ACK)
+						assert.NotZero(t, input.TimeStarted)
+						assert.NotZero(t, input.TimeEnded)
+						return nil
+					}).
+					Times(1)
 			},
 			expectedError: false,
 		},
@@ -130,7 +141,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					QueueType:  "internal.high-priority",
 				},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache) {
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
 				key := cachemanager.Key("event-queue.order.completed")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "order.completed").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
@@ -174,6 +185,17 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 						return nil
 					}).
 					Times(2)
+
+				mockInsights.EXPECT().
+					Published(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
+						assert.Equal(t, "order.completed", input.TopicName)
+						assert.True(t, input.ACK)
+						assert.NotZero(t, input.TimeStarted)
+						assert.NotZero(t, input.TimeEnded)
+						return nil
+					}).
+					Times(1)
 			},
 			expectedError: false,
 		},
@@ -193,13 +215,23 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache) {
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
 				key := cachemanager.Key("event-queue.nonexistent.event")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "nonexistent.event").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
 				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
 					Return(domain.EventNotFound)
-				// No publisher expectations since event is not found
+				// Insights is called even when event is not found
+				mockInsights.EXPECT().
+					Published(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
+						assert.Equal(t, "nonexistent.event", input.TopicName)
+						assert.True(t, input.ACK)
+						assert.NotZero(t, input.TimeStarted)
+						assert.NotZero(t, input.TimeEnded)
+						return nil
+					}).
+					Times(1)
 			},
 			expectedError: false, // EventNotFound should be handled gracefully
 		},
@@ -219,7 +251,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache) {
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
 				key := cachemanager.Key("event-queue.user.updated")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.updated").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
@@ -246,6 +278,17 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
 					Return(errors.New("publisher connection failed")).
 					Times(1)
+
+				mockInsights.EXPECT().
+					Published(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
+						assert.Equal(t, "user.updated", input.TopicName)
+						assert.True(t, input.ACK)
+						assert.NotZero(t, input.TimeStarted)
+						assert.NotZero(t, input.TimeEnded)
+						return nil
+					}).
+					Times(1)
 			},
 			expectedError:  true,
 			expectedErrMsg: "publish internal event: publisher connection failed",
@@ -266,7 +309,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache) {
+			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
 				key := cachemanager.Key("event-queue.archived.event")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "archived.event").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
@@ -280,7 +323,17 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 						*dest = event
 						return nil
 					})
-				// No publisher expectations since there are no triggers to process
+				// Insights is called even when there are no triggers to process
+				mockInsights.EXPECT().
+					Published(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
+						assert.Equal(t, "archived.event", input.TopicName)
+						assert.True(t, input.ACK)
+						assert.NotZero(t, input.TimeStarted)
+						assert.NotZero(t, input.TimeEnded)
+						return nil
+					}).
+					Times(1)
 			},
 			expectedError: false,
 		},
@@ -292,12 +345,13 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 			mockPublisher := publisher.NewMockPublisher(ctrl)
 			mockRepository := NewMockRepository(ctrl)
 			mockCache := cachemanager.NewMockCache(ctrl)
+			mockInsights := NewMockPublisherInsights(ctrl)
 
 			// Setup mocks
-			tt.setupMocks(mockPublisher, mockRepository, mockCache)
+			tt.setupMocks(mockPublisher, mockRepository, mockCache, mockInsights)
 
 			// Create the handler
-			handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher)
+			handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher, mockInsights)
 
 			// Verify event name
 			assert.Equal(t, "event-queue.internal", handle.Event)
@@ -342,9 +396,10 @@ func TestGetInternalConsumerHandle_InvalidPayload(t *testing.T) {
 	mockPublisher := publisher.NewMockPublisher(ctrl)
 	mockRepository := NewMockRepository(ctrl)
 	mockCache := cachemanager.NewMockCache(ctrl)
+	mockInsights := NewMockPublisherInsights(ctrl)
 
 	// Create the handler
-	handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher)
+	handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher, mockInsights)
 
 	// Create task with invalid JSON payload
 	invalidPayload := []byte(`{"invalid": "json"`)
@@ -377,6 +432,7 @@ func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
 	mockPublisher := publisher.NewMockPublisher(ctrl)
 	mockRepository := NewMockRepository(ctrl)
 	mockCache := cachemanager.NewMockCache(ctrl)
+	mockInsights := NewMockPublisherInsights(ctrl)
 
 	payload := InternalPayload{
 		ServiceName: "test-service",
@@ -392,8 +448,20 @@ func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
 	mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
 		Return(errors.New("cache error"))
 
+	// Insights is called even when cache error occurs
+	mockInsights.EXPECT().
+		Published(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
+			assert.Equal(t, "test.event", input.TopicName)
+			assert.True(t, input.ACK)
+			assert.NotZero(t, input.TimeStarted)
+			assert.NotZero(t, input.TimeEnded)
+			return nil
+		}).
+		Times(1)
+
 	// Create the handler
-	handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher)
+	handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher, mockInsights)
 
 	payloadBytes, err := json.Marshal(payload)
 	require.NoError(t, err)

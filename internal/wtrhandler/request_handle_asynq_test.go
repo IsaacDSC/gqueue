@@ -8,9 +8,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func init() {
@@ -117,8 +119,12 @@ func TestRequestPayload_mergeHeaders(t *testing.T) {
 
 func TestGetRequestHandle(t *testing.T) {
 	t.Run("returns_correct_queue_name_and_handler", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
 		mockFetch := &mockFetcher{}
-		handle := GetRequestHandle(mockFetch)
+		mockInsights := NewMockConsumerInsights(ctrl)
+		handle := GetRequestHandle(mockFetch, mockInsights)
 
 		assert.Equal(t, "event-queue.request-to-external", handle.Event)
 		assert.NotNil(t, handle.Handler)
@@ -153,6 +159,7 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 		name           string
 		payload        RequestPayload
 		mockFetcher    *mockFetcher
+		setupMocks     func(*MockConsumerInsights)
 		expectedError  bool
 		expectedErrMsg string
 	}{
@@ -182,14 +189,35 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 					return nil
 				},
 			},
+			setupMocks: func(mockInsights *MockConsumerInsights) {
+				mockInsights.EXPECT().
+					Consumed(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
+						assert.Equal(t, "user.created", input.TopicName)
+						assert.Equal(t, "user-service", input.ConsumerName)
+						assert.True(t, input.ACK)
+						assert.NotZero(t, input.TimeStarted)
+						assert.NotZero(t, input.TimeEnded)
+						return nil
+					}).
+					Times(1)
+			},
 			expectedError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockInsights := NewMockConsumerInsights(ctrl)
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockInsights)
+			}
+
 			// Get the handler
-			handle := GetRequestHandle(tt.mockFetcher)
+			handle := GetRequestHandle(tt.mockFetcher, mockInsights)
 
 			// Create task payload
 			taskPayload, err := json.Marshal(tt.payload)
@@ -214,8 +242,12 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 }
 
 func TestGetRequestHandle_Handler_InvalidPayload(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	mockFetch := &mockFetcher{}
-	handle := GetRequestHandle(mockFetch)
+	mockInsights := NewMockConsumerInsights(ctrl)
+	handle := GetRequestHandle(mockFetch, mockInsights)
 
 	// Create AsyncCtx wrapper with invalid payload
 	asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), []byte("invalid json"))
@@ -233,6 +265,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 		headers             map[string]string
 		trigger             Trigger
 		mockNotifyTriggerFn func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error
+		setupMocks          func(*MockConsumerInsights)
 		expectedError       bool
 		expectedErrMsg      string
 	}{
@@ -258,6 +291,17 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 				assert.Equal(t, "webhook-client", headers["User-Agent"])
 				return nil
 			},
+			setupMocks: func(mockInsights *MockConsumerInsights) {
+				mockInsights.EXPECT().
+					Consumed(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
+						assert.Equal(t, "user.created", input.TopicName)
+						assert.Equal(t, "user-service", input.ConsumerName)
+						assert.True(t, input.ACK)
+						return nil
+					}).
+					Times(1)
+			},
 			expectedError: false,
 		},
 		{
@@ -275,6 +319,17 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 			mockNotifyTriggerFn: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
 				return assert.AnError
 			},
+			setupMocks: func(mockInsights *MockConsumerInsights) {
+				mockInsights.EXPECT().
+					Consumed(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
+						assert.Equal(t, "user.created", input.TopicName)
+						assert.Equal(t, "user-service", input.ConsumerName)
+						assert.False(t, input.ACK)
+						return nil
+					}).
+					Times(1)
+			},
 			expectedError:  true,
 			expectedErrMsg: "fetch trigger:",
 		},
@@ -282,11 +337,19 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockInsights := NewMockConsumerInsights(ctrl)
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockInsights)
+			}
+
 			mockFetch := &mockFetcher{
 				notifyTriggerFunc: tt.mockNotifyTriggerFn,
 			}
 
-			handle := GetRequestHandle(mockFetch)
+			handle := GetRequestHandle(mockFetch, mockInsights)
 
 			payload := RequestPayload{
 				EventName: "user.created",
@@ -332,13 +395,27 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockInsights := NewMockConsumerInsights(ctrl)
+			mockInsights.EXPECT().
+				Consumed(gomock.Any(), gomock.Any()).
+				DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
+					assert.Equal(t, "user.created", input.TopicName)
+					assert.Equal(t, "user-service", input.ConsumerName)
+					assert.False(t, input.ACK)
+					return nil
+				}).
+				Times(1)
+
 			mockFetch := &mockFetcher{
 				notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
 					return tt.mockError
 				},
 			}
 
-			handle := GetRequestHandle(mockFetch)
+			handle := GetRequestHandle(mockFetch, mockInsights)
 
 			payload := RequestPayload{
 				EventName: "user.created",
@@ -367,8 +444,22 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 }
 
 func TestGetRequestHandle_HeaderMerging(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	// Track the headers received by the mock fetcher
 	var receivedHeaders map[string]string
+
+	mockInsights := NewMockConsumerInsights(ctrl)
+	mockInsights.EXPECT().
+		Consumed(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
+			assert.Equal(t, "user.created", input.TopicName)
+			assert.Equal(t, "user-service", input.ConsumerName)
+			assert.True(t, input.ACK)
+			return nil
+		}).
+		Times(1)
 
 	mockFetch := &mockFetcher{
 		notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
@@ -377,7 +468,7 @@ func TestGetRequestHandle_HeaderMerging(t *testing.T) {
 		},
 	}
 
-	handle := GetRequestHandle(mockFetch)
+	handle := GetRequestHandle(mockFetch, mockInsights)
 
 	payload := RequestPayload{
 		EventName: "user.created",
@@ -418,8 +509,22 @@ func TestGetRequestHandle_HeaderMerging(t *testing.T) {
 }
 
 func TestGetRequestHandle_DataPassing(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	// Track the data received by the mock fetcher
 	var receivedData map[string]any
+
+	mockInsights := NewMockConsumerInsights(ctrl)
+	mockInsights.EXPECT().
+		Consumed(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
+			assert.Equal(t, "user.created", input.TopicName)
+			assert.Equal(t, "user-service", input.ConsumerName)
+			assert.True(t, input.ACK)
+			return nil
+		}).
+		Times(1)
 
 	mockFetch := &mockFetcher{
 		notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
@@ -428,7 +533,7 @@ func TestGetRequestHandle_DataPassing(t *testing.T) {
 		},
 	}
 
-	handle := GetRequestHandle(mockFetch)
+	handle := GetRequestHandle(mockFetch, mockInsights)
 
 	expectedData := map[string]any{
 		"user_id":   "123",

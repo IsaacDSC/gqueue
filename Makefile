@@ -67,6 +67,11 @@ test-deadletter:
 	@echo "$(GREEN)Executando testes do deadletter...$(NC)"
 	@GO_ENV=test WQ_QUEUES='{"internal.default":1,"external.default":1}' $(GO) test ./internal/wtrhandler -v -run "TestNewDeadLatterQueue|TestDeadLetter"
 
+# Executar testes do insights
+test-insights:
+	@echo "$(GREEN)Executando testes do insights...$(NC)"
+	@GO_ENV=test $(GO) test ./internal/storests -v
+
 # Docker
 docker-build:
 	@echo "$(GREEN)Construindo imagem Docker...$(NC)"
@@ -85,7 +90,7 @@ install-mockgen:
 	@echo "$(GREEN)Instalando mockgen...$(NC)"
 	@$(GO) install go.uber.org/mock/mockgen@latest
 
-generate-mocks: install-mockgen
+generate-mocks: install-mockgen clean-mocks
 	@echo "$(GREEN)Gerando mocks...$(NC)"
 	@echo "$(BLUE)Gerando mock para Repository...$(NC)"
 	@$(MOCKGEN) -source=internal/wtrhandler/internal_handle_asynq.go -destination=internal/wtrhandler/repository_mock.go -package=wtrhandler Repository
@@ -97,6 +102,12 @@ generate-mocks: install-mockgen
 	@$(MOCKGEN) -source=pkg/cachemanager/adapter.go -destination=pkg/cachemanager/cache_mock.go -package=cachemanager
 	@echo "$(BLUE)Gerando mock para Publisher...$(NC)"
 	@$(MOCKGEN) -source=pkg/publisher/adapter.go -destination=pkg/publisher/publisher_task_mock.go -package=publisher
+	@echo "$(BLUE)Gerando mock para PublisherInsights...$(NC)"
+	# TODO: está sendo criado junto com outro por estar no mesmo arquivo, separar interfaces em arquivos diferentes
+	# @$(MOCKGEN) -source=tmp/publisher_insights.go -destination=internal/wtrhandler/mock_publisher_insights.go -package=wtrhandler
+	@echo "$(BLUE)Gerando mock para ConsumerInsights...$(NC)"
+	# TODO: está sendo criado junto com outro por estar no mesmo arquivo, separar interfaces em arquivos diferentes
+	# @$(MOCKGEN) -source=tmp/consumer_insights.go -destination=internal/wtrhandler/mock_consumer_insights.go -package=wtrhandler
 	@echo "$(GREEN)Mocks gerados com sucesso!$(NC)"
 
 update-mocks: generate-mocks
@@ -129,6 +140,16 @@ check-mocks:
 		echo "Execute 'make generate-mocks' para gerar os mocks"; \
 		exit 1; \
 	fi
+	@if [ ! -f "internal/wtrhandler/mock_publisher_insights.go" ]; then \
+		echo "$(YELLOW)⚠️  PublisherInsights mock não encontrado!$(NC)"; \
+		echo "Execute 'make generate-mocks' para gerar os mocks"; \
+		exit 1; \
+	fi
+	@if [ ! -f "internal/wtrhandler/mock_consumer_insights.go" ]; then \
+		echo "$(YELLOW)⚠️  ConsumerInsights mock não encontrado!$(NC)"; \
+		echo "Execute 'make generate-mocks' para gerar os mocks"; \
+		exit 1; \
+	fi
 	@echo "$(GREEN)✅ Todos os mocks existem!$(NC)"
 	@echo "$(BLUE)💡 Para regenerar todos os mocks, execute: make update-mocks$(NC)"
 
@@ -144,6 +165,10 @@ clean-mocks:
 	@rm -f pkg/cachemanager/cache_mock.go
 	@echo "$(BLUE)Removendo Publisher mock...$(NC)"
 	@rm -f pkg/publisher/publisher_task_mock.go
+	@echo "$(BLUE)Removendo PublisherInsights mock...$(NC)"
+	@rm -f internal/wtrhandler/mock_publisher_insights.go
+	@echo "$(BLUE)Removendo ConsumerInsights mock...$(NC)"
+	@rm -f internal/wtrhandler/mock_consumer_insights.go
 	@echo "$(GREEN)Mocks removidos com sucesso!$(NC)"
 	@echo "$(BLUE)💡 Para gerar novos mocks, execute: make generate-mocks$(NC)"
 
@@ -159,6 +184,7 @@ help:
 	@echo "  $(GREEN)make test-with-mocks$(NC) - Executa os testes com verificação de mocks"
 	@echo "  $(GREEN)make test-fetcher$(NC)    - Executa os testes do fetcher"
 	@echo "  $(GREEN)make test-deadletter$(NC) - Executa os testes do deadletter"
+	@echo "  $(GREEN)make test-insights$(NC)   - Executa os testes do insights"
 	@echo "  $(GREEN)make generate-mocks$(NC)  - Gera todos os mocks"
 	@echo "  $(GREEN)make update-mocks$(NC)    - Atualiza todos os mocks"
 	@echo "  $(GREEN)make check-mocks$(NC)     - Verifica se os mocks existem"

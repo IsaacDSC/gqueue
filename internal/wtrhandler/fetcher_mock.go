@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	domain "github.com/IsaacDSC/gqueue/internal/domain"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -52,4 +53,42 @@ func (m *MockFetcher) NotifyTrigger(ctx context.Context, data map[string]any, he
 func (mr *MockFetcherMockRecorder) NotifyTrigger(ctx, data, headers, trigger any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NotifyTrigger", reflect.TypeOf((*MockFetcher)(nil).NotifyTrigger), ctx, data, headers, trigger)
+}
+
+// MockConsumerInsights is a mock of ConsumerInsights interface.
+type MockConsumerInsights struct {
+	ctrl     *gomock.Controller
+	recorder *MockConsumerInsightsMockRecorder
+	isgomock struct{}
+}
+
+// MockConsumerInsightsMockRecorder is the mock recorder for MockConsumerInsights.
+type MockConsumerInsightsMockRecorder struct {
+	mock *MockConsumerInsights
+}
+
+// NewMockConsumerInsights creates a new mock instance.
+func NewMockConsumerInsights(ctrl *gomock.Controller) *MockConsumerInsights {
+	mock := &MockConsumerInsights{ctrl: ctrl}
+	mock.recorder = &MockConsumerInsightsMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockConsumerInsights) EXPECT() *MockConsumerInsightsMockRecorder {
+	return m.recorder
+}
+
+// Consumed mocks base method.
+func (m *MockConsumerInsights) Consumed(ctx context.Context, input domain.ConsumerMetric) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Consumed", ctx, input)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Consumed indicates an expected call of Consumed.
+func (mr *MockConsumerInsightsMockRecorder) Consumed(ctx, input any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Consumed", reflect.TypeOf((*MockConsumerInsights)(nil).Consumed), ctx, input)
 }
