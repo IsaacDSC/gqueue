@@ -19,7 +19,7 @@ func (s *Store) GetAll(ctx context.Context) (output domain.Metrics, err error) {
 	for _, key := range insightsKeys {
 		values, er := s.cache.ZRange(ctx, key, 0, -1).Result()
 		if er != nil {
-			err = fmt.Errorf("failed to get insights values for key %s: %w", key, err)
+			err = fmt.Errorf("failed to get insights values for key %s: %w", key, er)
 			return
 		}
 
