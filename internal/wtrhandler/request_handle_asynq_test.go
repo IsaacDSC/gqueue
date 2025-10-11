@@ -325,7 +325,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 					DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
 						assert.Equal(t, "user.created", input.TopicName)
 						assert.Equal(t, "user-service", input.ConsumerName)
-						assert.True(t, input.ACK)
+						assert.False(t, input.ACK)
 						return nil
 					}).
 					Times(1)
@@ -404,7 +404,7 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 				DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
 					assert.Equal(t, "user.created", input.TopicName)
 					assert.Equal(t, "user-service", input.ConsumerName)
-					assert.True(t, input.ACK)
+					assert.False(t, input.ACK)
 					return nil
 				}).
 				Times(1)
