@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"log"
 	"time"
@@ -72,6 +73,21 @@ func main() {
 	}
 
 	insights := storests.NewStore(cacheClient)
+
+	go func() {
+		for {
+			metrics, err := insights.GetAll(ctx)
+			if err != nil {
+				log.Printf("Erro ao obter métricas: %v", err)
+			}
+			b, _ := json.Marshal(metrics.Insights())
+			if err := cacheClient.Set(ctx, "gqueue:metric.insights:collector", b, time.Duration(time.Hour*24)).Err(); err != nil {
+				log.Printf("Erro ao salvar métricas no cache: %v", err)
+			}
+
+			time.Sleep(time.Minute)
+		}
+	}()
 
 	store, err := interstore.NewPostgresStoreFromDSN(cfg.ConfigDatabase.DbConn)
 	if err != nil {

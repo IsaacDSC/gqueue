@@ -158,6 +158,27 @@ services:
     profiles:
       - test
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./provisioning:/etc/grafana/provisioning
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    profiles:
+      - infra
+
 networks:
   app-network:
     driver: bridge
@@ -166,3 +187,4 @@ volumes:
   redis-data:
   postgres-data:
   pgadmin-data:
+  grafana_data:
