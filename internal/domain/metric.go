@@ -190,10 +190,10 @@ func (rc RpmConsumer) add(topicName, consumerName string, dateInMinute time.Time
 
 func percentile(data []float64, p float64) (float64, error) {
 	if len(data) == 0 {
-		return 0, fmt.Errorf("array vazio")
+		return 0, fmt.Errorf("empty array")
 	}
 	if p < 0 || p > 1 {
-		return 0, fmt.Errorf("p deve estar entre 0 e 1")
+		return 0, fmt.Errorf("p must be between 0 and 1")
 	}
 
 	sorted := make([]float64, len(data))
