@@ -1,0 +1,62 @@
+{
+  "total_published": 107,
+  "total_consumed": 107,
+  "total_published_with_success": 107,
+  "total_consumed_with_success": 104,
+  "total_published_with_err": 0,
+  "total_consumed_with_err": 3,
+  "percentage_success": "100.00%",
+  "percentage_consumed_success": "97.20%",
+  "total_segmentation_published": {
+    "payment.processed": 107
+  },
+  "total_segmentation_consumed": {
+    "consumer-1": 107
+  },
+  "rpm_publisher": {
+    "payment.processed": {
+      "timeseries": [
+        "2025-10-12T09:36:00Z",
+        "2025-10-12T09:37:00Z",
+        "2025-10-12T09:38:00Z",
+        "2025-10-12T10:42:00Z"
+      ],
+      "values": [
+        6,
+        75,
+        18,
+        8
+      ]
+    }
+  },
+  "rpm_consumer": {
+    "payment.processed:consumer-1": {
+      "timeseries": [
+        "2025-10-12T10:42:00Z",
+        "2025-10-12T09:36:00Z",
+        "2025-10-12T09:37:00Z",
+        "2025-10-12T09:38:00Z",
+        "2025-10-12T10:42:00Z"
+      ],
+      "values": [
+        3,
+        6,
+        75,
+        18,
+        5
+      ]
+    }
+  },
+  "consumers_p99": {
+    "payment.processed.consumer-1": 1
+  },
+  "consumers_p75": {
+    "payment.processed.consumer-1": 1
+  },
+  "publishers_p99": {
+    "payment.processed": 20
+  },
+  "publishers_p75": {
+    "payment.processed": 20
+  }
+}
