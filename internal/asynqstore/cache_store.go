@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/IsaacDSC/gqueue/internal/asynqtask"
+	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/redis/go-redis/v9"
 )
@@ -126,7 +127,8 @@ func (c Cache) SetArchivedTasks(ctx context.Context, events []domain.Event) erro
 		return fmt.Errorf("failed to marshal events: %w", err)
 	}
 
-	if err := c.cache.Set(ctx, archivedKey, b, -1).Err(); err != nil {
+	conf := cfg.Get()
+	if err := c.cache.Set(ctx, archivedKey, b, conf.Cache.DefaultTTL).Err(); err != nil {
 		return fmt.Errorf("failed to set archived tasks: %w", err)
 	}
 
