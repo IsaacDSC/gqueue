@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/IsaacDSC/gqueue/internal/cfg"
 	redis "github.com/redis/go-redis/v9"
 )
 
@@ -43,7 +44,8 @@ func (s Strategy) Key(params ...string) Key {
 
 // GetDefaultTTL for cache entries, can be adjusted as needed.
 func (s Strategy) GetDefaultTTL() time.Duration {
-	return 24 * time.Hour
+	conf := cfg.Get()
+	return conf.Cache.DefaultTTL
 }
 
 // Hydrate executes the provided function, stores its result in the cache, and unmarshals it into value.
@@ -141,7 +143,8 @@ func (s Strategy) IncrementValue(ctx context.Context, key Key, value any) error 
 		return fmt.Errorf("error marshalling value for key %s: %w", key.String(), err)
 	}
 
-	if err := s.client.Set(ctx, key.String(), b, -1).Err(); err != nil {
+	conf := cfg.Get()
+	if err := s.client.Set(ctx, key.String(), b, conf.Cache.DefaultTTL).Err(); err != nil {
 		return fmt.Errorf("error setting value for key %s: %w", key.String(), err)
 	}
 

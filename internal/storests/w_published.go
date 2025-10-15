@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/redis/go-redis/v9"
 )
@@ -29,6 +30,11 @@ func (s *Store) Published(ctx context.Context, input domain.PublisherMetric) err
 	now := time.Now().UTC().UnixMilli()
 	if err := s.cache.ZAdd(ctx, key, redis.Z{Score: float64(now), Member: payload}).Err(); err != nil {
 		return fmt.Errorf("failed to save publisher event: %w", err)
+	}
+
+	conf := cfg.Get()
+	if err := s.cache.Expire(ctx, key, conf.Cache.DefaultTTL).Err(); err != nil {
+		return fmt.Errorf("failed to set TTL for publisher event: %w", err)
 	}
 
 	return nil

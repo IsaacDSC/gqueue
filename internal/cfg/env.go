@@ -12,7 +12,8 @@ type ConfigDatabase struct {
 }
 
 type Cache struct {
-	CacheAddr string `env:"CACHE_ADDR"`
+	CacheAddr  string        `env:"CACHE_ADDR"`
+	DefaultTTL time.Duration `env:"CACHE_DEFAULT_TTL" default:"24h"`
 }
 
 type AsynqConfig struct {
