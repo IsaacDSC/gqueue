@@ -1,4 +1,4 @@
-package publisher
+package pubadapter
 
 import "github.com/hibiken/asynq"
 

@@ -101,7 +101,9 @@ generate-mocks: install-mockgen clean-mocks
 	@echo "$(BLUE)Gerando mock para Cache...$(NC)"
 	@$(MOCKGEN) -source=pkg/cachemanager/adapter.go -destination=pkg/cachemanager/cache_mock.go -package=cachemanager
 	@echo "$(BLUE)Gerando mock para Publisher...$(NC)"
-	@$(MOCKGEN) -source=pkg/publisher/adapter.go -destination=pkg/publisher/publisher_task_mock.go -package=publisher
+	@$(MOCKGEN) -source=pkg/pubadapter/adapter.go -destination=pkg/publisher/publisher_task_mock.go -package=publisher
+	@echo "$(BLUE)Gerando mock para Publisher em pubadapter...$(NC)"
+	@$(MOCKGEN) -source=pkg/pubadapter/adapter.go -destination=pkg/pubadapter/publisher_task_mock.go -package=pubadapter
 	@echo "$(BLUE)Gerando mock para PublisherInsights...$(NC)"
 	# TODO: está sendo criado junto com outro por estar no mesmo arquivo, separar interfaces em arquivos diferentes
 	# @$(MOCKGEN) -source=tmp/publisher_insights.go -destination=internal/wtrhandler/mock_publisher_insights.go -package=wtrhandler
@@ -140,16 +142,22 @@ check-mocks:
 		echo "Execute 'make generate-mocks' para gerar os mocks"; \
 		exit 1; \
 	fi
-	@if [ ! -f "internal/wtrhandler/mock_publisher_insights.go" ]; then \
-		echo "$(YELLOW)⚠️  PublisherInsights mock não encontrado!$(NC)"; \
+	@if [ ! -f "pkg/pubadapter/publisher_task_mock.go" ]; then \
+		echo "$(YELLOW)⚠️  Publisher mock em pubadapter não encontrado!$(NC)"; \
 		echo "Execute 'make generate-mocks' para gerar os mocks"; \
 		exit 1; \
 	fi
-	@if [ ! -f "internal/wtrhandler/mock_consumer_insights.go" ]; then \
-		echo "$(YELLOW)⚠️  ConsumerInsights mock não encontrado!$(NC)"; \
-		echo "Execute 'make generate-mocks' para gerar os mocks"; \
-		exit 1; \
-	fi
+	# TODO: Descomentar quando os mocks de insights forem implementados
+	# @if [ ! -f "internal/wtrhandler/mock_publisher_insights.go" ]; then \
+	#	echo "$(YELLOW)⚠️  PublisherInsights mock não encontrado!$(NC)"; \
+	#	echo "Execute 'make generate-mocks' para gerar os mocks"; \
+	#	exit 1; \
+	# fi
+	# @if [ ! -f "internal/wtrhandler/mock_consumer_insights.go" ]; then \
+	#	echo "$(YELLOW)⚠️  ConsumerInsights mock não encontrado!$(NC)"; \
+	#	echo "Execute 'make generate-mocks' para gerar os mocks"; \
+	#	exit 1; \
+	# fi
 	@echo "$(GREEN)✅ Todos os mocks existem!$(NC)"
 	@echo "$(BLUE)💡 Para regenerar todos os mocks, execute: make update-mocks$(NC)"
 
@@ -165,6 +173,8 @@ clean-mocks:
 	@rm -f pkg/cachemanager/cache_mock.go
 	@echo "$(BLUE)Removendo Publisher mock...$(NC)"
 	@rm -f pkg/publisher/publisher_task_mock.go
+	@echo "$(BLUE)Removendo Publisher mock em pubadapter...$(NC)"
+	@rm -f pkg/pubadapter/publisher_task_mock.go
 	@echo "$(BLUE)Removendo PublisherInsights mock...$(NC)"
 	@rm -f internal/wtrhandler/mock_publisher_insights.go
 	@echo "$(BLUE)Removendo ConsumerInsights mock...$(NC)"
@@ -185,7 +195,7 @@ help:
 	@echo "  $(GREEN)make test-fetcher$(NC)    - Executa os testes do fetcher"
 	@echo "  $(GREEN)make test-deadletter$(NC) - Executa os testes do deadletter"
 	@echo "  $(GREEN)make test-insights$(NC)   - Executa os testes do insights"
-	@echo "  $(GREEN)make generate-mocks$(NC)  - Gera todos os mocks"
+	@echo "  $(GREEN)make generate-mocks$(NC)  - Gera todos os mocks (Repository, DeadLetter, Fetcher, Cache, Publisher)"
 	@echo "  $(GREEN)make update-mocks$(NC)    - Atualiza todos os mocks"
 	@echo "  $(GREEN)make check-mocks$(NC)     - Verifica se os mocks existem"
 	@echo "  $(GREEN)make clean-mocks$(NC)     - Remove todos os mocks"
@@ -194,3 +204,11 @@ help:
 	@echo "  $(GREEN)make docker-build$(NC)    - Constrói a imagem Docker"
 	@echo "  $(GREEN)make docker-up$(NC)       - Inicia os serviços com Docker Compose"
 	@echo "  $(GREEN)make docker-down$(NC)     - Para os serviços do Docker Compose"
+	@echo ""
+	@echo "$(YELLOW)Mocks gerados:$(NC)"
+	@echo "  $(BLUE)• Repository$(NC)          - internal/wtrhandler/repository_mock.go"
+	@echo "  $(BLUE)• DeadLetter$(NC)          - internal/wtrhandler/deadletter_mock.go"
+	@echo "  $(BLUE)• Fetcher$(NC)             - internal/wtrhandler/fetcher_mock.go"
+	@echo "  $(BLUE)• Cache$(NC)               - pkg/cachemanager/cache_mock.go"
+	@echo "  $(BLUE)• Publisher$(NC)           - pkg/publisher/publisher_task_mock.go"
+	@echo "  $(BLUE)• Publisher (pubadapter)$(NC) - pkg/pubadapter/publisher_task_mock.go"

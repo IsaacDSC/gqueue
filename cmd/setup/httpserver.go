@@ -11,7 +11,7 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
 	cache2 "github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
-	"github.com/IsaacDSC/gqueue/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -23,7 +23,7 @@ func StartServer(
 	rdsclient *redis.Client,
 	cache cache2.Cache,
 	store interstore.Repository,
-	pub publisher.Publisher,
+	pub pubadapter.Publisher,
 	insightsStore InsightsStore,
 ) {
 	mux := http.NewServeMux()

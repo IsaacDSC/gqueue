@@ -1,27 +1,11 @@
 package cfg
 
 import (
-	"encoding/json"
-	"os"
-	"strings"
+	"fmt"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
-
-func init() {
-	// localDebug()
-	str := os.Getenv("WQ_QUEUES")
-	if str != "" {
-		json.Unmarshal([]byte(str), &cfg.AsynqConfig.Queues)
-	}
-
-	// Skip validation during testing
-	if os.Getenv("GO_ENV") != "test" && !cfg.AsynqConfig.Queues.IsValid() {
-		panic("invalid WQ_QUEUES")
-	}
-
-}
 
 type ConfigDatabase struct {
 	Driver string `env:"DB_DRIVER"`
@@ -35,39 +19,34 @@ type Cache struct {
 
 type AsynqConfig struct {
 	Concurrency int `env:"WQ_CONCURRENCY"`
-	Queues      AsynqQueues
-	WorkerType  string `env:"WQ_WORKER_TYPE"`
 }
 
-type AsynqQueues map[string]int
+type WQ string
 
-func (aq AsynqQueues) Contains(queueName string) bool {
-	_, exists := aq[queueName]
-	return exists
+func (wq WQ) String() string {
+	return string(wq)
 }
 
-func (aq AsynqQueues) IsValid() bool {
-	var (
-		internalValid bool
-		externalValid bool
-	)
-
-	for k, v := range aq {
-		if strings.Contains(k, "internal.") && v > 0 {
-			internalValid = true
-		}
-		if strings.Contains(k, "external.") && v > 0 {
-			externalValid = true
-		}
+func (wq WQ) IsValid() error {
+	switch wq {
+	case WQGooglePubSub, WQAWS, WQRedis:
+		return nil
+	default:
+		return fmt.Errorf("invalid WQ type: %s", wq)
 	}
-
-	return internalValid && externalValid
 }
+
+const (
+	WQGooglePubSub WQ = "googlepubsub"
+	WQAWS          WQ = "aws"
+	WQRedis        WQ = "redis"
+)
 
 type Config struct {
 	ConfigDatabase ConfigDatabase
 	Cache          Cache
 	AsynqConfig    AsynqConfig
+	WQ             WQ `env:"WQ"`
 }
 
 var cfg Config
@@ -78,20 +57,13 @@ func Get() Config {
 		panic(err)
 	}
 
+	if err := cfg.WQ.IsValid(); err != nil {
+		panic(err)
+	}
+
 	return cfg
 }
 
 func SetConfig(c Config) {
 	cfg = c
 }
-
-// func localDebug() {
-// 	os.Setenv("WQ_QUEUES", `{"internal.default":1,"external.default":1}`)
-// 	os.Setenv("CACHE_ADDR", "localhost:6379")
-// 	os.Setenv("DB_DRIVER", "pg")
-// 	os.Setenv("DB_CONNECTION_STRING", "postgresql://idsc:admin@localhost:5432/gqueue?sslmode=disable")
-// 	os.Setenv("WQ_CONCURRENCY", "32")
-// 	os.Setenv("WQ_QUEUES", `{"internal.critical": 7, "internal.high": 5, "internal.medium": 3, "internal.low": 1, "external.critical": 7, "external.high": 5, "external.medium": 3, "external.low": 1}`)
-// 	os.Setenv("WQ_WORKER_TYPE", "googlepubsub")
-// 	os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8085")
-// }

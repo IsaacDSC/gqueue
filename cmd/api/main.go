@@ -19,7 +19,7 @@ import (
 	"github.com/IsaacDSC/gqueue/cmd/setup"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
-	"github.com/IsaacDSC/gqueue/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -31,68 +31,71 @@ const appName = "gqueue"
 // go run . --service=archived-notification
 // go run . [server, worker]
 func main() {
-	cfg := cfg.Get()
+	conf := cfg.Get()
 	ctx := context.Background()
 
-	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: cfg.Cache.CacheAddr})
+	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: conf.Cache.CacheAddr})
 	defer asynqClient.Close()
 
-	config := &pubsub.ClientConfig{
-		PublisherCallOptions: &vkit.PublisherCallOptions{
-			Publish: []gax.CallOption{
-				gax.WithRetry(func() gax.Retryer {
-					return gax.OnCodes([]codes.Code{
-						codes.Aborted,
-						codes.Canceled,
-						codes.Internal,
-						codes.ResourceExhausted,
-						codes.Unknown,
-						codes.Unavailable,
-						codes.DeadlineExceeded,
-					}, gax.Backoff{
-						Initial:    250 * time.Millisecond, // default 100 milliseconds
-						Max:        5 * time.Second,        // default 60 seconds
-						Multiplier: 1.45,                   // default 1.3
-					})
-				}),
+	var highPerformancePublisher pubadapter.GenericPublisher
+	var highPerformanceAsyncClient *pubsub.Client
+	if conf.WQ == cfg.WQGooglePubSub {
+		config := &pubsub.ClientConfig{
+			PublisherCallOptions: &vkit.PublisherCallOptions{
+				Publish: []gax.CallOption{
+					gax.WithRetry(func() gax.Retryer {
+						return gax.OnCodes([]codes.Code{
+							codes.Aborted,
+							codes.Canceled,
+							codes.Internal,
+							codes.ResourceExhausted,
+							codes.Unknown,
+							codes.Unavailable,
+							codes.DeadlineExceeded,
+						}, gax.Backoff{
+							Initial:    250 * time.Millisecond, // default 100 milliseconds
+							Max:        5 * time.Second,        // default 60 seconds
+							Multiplier: 1.45,                   // default 1.3
+						})
+					}),
+				},
 			},
-		},
+		}
+
+		clientPubsub, err := pubsub.NewClientWithConfig(ctx, domain.ProjectID, config)
+		if err != nil {
+			log.Fatalf("Erro ao criar cliente: %v", err)
+		}
+
+		highPerformancePublisher = pubadapter.NewPubSubGoogle(clientPubsub)
+		highPerformanceAsyncClient = clientPubsub
+
+		defer clientPubsub.Close()
 	}
 
-	clientPubsub, err := pubsub.NewClientWithConfig(ctx, domain.ProjectID, config)
-	if err != nil {
-		log.Fatalf("Erro ao criar cliente: %v", err)
-	}
-
-	defer clientPubsub.Close()
-
-	cacheClient := redis.NewClient(&redis.Options{Addr: cfg.Cache.CacheAddr})
+	cacheClient := redis.NewClient(&redis.Options{Addr: conf.Cache.CacheAddr})
 	if err := cacheClient.Ping(ctx).Err(); err != nil {
 		panic(err)
 	}
 
 	insights := storests.NewStore(cacheClient)
 
-	store, err := interstore.NewPostgresStoreFromDSN(cfg.ConfigDatabase.DbConn)
+	store, err := interstore.NewPostgresStoreFromDSN(conf.ConfigDatabase.DbConn)
 	if err != nil {
 		panic(err)
 	}
 
 	cc := cachemanager.NewStrategy(appName, cacheClient)
 
-	var pub publisher.Publisher
-	if cfg.AsynqConfig.WorkerType == "googlepubsub" {
-		pub = publisher.NewPubSubGoogle(clientPubsub)
-	} else {
-		pub = publisher.NewPublisher(asynqClient)
+	mediumPerformancePublisher := pubadapter.NewPublisher(asynqClient)
 
-	}
+	pub := pubadapter.NewPub(highPerformancePublisher, mediumPerformancePublisher)
 
 	service := flag.String("service", "all", "service to run")
 	flag.Parse()
 
 	if *service == "worker" {
-		setup.StartWorker(clientPubsub, cc, store, pub, insights)
+		setup.NewWorker().WithClientPubsub(highPerformanceAsyncClient).Start(cc, store, pub, insights)
 		return
 	}
 
@@ -109,6 +112,6 @@ func main() {
 	}
 
 	go setup.StartServer(cacheClient, cc, store, pub, insights)
-	setup.StartWorker(clientPubsub, cc, store, pub, insights)
+	setup.NewWorker().WithClientPubsub(highPerformanceAsyncClient).Start(cc, store, pub, insights)
 
 }

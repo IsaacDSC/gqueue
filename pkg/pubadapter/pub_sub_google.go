@@ -1,4 +1,4 @@
-package publisher
+package pubadapter
 
 import (
 	"context"
@@ -13,7 +13,7 @@ type PubSubGoogle struct {
 	client *pubsub.Client
 }
 
-var _ Publisher = (*PubSubGoogle)(nil)
+var _ GenericPublisher = (*PubSubGoogle)(nil)
 
 func NewPubSubGoogle(client *pubsub.Client) *PubSubGoogle {
 	return &PubSubGoogle{client: client}
@@ -28,14 +28,12 @@ func (p *PubSubGoogle) Publish(ctx context.Context, topicName string, payload an
 		return fmt.Errorf("could not marshal payload: %v", err)
 	}
 
-	attributes := make(map[string]string)
+	attributes := opts.Attributes
 	if len(opts.Attributes) == 0 {
 		attributes = map[string]string{
-			"max_attempts": "3",
-			"topic":        topicName,
+			"max_retries": "1",
+			"topic":       topicName,
 		}
-	} else {
-		attributes = opts.Attributes
 	}
 
 	topic := p.client.Topic(topicName)

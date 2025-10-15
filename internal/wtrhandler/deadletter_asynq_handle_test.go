@@ -18,14 +18,7 @@ import (
 
 func init() {
 	// Setup test configuration with valid queues
-	testConfig := cfg.Config{
-		AsynqConfig: cfg.AsynqConfig{
-			Queues: cfg.AsynqQueues{
-				"internal.default": 1,
-				"external.default": 1,
-			},
-		},
-	}
+	testConfig := cfg.Config{}
 	cfg.SetConfig(testConfig)
 }
 
@@ -61,7 +54,7 @@ func TestNewDeadLatterQueue(t *testing.T) {
 
 		handle := NewDeadLatterQueue(mockStore, mockFetcher)
 
-		assert.Equal(t, domain.EventQueueDeadLetter, handle.Event)
+		assert.Equal(t, domain.EventQueueDeadLetter, handle.EventName)
 		assert.NotNil(t, handle.Handler)
 	})
 
@@ -69,7 +62,7 @@ func TestNewDeadLatterQueue(t *testing.T) {
 		// Test that constructor doesn't panic with nil dependencies
 		handle := NewDeadLatterQueue(nil, nil)
 
-		assert.Equal(t, domain.EventQueueDeadLetter, handle.Event)
+		assert.Equal(t, domain.EventQueueDeadLetter, handle.EventName)
 		assert.NotNil(t, handle.Handler)
 	})
 
@@ -83,7 +76,7 @@ func TestNewDeadLatterQueue(t *testing.T) {
 		handle2 := NewDeadLatterQueue(mockStore2, mockFetcher2)
 
 		// Both should have same event name but different handler instances
-		assert.Equal(t, handle1.Event, handle2.Event)
+		assert.Equal(t, handle1.EventName, handle2.EventName)
 		assert.NotEqual(t, &handle1.Handler, &handle2.Handler)
 	})
 }

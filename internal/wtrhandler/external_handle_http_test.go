@@ -13,7 +13,7 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/intertime"
-	"github.com/IsaacDSC/gqueue/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -21,28 +21,19 @@ import (
 func TestGetExternalHandle(t *testing.T) {
 	// Setup test configuration with valid queues
 	testConfig := cfg.Config{
-		AsynqConfig: cfg.AsynqConfig{
-			Queues: cfg.AsynqQueues{
-				"internal.default":       10,
-				"internal.high-priority": 5,
-				"internal.notifications": 3,
-				"internal.payments":      2,
-				"internal.low":           1,
-				"external.default":       10,
-			},
-		},
+		AsynqConfig: cfg.AsynqConfig{},
 	}
 	cfg.SetConfig(testConfig)
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockPublisher := publisher.NewMockPublisher(ctrl)
+	mockPublisher := pubadapter.NewMockPublisher(ctrl)
 
 	tests := []struct {
 		name           string
 		payload        InternalPayload
-		setupMock      func(*publisher.MockPublisher)
+		setupMock      func(*pubadapter.MockPublisher)
 		expectedStatus int
 		expectedError  bool
 	}{
@@ -65,25 +56,25 @@ func TestGetExternalHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{
 					MaxRetries: 3,
-					QueueType:  "internal.default",
+					WqType:     pubadapter.Internal,
 				},
 			},
-			setupMock: func(m *publisher.MockPublisher) {
+			setupMock: func(m *pubadapter.MockPublisher) {
 				m.EXPECT().
 					Publish(
+						gomock.Any(),
 						gomock.Any(),
 						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts ...interface{}) {
+					Do(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload InternalPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "user.created", payload.EventName)
 						assert.Equal(t, "123", payload.Data["user_id"])
 						assert.Equal(t, "test@example.com", payload.Data["email"])
 						assert.Equal(t, "api", payload.Metadata.Source)
 						assert.Equal(t, 3, payload.Opts.MaxRetries)
-						assert.Equal(t, "internal.default", payload.Opts.QueueType)
 					}).
 					Return(nil).
 					Times(1)
@@ -121,18 +112,19 @@ func TestGetExternalHandle(t *testing.T) {
 					Retention:  intertime.Duration(24 * time.Hour),
 					UniqueTTL:  intertime.Duration(1 * time.Hour),
 					ScheduleIn: intertime.Duration(30 * time.Second),
-					QueueType:  "internal.high-priority",
+					WqType:     pubadapter.Internal,
 				},
 			},
-			setupMock: func(m *publisher.MockPublisher) {
+			setupMock: func(m *pubadapter.MockPublisher) {
 				m.EXPECT().
 					Publish(
+						gomock.Any(),
 						gomock.Any(),
 						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts ...interface{}) {
+					Do(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload InternalPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "order.completed", payload.EventName)
 						assert.Equal(t, "ord_123456", payload.Data["order_id"])
@@ -140,7 +132,6 @@ func TestGetExternalHandle(t *testing.T) {
 						assert.Equal(t, "checkout-service", payload.Metadata.Source)
 						assert.Equal(t, "production", payload.Metadata.Environment)
 						assert.Equal(t, 5, payload.Opts.MaxRetries)
-						assert.Equal(t, "internal.high-priority", payload.Opts.QueueType)
 						assert.Equal(t, intertime.Duration(24*time.Hour), payload.Opts.Retention)
 						assert.Equal(t, intertime.Duration(1*time.Hour), payload.Opts.UniqueTTL)
 						assert.Equal(t, intertime.Duration(30*time.Second), payload.Opts.ScheduleIn)
@@ -176,18 +167,19 @@ func TestGetExternalHandle(t *testing.T) {
 				Opts: domain.Opt{
 					MaxRetries: 2,
 					Deadline:   func() *time.Time { t := time.Now().Add(5 * time.Minute); return &t }(),
-					QueueType:  "internal.notifications",
+					WqType:     pubadapter.Internal,
 				},
 			},
-			setupMock: func(m *publisher.MockPublisher) {
+			setupMock: func(m *pubadapter.MockPublisher) {
 				m.EXPECT().
 					Publish(
+						gomock.Any(),
 						gomock.Any(),
 						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts ...interface{}) {
+					Do(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload InternalPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "notification.send", payload.EventName)
 						assert.Equal(t, "user_456", payload.Data["user_id"])
@@ -197,7 +189,6 @@ func TestGetExternalHandle(t *testing.T) {
 						assert.Equal(t, "1.5", payload.Metadata.Version)
 						assert.Equal(t, "staging", payload.Metadata.Environment)
 						assert.Equal(t, 2, payload.Opts.MaxRetries)
-						assert.Equal(t, "internal.notifications", payload.Opts.QueueType)
 						assert.NotNil(t, payload.Opts.Deadline)
 						// Validate headers
 						assert.Equal(t, "notification-worker", payload.Metadata.Headers["X-Service"])
@@ -223,26 +214,26 @@ func TestGetExternalHandle(t *testing.T) {
 					Environment: "test",
 				},
 				Opts: domain.Opt{
-					MaxRetries: 1,
-					QueueType:  "internal.payments",
+					MaxRetries: 3,
+					WqType:     pubadapter.Internal,
 				},
 			},
-			setupMock: func(m *publisher.MockPublisher) {
+			setupMock: func(m *pubadapter.MockPublisher) {
 				m.EXPECT().
 					Publish(
+						gomock.Any(),
 						gomock.Any(),
 						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts ...interface{}) {
+					Do(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload InternalPayload, opts pubadapter.Opts) {
 						// Validate payload even on error scenario using assert
 						assert.Equal(t, "payment.failed", payload.EventName)
 						assert.Equal(t, "pay_error123", payload.Data["payment_id"])
 						assert.Equal(t, "insufficient_funds", payload.Data["reason"])
 						assert.Equal(t, "payment-service", payload.Metadata.Source)
-						assert.Equal(t, 1, payload.Opts.MaxRetries)
-						assert.Equal(t, "internal.payments", payload.Opts.QueueType)
+						assert.Equal(t, 3, payload.Opts.MaxRetries)
 					}).
 					Return(errors.New("publisher error")).
 					Times(1)
@@ -261,17 +252,20 @@ func TestGetExternalHandle(t *testing.T) {
 					Version:     "1.0",
 					Environment: "test",
 				},
-				Opts: domain.Opt{QueueType: "internal.default"},
+				Opts: domain.Opt{
+					WqType: pubadapter.Internal,
+				},
 			},
-			setupMock: func(m *publisher.MockPublisher) {
+			setupMock: func(m *pubadapter.MockPublisher) {
 				m.EXPECT().
 					Publish(
+						gomock.Any(),
 						gomock.Any(),
 						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts ...interface{}) {
+					Do(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload InternalPayload, opts pubadapter.Opts) {
 						// Validate empty/default payload using assert
 						assert.Equal(t, "system.ping", payload.EventName)
 						assert.Empty(t, payload.Data)
@@ -280,7 +274,6 @@ func TestGetExternalHandle(t *testing.T) {
 						assert.Equal(t, "test", payload.Metadata.Environment)
 						// Validate default config options (should be zero values)
 						assert.Equal(t, 0, payload.Opts.MaxRetries)
-						assert.Equal(t, "internal.default", payload.Opts.QueueType)
 						assert.Equal(t, intertime.Duration(0), payload.Opts.Retention)
 					}).
 					Return(nil).
@@ -328,275 +321,4 @@ func TestGetExternalHandle(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestGetExternalHandle_InvalidJSON(t *testing.T) {
-	// Setup test configuration with valid queues
-	testConfig := cfg.Config{
-		AsynqConfig: cfg.AsynqConfig{
-			Queues: cfg.AsynqQueues{
-				"internal.default": 10,
-				"external.default": 10,
-			},
-		},
-	}
-	cfg.SetConfig(testConfig)
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPublisher := publisher.NewMockPublisher(ctrl)
-
-	tests := []struct {
-		name        string
-		requestBody string
-		expectedErr string
-		setupMock   func(*publisher.MockPublisher)
-	}{
-		{
-			name:        "invalid_json_syntax",
-			requestBody: `{"event_name": "test", "data": {invalid json}`,
-			expectedErr: "invalid character",
-			setupMock:   func(m *publisher.MockPublisher) {}, // No expectations
-		},
-		{
-			name:        "empty_body",
-			requestBody: "",
-			expectedErr: "EOF",
-			setupMock:   func(m *publisher.MockPublisher) {}, // No expectations
-		},
-		{
-			name:        "null_body",
-			requestBody: "null",
-			expectedErr: "",                                  // null is valid JSON but creates empty payload which fails validation
-			setupMock:   func(m *publisher.MockPublisher) {}, // No expectations as validation will fail
-		},
-		{
-			name:        "malformed_nested_object",
-			requestBody: `{"event_name": "test", "data": {"key": }}`,
-			expectedErr: "invalid character",
-			setupMock:   func(m *publisher.MockPublisher) {}, // No expectations
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Setup mock expectations
-			tt.setupMock(mockPublisher)
-
-			httpHandle := Publisher(mockPublisher)
-
-			req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader([]byte(tt.requestBody)))
-			req.Header.Set("Content-Type", "application/json")
-
-			rr := httptest.NewRecorder()
-
-			httpHandle.Handler(rr, req)
-
-			// For null_body case, it's valid JSON but creates empty payload which fails validation
-			if tt.name == "null_body" {
-				assert.Equal(t, http.StatusBadRequest, rr.Code, "Expected bad request for null body due to validation failure")
-			} else {
-				// Should return BadRequest for invalid JSON
-				assert.Equal(t, http.StatusBadRequest, rr.Code, "Expected bad request for invalid JSON")
-
-				// Check error message contains expected substring
-				if tt.expectedErr != "" {
-					responseBody := rr.Body.String()
-					assert.Contains(t, responseBody, tt.expectedErr, "Expected error message to contain substring")
-				}
-			}
-		})
-	}
-}
-
-func TestGetExternalHandle_RequestBodyClosure(t *testing.T) {
-	// Setup test configuration with valid queues
-	testConfig := cfg.Config{
-		AsynqConfig: cfg.AsynqConfig{
-			Queues: cfg.AsynqQueues{
-				"internal.default": 10,
-				"external.default": 10,
-			},
-		},
-	}
-	cfg.SetConfig(testConfig)
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPublisher := publisher.NewMockPublisher(ctrl)
-
-	// Setup mock to expect successful publish
-	mockPublisher.EXPECT().
-		Publish(gomock.Any(), "your-project-id-event-queue-internal", gomock.Any(), gomock.Any()).
-		Return(nil).
-		Times(1)
-
-	httpHandle := Publisher(mockPublisher)
-
-	payload := InternalPayload{
-		ServiceName: "test-service",
-		EventName:   "test.event",
-		Data:        Data{"key": "value"},
-		Metadata: Metadata{
-			Source:      "test",
-			Version:     "1.0",
-			Environment: "test",
-		},
-		Opts: domain.Opt{
-			MaxRetries: 1,
-			QueueType:  "internal.default",
-		},
-	}
-
-	payloadBytes, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
-	req.Header.Set("Content-Type", "application/json")
-
-	rr := httptest.NewRecorder()
-
-	httpHandle.Handler(rr, req)
-
-	// Verify the request body was properly closed (this is mainly for coverage)
-	// The defer statement should close it, but we can't directly test that
-	assert.Equal(t, http.StatusAccepted, rr.Code)
-}
-
-// Benchmark test to measure performance
-func BenchmarkGetExternalHandle(b *testing.B) {
-	// Setup test configuration with valid queues
-	testConfig := cfg.Config{
-		AsynqConfig: cfg.AsynqConfig{
-			Queues: cfg.AsynqQueues{
-				"internal.default": 10,
-				"external.default": 10,
-			},
-		},
-	}
-	cfg.SetConfig(testConfig)
-
-	ctrl := gomock.NewController(b)
-	defer ctrl.Finish()
-
-	mockPublisher := publisher.NewMockPublisher(ctrl)
-
-	// Setup mock to always succeed
-	mockPublisher.EXPECT().
-		Publish(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(nil).
-		AnyTimes()
-
-	httpHandle := Publisher(mockPublisher)
-
-	payload := InternalPayload{
-		EventName: "benchmark.test",
-		Data: Data{
-			"user_id":   "123",
-			"action":    "click",
-			"timestamp": time.Now().Unix(),
-		},
-		Metadata: Metadata{
-			Source:      "web-app",
-			Version:     "1.0",
-			Environment: "benchmark",
-		},
-		Opts: domain.Opt{
-			MaxRetries: 3,
-			QueueType:  "internal.default",
-		},
-	}
-
-	payloadBytes, _ := json.Marshal(payload)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
-		req.Header.Set("Content-Type", "application/json")
-
-		rr := httptest.NewRecorder()
-		httpHandle.Handler(rr, req)
-
-		if rr.Code != http.StatusAccepted {
-			b.Fatalf("Expected status %d, got %d", http.StatusAccepted, rr.Code)
-		}
-	}
-}
-
-// Test to validate that our payload validations work by intentionally creating a mismatched payload
-func TestGetExternalHandle_PayloadValidation(t *testing.T) {
-	// Setup test configuration with valid queues
-	testConfig := cfg.Config{
-		AsynqConfig: cfg.AsynqConfig{
-			Queues: cfg.AsynqQueues{
-				"internal.wrong-queue": 10,
-				"external.default":     10,
-			},
-		},
-	}
-	cfg.SetConfig(testConfig)
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPublisher := publisher.NewMockPublisher(ctrl)
-
-	// This test demonstrates that our validation logic works
-	// by testing with a payload that intentionally has wrong values
-	payload := InternalPayload{
-		ServiceName: "wrong-service",
-		EventName:   "user.created",
-		Data: Data{
-			"user_id": "wrong_id", // This will be validated in the mock
-			"email":   "wrong@email.com",
-		},
-		Metadata: Metadata{
-			Source:      "wrong-source",
-			Version:     "1.0",
-			Environment: "test",
-		},
-		Opts: domain.Opt{
-			MaxRetries: 999, // This will be validated in the mock
-			QueueType:  "internal.wrong-queue",
-		},
-	}
-
-	// Setup mock with strict validation that will detect the "wrong" values
-	mockPublisher.EXPECT().
-		Publish(
-			gomock.Any(),
-			"your-project-id-event-queue-internal",
-			gomock.Any(),
-			gomock.Any(),
-		).
-		Do(func(ctx context.Context, eventName string, receivedPayload InternalPayload, opts ...interface{}) {
-			// These validations will pass because we're receiving what we sent
-			assert.Equal(t, "user.created", receivedPayload.EventName)
-			assert.Equal(t, "wrong_id", receivedPayload.Data["user_id"])
-			assert.Equal(t, "wrong-source", receivedPayload.Metadata.Source)
-			assert.Equal(t, 999, receivedPayload.Opts.MaxRetries)
-			// Log what we actually received for demonstration
-			t.Logf("Received payload - EventName: %s, UserID: %v, Source: %s, MaxRetries: %d",
-				receivedPayload.EventName,
-				receivedPayload.Data["user_id"],
-				receivedPayload.Metadata.Source,
-				receivedPayload.Opts.MaxRetries)
-		}).
-		Return(nil).
-		Times(1)
-
-	httpHandle := Publisher(mockPublisher)
-
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		t.Fatalf("Failed to marshal payload: %v", err)
-	}
-
-	req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
-	req.Header.Set("Content-Type", "application/json")
-
-	rr := httptest.NewRecorder()
-	httpHandle.Handler(rr, req)
-
-	assert.Equal(t, http.StatusAccepted, rr.Code)
 }

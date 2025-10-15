@@ -1,4 +1,4 @@
-package publisher
+package pubadapter
 
 import (
 	"context"
@@ -14,7 +14,7 @@ type Task struct {
 	client *asynq.Client
 }
 
-var _ Publisher = (*Task)(nil)
+var _ GenericPublisher = (*Task)(nil)
 
 func NewPublisher(client *asynq.Client) *Task {
 	return &Task{client: client}

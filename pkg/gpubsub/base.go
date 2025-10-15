@@ -7,6 +7,6 @@ import (
 )
 
 type Handle struct {
-	Event   string
+	TopicName   string
 	Handler func(ctx context.Context, msg *pubsub.Message)
 }

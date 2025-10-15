@@ -6,7 +6,7 @@ import (
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
-	"github.com/IsaacDSC/gqueue/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 )
 
@@ -17,7 +17,7 @@ type ExternalPayload struct {
 	Trigger   Trigger           `json:"trigger"`
 }
 
-func Publisher(pub publisher.Publisher) httpsvc.HttpHandle {
+func Publisher(pub pubadapter.Publisher) httpsvc.HttpHandle {
 	return httpsvc.HttpHandle{
 		Path: "POST /api/v1/event/publisher",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
@@ -34,10 +34,13 @@ func Publisher(pub publisher.Publisher) httpsvc.HttpHandle {
 				return
 			}
 
-			conf := payload.GetOpts()
-			opts := publisher.Opts{Attributes: make(map[string]string), AsynqOpts: conf}
+			if payload.Opts.WqType == "" {
+				payload.Opts.WqType = pubadapter.Internal
+			}
+
 			topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueInternal)
-			if err := pub.Publish(r.Context(), topic, payload, opts); err != nil {
+			opts := pubadapter.Opts{Attributes: payload.Attributes(topic), AsynqOpts: payload.AsynqOpts()}
+			if err := pub.Publish(r.Context(), payload.Opts.WqType, topic, payload, opts); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
