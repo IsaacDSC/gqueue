@@ -32,7 +32,7 @@ func (wq WQ) IsValid() error {
 	case WQGooglePubSub, WQAWS, WQRedis:
 		return nil
 	default:
-		return fmt.Errorf("invalid worker type: %s", wq)
+		return fmt.Errorf("invalid WQ type: %s", wq)
 	}
 }
 
