@@ -13,7 +13,7 @@ YELLOW=\033[0;33m
 NC=\033[0m # No Color
 
 # Comandos principais
-.PHONY: all build run test clean load-test run-worker run-webhook run-all generate-mocks update-mocks install-mockgen check-mocks test-with-mocks clean-mocks
+.PHONY: all build run test clean load-test run-worker run-webhook run-all generate-mocks update-mocks install-mockgen check-mocks test-with-mocks clean-mocks lint
 
 # Comandos por padrão
 all: help
@@ -52,6 +52,28 @@ clean:
 test:
 	@echo "$(GREEN)Executando testes...$(NC)"
 	GO_ENV=test $(GO) test ./... -v
+
+# Executar lint
+lint:
+	@echo "$(GREEN)Executando lint...$(NC)"
+	@echo "$(BLUE)Verificando formatação...$(NC)"
+	@unformatted=$$(gofmt -l .); \
+	if [ -n "$$unformatted" ]; then \
+		echo "$(YELLOW)⚠️  Os seguintes arquivos não estão formatados corretamente:$(NC)"; \
+		echo "$$unformatted"; \
+		echo "$(BLUE)Execute 'gofmt -w .' para corrigir$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Executando go vet...$(NC)"
+	@$(GO) vet ./...
+	@echo "$(BLUE)Verificando go mod tidy...$(NC)"
+	@$(GO) mod tidy
+	@if ! git diff --quiet go.mod go.sum; then \
+		echo "$(YELLOW)⚠️  go.mod ou go.sum não estão atualizados$(NC)"; \
+		echo "$(BLUE)Execute 'go mod tidy' para corrigir$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✅ Lint passou com sucesso!$(NC)"
 
 # Executar testes com verificação de mocks
 test-with-mocks: check-mocks test
@@ -191,6 +213,7 @@ help:
 	@echo "  $(GREEN)make run-all$(NC)         - Executa ambos os serviços"
 	@echo "  $(GREEN)make load-test$(NC)       - Executa teste de carga"
 	@echo "  $(GREEN)make test$(NC)            - Executa os testes"
+	@echo "  $(GREEN)make lint$(NC)            - Executa lint (fmt, vet, mod tidy)"
 	@echo "  $(GREEN)make test-with-mocks$(NC) - Executa os testes com verificação de mocks"
 	@echo "  $(GREEN)make test-fetcher$(NC)    - Executa os testes do fetcher"
 	@echo "  $(GREEN)make test-deadletter$(NC) - Executa os testes do deadletter"
