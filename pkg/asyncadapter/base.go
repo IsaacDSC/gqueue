@@ -33,6 +33,6 @@ func (c AsyncCtx[T]) Context() context.Context {
 }
 
 type Handle[T any] struct {
-	TopicName string
+	EventName string
 	Handler   func(c AsyncCtx[T]) error
 }

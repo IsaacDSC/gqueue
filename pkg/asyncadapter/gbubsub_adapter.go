@@ -63,7 +63,7 @@ func (h Handle[T]) ToGPubSubHandler(pub pubadapter.Publisher) gpubsub.Handle {
 	}
 
 	return gpubsub.Handle{
-		TopicName: h.TopicName,
+		TopicName: h.EventName,
 		Handler: func(ctx context.Context, msg *pubsub.Message) {
 			defer msg.Nack()
 

@@ -61,7 +61,6 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 
 	cfg := cfg.Get()
 
-	queues := domain.GetTopics()
 	concurrency := cfg.AsynqConfig.Concurrency
 
 	handlers := []gpubsub.Handle{
@@ -142,8 +141,7 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 	}
 
 	log.Println("[*] starting worker with configs")
-	log.Println("[*] wq.concurrency", (len(queues)*len(handlers))*concurrency)
-	log.Println("[*] wq.queues", queues)
+	log.Println("[*] wq.concurrency", (len(handlers))*concurrency)
 	log.Println("[*] Worker started. Press Ctrl+C to gracefully shutdown...")
 
 	<-sigChan
@@ -168,13 +166,13 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub pubadapter.Publisher, fetch *fetcher.Notification, insightsStore *storests.Store) {
 	cfg := cfg.Get()
 
-	asyqCfg := asynq.Config{
+	asynqCfg := asynq.Config{
 		Concurrency: cfg.AsynqConfig.Concurrency,
 	}
 
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: cfg.Cache.CacheAddr},
-		asyqCfg,
+		asynqCfg,
 	)
 
 	sigChan := make(chan os.Signal, 1)
@@ -194,8 +192,7 @@ func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub 
 	}
 
 	log.Println("[*] starting worker with configs")
-	log.Println("[*] wq.concurrency", asyqCfg.Concurrency)
-	log.Println("[*] wq.queues", asyqCfg.Queues)
+	log.Println("[*] wq.concurrency", asynqCfg.Concurrency)
 	log.Println("[*] Asynq Worker started. Press Ctrl+C to gracefully shutdown...")
 
 	go func() {

@@ -43,7 +43,7 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub pubad
 	}
 
 	return asyncadapter.Handle[InternalPayload]{
-		TopicName: domain.EventQueueInternal,
+		EventName: domain.EventQueueInternal,
 		Handler: func(c asyncadapter.AsyncCtx[InternalPayload]) (err error) {
 			started := time.Now()
 			ctx := c.Context()

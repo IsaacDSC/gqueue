@@ -126,7 +126,7 @@ func TestGetRequestHandle(t *testing.T) {
 		mockInsights := NewMockConsumerInsights(ctrl)
 		handle := GetRequestHandle(mockFetch, mockInsights)
 
-		assert.Equal(t, "event-queue.request-to-external", handle.TopicName)
+		assert.Equal(t, "event-queue.request-to-external", handle.EventName)
 		assert.NotNil(t, handle.Handler)
 	})
 }

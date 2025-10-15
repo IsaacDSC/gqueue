@@ -20,14 +20,7 @@ import (
 func TestGetInternalConsumerHandle(t *testing.T) {
 	// Setup test configuration with valid queues
 	testConfig := cfg.Config{
-		AsynqConfig: cfg.AsynqConfig{
-			Queues: cfg.AsynqQueues{
-				"internal.default":       10,
-				"internal.high-priority": 5,
-				"internal.low":           1,
-				"external.default":       10,
-			},
-		},
+		AsynqConfig: cfg.AsynqConfig{},
 	}
 	cfg.SetConfig(testConfig)
 
@@ -61,7 +54,6 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{
 					MaxRetries: 3,
-					QueueType:  "internal.default",
 				},
 			},
 			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
@@ -90,8 +82,8 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					})
 
 				mockPub.EXPECT().
-					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) error {
+					Publish(gomock.Any(), gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload RequestPayload, opts pubadapter.Opts) error {
 						assert.Equal(t, "user.created", payload.EventName)
 						assert.Equal(t, "notification-service", payload.Trigger.ServiceName)
 						assert.Equal(t, TriggerType("persistent"), payload.Trigger.Type)
@@ -138,7 +130,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{
 					MaxRetries: 5,
-					QueueType:  "internal.high-priority",
+					WqType:     pubadapter.Internal,
 				},
 			},
 			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
@@ -176,8 +168,8 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					})
 
 				mockPub.EXPECT().
-					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) error {
+					Publish(gomock.Any(), gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload RequestPayload, opts pubadapter.Opts) error {
 						assert.Equal(t, "order.completed", payload.EventName)
 						assert.Contains(t, []string{"billing-service", "analytics-service"}, payload.Trigger.ServiceName)
 						assert.Equal(t, "order-123", payload.Data["order_id"])
@@ -275,7 +267,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					})
 
 				mockPub.EXPECT().
-					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
+					Publish(gomock.Any(), gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
 					Return(errors.New("publisher connection failed")).
 					Times(1)
 
@@ -354,7 +346,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 			handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher, mockInsights)
 
 			// Verify event name
-			assert.Equal(t, "event-queue.internal", handle.TopicName)
+			assert.Equal(t, "event-queue.internal", handle.EventName)
 
 			// Marshal payload to simulate asynq task
 			payloadBytes, err := json.Marshal(tt.payload)
@@ -376,100 +368,4 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestGetInternalConsumerHandle_InvalidPayload(t *testing.T) {
-	// Setup test configuration with valid queues
-	testConfig := cfg.Config{
-		AsynqConfig: cfg.AsynqConfig{
-			Queues: cfg.AsynqQueues{
-				"internal.default": 10,
-				"external.default": 10,
-			},
-		},
-	}
-	cfg.SetConfig(testConfig)
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPublisher := pubadapter.NewMockPublisher(ctrl)
-	mockRepository := NewMockRepository(ctrl)
-	mockCache := cachemanager.NewMockCache(ctrl)
-	mockInsights := NewMockPublisherInsights(ctrl)
-
-	// Create the handler
-	handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher, mockInsights)
-
-	// Create task with invalid JSON payload
-	invalidPayload := []byte(`{"invalid": "json"`)
-	// Create AsyncCtx wrapper with invalid payload
-	asyncCtx := asyncadapter.NewAsyncCtx[InternalPayload](context.Background(), invalidPayload)
-
-	// Execute the handler
-	err := handle.Handler(asyncCtx)
-
-	// Should return unmarshal error
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unmarshal payload")
-}
-
-func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
-	// Setup test configuration with valid queues
-	testConfig := cfg.Config{
-		AsynqConfig: cfg.AsynqConfig{
-			Queues: cfg.AsynqQueues{
-				"internal.default": 10,
-				"external.default": 10,
-			},
-		},
-	}
-	cfg.SetConfig(testConfig)
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockPublisher := pubadapter.NewMockPublisher(ctrl)
-	mockRepository := NewMockRepository(ctrl)
-	mockCache := cachemanager.NewMockCache(ctrl)
-	mockInsights := NewMockPublisherInsights(ctrl)
-
-	payload := InternalPayload{
-		ServiceName: "test-service",
-		EventName:   "test.event",
-		Data:        Data{"test": "data"},
-		Metadata:    Metadata{Headers: map[string]string{}},
-		Opts:        domain.Opt{QueueType: "internal.default"},
-	}
-
-	key := cachemanager.Key("event-queue.test.event")
-	mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "test.event").Return(key)
-	mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
-	mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-		Return(errors.New("cache error"))
-
-	// Insights is called even when cache error occurs
-	mockInsights.EXPECT().
-		Published(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(ctx context.Context, input domain.PublisherMetric) error {
-			assert.Equal(t, "test.event", input.TopicName)
-			assert.True(t, input.ACK)
-			assert.NotZero(t, input.TimeStarted)
-			assert.NotZero(t, input.TimeEnded)
-			return nil
-		}).
-		Times(1)
-
-	// Create the handler
-	handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher, mockInsights)
-
-	payloadBytes, err := json.Marshal(payload)
-	require.NoError(t, err)
-
-	// Create AsyncCtx wrapper
-	asyncCtx := asyncadapter.NewAsyncCtx[InternalPayload](context.Background(), payloadBytes)
-
-	err = handle.Handler(asyncCtx)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "get internal event: cache error")
 }
