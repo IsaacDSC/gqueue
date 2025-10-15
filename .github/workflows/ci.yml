@@ -71,13 +71,27 @@ jobs:
           GO_ENV: test
           REDIS_URL: redis://localhost:6379
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
+          CACHE_ADDR: localhost:6379
           CACHE_DEFAULT_TTL: 24h
+          DB_DRIVER: pg
+          DB_CONNECTION_STRING: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
           WQ: redis
+          WQ_CONCURRENCY: 32
 
       - name: Check test coverage
         run: |
           go test ./... -coverprofile=coverage.out
           go tool cover -func=coverage.out
+        env:
+          GO_ENV: test
+          REDIS_URL: redis://localhost:6379
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
+          CACHE_ADDR: localhost:6379
+          CACHE_DEFAULT_TTL: 24h
+          DB_DRIVER: pg
+          DB_CONNECTION_STRING: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
+          WQ: redis
+          WQ_CONCURRENCY: 32
 
   lint:
     name: Lint Code
