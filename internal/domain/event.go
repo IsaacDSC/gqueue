@@ -70,7 +70,7 @@ type Opt struct {
 	Deadline   *time.Time         `json:"deadline" bson:"deadline"`
 	Retention  intertime.Duration `json:"retention" bson:"retention"`
 
-	// DEPRECATED: Está acoplada ao asynq ao nível de concorrência de eventos
+	// DEPRECATED: Está acoplado ao asynq ao nível de concorrência de eventos
 	// QueueType string `json:"queue_type" bson:"queue_type"`
 
 	// ALL
