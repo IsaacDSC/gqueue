@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -31,5 +32,10 @@ func (s *Store) key(typeEvent string, values ...string) string {
 
 func (s *Store) groupInsights(ctx context.Context, key string) error {
 	k := s.key("group-insights")
-	return s.cache.SAdd(ctx, k, key).Err()
+	if err := s.cache.SAdd(ctx, k, key).Err(); err != nil {
+		return err
+	}
+
+	conf := cfg.Get()
+	return s.cache.Expire(ctx, k, conf.Cache.DefaultTTL).Err()
 }
