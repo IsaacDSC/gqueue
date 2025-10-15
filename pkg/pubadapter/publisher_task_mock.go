@@ -7,7 +7,7 @@
 //
 
 // Package publisher is a generated GoMock package.
-package publisher
+package pubadapter
 
 import (
 	context "context"

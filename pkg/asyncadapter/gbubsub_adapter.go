@@ -8,17 +8,16 @@ import (
 	"cloud.google.com/go/pubsub"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/gpubsub"
-	"github.com/IsaacDSC/gqueue/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 )
 
-func (h Handle[T]) ToGPubSubHandler(pub publisher.Publisher) gpubsub.Handle {
+func (h Handle[T]) ToGPubSubHandler(pub pubadapter.Publisher) gpubsub.Handle {
 
 	archivedMsg := func(ctx context.Context, msg *pubsub.Message) {
 		defer msg.Ack()
-		time.Sleep(time.Second * 5)
 		topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueDeadLetter)
-		if err := pub.Publish(ctx, topic, msg, publisher.Opts{
+		if err := pub.Publish(ctx, pubadapter.HighThroughput, topic, msg, pubadapter.Opts{
 			Attributes: msg.Attributes,
 		}); err != nil {
 			msg.Nack()
@@ -33,7 +32,7 @@ func (h Handle[T]) ToGPubSubHandler(pub publisher.Publisher) gpubsub.Handle {
 			strRetryCount = "0"
 		}
 
-		strMaxRetryCount := msg.Attributes["max_attempts"]
+		strMaxRetryCount := msg.Attributes["max_retries"]
 
 		retryCount, err := strconv.Atoi(strRetryCount)
 		if err != nil {
@@ -54,7 +53,7 @@ func (h Handle[T]) ToGPubSubHandler(pub publisher.Publisher) gpubsub.Handle {
 		msg.Attributes["retry_count"] = strconv.Itoa(retryCount)
 		topic := msg.Attributes["topic"]
 		time.Sleep(time.Second * 5)
-		if err := pub.Publish(ctx, topic, msg, publisher.Opts{
+		if err := pub.Publish(ctx, pubadapter.HighThroughput, topic, msg, pubadapter.Opts{
 			Attributes: msg.Attributes,
 		}); err != nil {
 			msg.Nack()
@@ -64,7 +63,7 @@ func (h Handle[T]) ToGPubSubHandler(pub publisher.Publisher) gpubsub.Handle {
 	}
 
 	return gpubsub.Handle{
-		Event: h.Event,
+		TopicName: h.TopicName,
 		Handler: func(ctx context.Context, msg *pubsub.Message) {
 			defer msg.Nack()
 

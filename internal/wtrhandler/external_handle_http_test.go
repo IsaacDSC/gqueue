@@ -13,7 +13,7 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/intertime"
-	"github.com/IsaacDSC/gqueue/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -37,12 +37,12 @@ func TestGetExternalHandle(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockPublisher := publisher.NewMockPublisher(ctrl)
+	mockPublisher := pubadapter.NewMockPublisher(ctrl)
 
 	tests := []struct {
 		name           string
 		payload        InternalPayload
-		setupMock      func(*publisher.MockPublisher)
+		setupMock      func(*pubadapter.MockPublisher)
 		expectedStatus int
 		expectedError  bool
 	}{
@@ -68,7 +68,7 @@ func TestGetExternalHandle(t *testing.T) {
 					QueueType:  "internal.default",
 				},
 			},
-			setupMock: func(m *publisher.MockPublisher) {
+			setupMock: func(m *pubadapter.MockPublisher) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
@@ -124,7 +124,7 @@ func TestGetExternalHandle(t *testing.T) {
 					QueueType:  "internal.high-priority",
 				},
 			},
-			setupMock: func(m *publisher.MockPublisher) {
+			setupMock: func(m *pubadapter.MockPublisher) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
@@ -179,7 +179,7 @@ func TestGetExternalHandle(t *testing.T) {
 					QueueType:  "internal.notifications",
 				},
 			},
-			setupMock: func(m *publisher.MockPublisher) {
+			setupMock: func(m *pubadapter.MockPublisher) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
@@ -227,7 +227,7 @@ func TestGetExternalHandle(t *testing.T) {
 					QueueType:  "internal.payments",
 				},
 			},
-			setupMock: func(m *publisher.MockPublisher) {
+			setupMock: func(m *pubadapter.MockPublisher) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
@@ -263,7 +263,7 @@ func TestGetExternalHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{QueueType: "internal.default"},
 			},
-			setupMock: func(m *publisher.MockPublisher) {
+			setupMock: func(m *pubadapter.MockPublisher) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
@@ -345,37 +345,37 @@ func TestGetExternalHandle_InvalidJSON(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockPublisher := publisher.NewMockPublisher(ctrl)
+	mockPublisher := pubadapter.NewMockPublisher(ctrl)
 
 	tests := []struct {
 		name        string
 		requestBody string
 		expectedErr string
-		setupMock   func(*publisher.MockPublisher)
+		setupMock   func(*pubadapter.MockPublisher)
 	}{
 		{
 			name:        "invalid_json_syntax",
 			requestBody: `{"event_name": "test", "data": {invalid json}`,
 			expectedErr: "invalid character",
-			setupMock:   func(m *publisher.MockPublisher) {}, // No expectations
+			setupMock:   func(m *pubadapter.MockPublisher) {}, // No expectations
 		},
 		{
 			name:        "empty_body",
 			requestBody: "",
 			expectedErr: "EOF",
-			setupMock:   func(m *publisher.MockPublisher) {}, // No expectations
+			setupMock:   func(m *pubadapter.MockPublisher) {}, // No expectations
 		},
 		{
 			name:        "null_body",
 			requestBody: "null",
 			expectedErr: "",                                  // null is valid JSON but creates empty payload which fails validation
-			setupMock:   func(m *publisher.MockPublisher) {}, // No expectations as validation will fail
+			setupMock:   func(m *pubadapter.MockPublisher) {}, // No expectations as validation will fail
 		},
 		{
 			name:        "malformed_nested_object",
 			requestBody: `{"event_name": "test", "data": {"key": }}`,
 			expectedErr: "invalid character",
-			setupMock:   func(m *publisher.MockPublisher) {}, // No expectations
+			setupMock:   func(m *pubadapter.MockPublisher) {}, // No expectations
 		},
 	}
 
@@ -425,7 +425,7 @@ func TestGetExternalHandle_RequestBodyClosure(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockPublisher := publisher.NewMockPublisher(ctrl)
+	mockPublisher := pubadapter.NewMockPublisher(ctrl)
 
 	// Setup mock to expect successful publish
 	mockPublisher.EXPECT().
@@ -479,7 +479,7 @@ func BenchmarkGetExternalHandle(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	defer ctrl.Finish()
 
-	mockPublisher := publisher.NewMockPublisher(ctrl)
+	mockPublisher := pubadapter.NewMockPublisher(ctrl)
 
 	// Setup mock to always succeed
 	mockPublisher.EXPECT().
@@ -539,7 +539,7 @@ func TestGetExternalHandle_PayloadValidation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockPublisher := publisher.NewMockPublisher(ctrl)
+	mockPublisher := pubadapter.NewMockPublisher(ctrl)
 
 	// This test demonstrates that our validation logic works
 	// by testing with a payload that intentionally has wrong values

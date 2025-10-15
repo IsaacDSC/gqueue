@@ -10,7 +10,7 @@ import (
 
 func (h Handle[T]) ToAsynqHandler() asynqsvc.AsynqHandle {
 	return asynqsvc.AsynqHandle{
-		Event: h.Event,
+		TopicName: h.TopicName,
 		Handler: func(ctx context.Context, task *asynq.Task) error {
 			if err := h.Handler(AsyncCtx[T]{
 				ctx:         ctx,

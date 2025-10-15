@@ -17,7 +17,7 @@ type DeadLetterStore interface {
 
 func NewDeadLatterQueue(store DeadLetterStore, fetcher Fetcher) asyncadapter.Handle[pubsub.Message] {
 	return asyncadapter.Handle[pubsub.Message]{
-		Event: domain.EventQueueDeadLetter,
+		TopicName: domain.EventQueueDeadLetter,
 		Handler: func(c asyncadapter.AsyncCtx[pubsub.Message]) error {
 			ctx := c.Context()
 			l := ctxlogger.GetLogger(ctx)

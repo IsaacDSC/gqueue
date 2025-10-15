@@ -56,7 +56,7 @@ func GetRequestHandle(fetch Fetcher, insights ConsumerInsights) asyncadapter.Han
 	}
 
 	return asyncadapter.Handle[RequestPayload]{
-		Event: domain.EventQueueRequestToExternal,
+		TopicName: domain.EventQueueRequestToExternal,
 		Handler: func(c asyncadapter.AsyncCtx[RequestPayload]) error {
 			started := time.Now()
 			ctx := c.Context()

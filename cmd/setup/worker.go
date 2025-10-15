@@ -2,7 +2,6 @@ package setup
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -21,29 +20,37 @@ import (
 
 	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
-	"github.com/IsaacDSC/gqueue/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 
 	"github.com/hibiken/asynq"
 )
 
-func StartWorker(clientPubsub *pubsub.Client, cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher, insightsStore *storests.Store) {
-	fetch := fetcher.NewNotification()
-
-	cfg := cfg.Get()
-	workerType := cfg.AsynqConfig.WorkerType
-
-	fmt.Println("[*] worker type", workerType)
-	if workerType == "googlepubsub" {
-		startUsingGooglePubSub(clientPubsub, cache, store, pub, fetch, insightsStore)
-	} else {
-		startUsingAsynq(cache, store, pub, fetch, insightsStore)
-	}
-
+type Worker struct {
+	clientPubsub *pubsub.Client
 }
 
-func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher, fetch *fetcher.Notification, insightsStore *storests.Store) {
+func NewWorker() *Worker {
+	return &Worker{}
+}
+
+func (w *Worker) WithClientPubsub(clientPubsub *pubsub.Client) *Worker {
+	w.clientPubsub = clientPubsub
+	return w
+}
+
+func (w *Worker) Start(cache cachemanager.Cache, store interstore.Repository, redisAsync pubadapter.Publisher, insightsStore *storests.Store) {
+	fetch := fetcher.NewNotification()
+
+	if w.clientPubsub != nil {
+		go startUsingGooglePubSub(w.clientPubsub, cache, store, redisAsync, fetch, insightsStore)
+	}
+
+	startUsingAsynq(cache, store, redisAsync, fetch, insightsStore)
+}
+
+func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cache, store interstore.Repository, pub pubadapter.Publisher, fetch *fetcher.Notification, insightsStore *storests.Store) {
 	ctx := context.Background()
 
 	sigChan := make(chan os.Signal, 1)
@@ -70,7 +77,7 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 		go func(handler gpubsub.Handle) {
 			defer wg.Done()
 
-			topicName := topicutils.BuildTopicName(domain.ProjectID, handler.Event)
+			topicName := topicutils.BuildTopicName(domain.ProjectID, handler.TopicName)
 			log.Printf("[*] Starting subscriber for topic: %s", topicName)
 
 			// Register topic if not exists
@@ -158,12 +165,11 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 	}
 }
 
-func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub publisher.Publisher, fetch *fetcher.Notification, insightsStore *storests.Store) {
+func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub pubadapter.Publisher, fetch *fetcher.Notification, insightsStore *storests.Store) {
 	cfg := cfg.Get()
 
 	asyqCfg := asynq.Config{
 		Concurrency: cfg.AsynqConfig.Concurrency,
-		Queues:      cfg.AsynqConfig.Queues,
 	}
 
 	srv := asynq.NewServer(
@@ -183,7 +189,8 @@ func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub 
 	}
 
 	for _, event := range events {
-		mux.HandleFunc(event.Event, event.Handler)
+		topic := topicutils.BuildTopicName(domain.ProjectID, event.TopicName)
+		mux.HandleFunc(topic, event.Handler)
 	}
 
 	log.Println("[*] starting worker with configs")

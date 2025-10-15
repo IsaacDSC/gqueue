@@ -11,7 +11,7 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
-	"github.com/IsaacDSC/gqueue/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -37,7 +37,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 	tests := []struct {
 		name           string
 		payload        InternalPayload
-		setupMocks     func(*publisher.MockPublisher, *MockRepository, *cachemanager.MockCache, *MockPublisherInsights)
+		setupMocks     func(*pubadapter.MockPublisher, *MockRepository, *cachemanager.MockCache, *MockPublisherInsights)
 		expectedError  bool
 		expectedErrMsg string
 	}{
@@ -64,7 +64,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					QueueType:  "internal.default",
 				},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
+			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
 				key := cachemanager.Key("event-queue.user.created")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.created").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
@@ -91,7 +91,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 
 				mockPub.EXPECT().
 					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts publisher.Opts) error {
+					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) error {
 						assert.Equal(t, "user.created", payload.EventName)
 						assert.Equal(t, "notification-service", payload.Trigger.ServiceName)
 						assert.Equal(t, TriggerType("persistent"), payload.Trigger.Type)
@@ -141,7 +141,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					QueueType:  "internal.high-priority",
 				},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
+			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
 				key := cachemanager.Key("event-queue.order.completed")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "order.completed").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
@@ -177,7 +177,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 
 				mockPub.EXPECT().
 					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts publisher.Opts) error {
+					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) error {
 						assert.Equal(t, "order.completed", payload.EventName)
 						assert.Contains(t, []string{"billing-service", "analytics-service"}, payload.Trigger.ServiceName)
 						assert.Equal(t, "order-123", payload.Data["order_id"])
@@ -215,7 +215,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
+			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
 				key := cachemanager.Key("event-queue.nonexistent.event")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "nonexistent.event").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
@@ -251,7 +251,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
+			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
 				key := cachemanager.Key("event-queue.user.updated")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.updated").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
@@ -309,7 +309,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *publisher.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
+			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
 				key := cachemanager.Key("event-queue.archived.event")
 				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "archived.event").Return(key)
 				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
@@ -342,7 +342,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create fresh mocks for each test
-			mockPublisher := publisher.NewMockPublisher(ctrl)
+			mockPublisher := pubadapter.NewMockPublisher(ctrl)
 			mockRepository := NewMockRepository(ctrl)
 			mockCache := cachemanager.NewMockCache(ctrl)
 			mockInsights := NewMockPublisherInsights(ctrl)
@@ -354,7 +354,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 			handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher, mockInsights)
 
 			// Verify event name
-			assert.Equal(t, "event-queue.internal", handle.Event)
+			assert.Equal(t, "event-queue.internal", handle.TopicName)
 
 			// Marshal payload to simulate asynq task
 			payloadBytes, err := json.Marshal(tt.payload)
@@ -393,7 +393,7 @@ func TestGetInternalConsumerHandle_InvalidPayload(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockPublisher := publisher.NewMockPublisher(ctrl)
+	mockPublisher := pubadapter.NewMockPublisher(ctrl)
 	mockRepository := NewMockRepository(ctrl)
 	mockCache := cachemanager.NewMockCache(ctrl)
 	mockInsights := NewMockPublisherInsights(ctrl)
@@ -429,7 +429,7 @@ func TestGetInternalConsumerHandle_CacheError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockPublisher := publisher.NewMockPublisher(ctrl)
+	mockPublisher := pubadapter.NewMockPublisher(ctrl)
 	mockRepository := NewMockRepository(ctrl)
 	mockCache := cachemanager.NewMockCache(ctrl)
 	mockInsights := NewMockPublisherInsights(ctrl)

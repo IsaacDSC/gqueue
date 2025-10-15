@@ -36,8 +36,14 @@ func (p InternalPayload) Validate() error {
 	return nil
 }
 
-func (p InternalPayload) GetOpts() []asynq.Option {
+func (p InternalPayload) AsynqOpts() []asynq.Option {
 	return p.Opts.ToAsynqOptions()
+}
+
+func (p InternalPayload) Attributes(topicName string) map[string]string {
+	opts := p.Opts.Attributes()
+	opts["topic"] = topicName
+	return opts
 }
 
 type Metadata struct {

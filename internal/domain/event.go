@@ -2,11 +2,10 @@ package domain
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/pkg/intertime"
+	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 )
@@ -65,12 +64,18 @@ type Trigger struct {
 }
 
 type Opt struct {
-	MaxRetries int                `json:"max_retries" bson:"max_retries"`
-	Retention  intertime.Duration `json:"retention" bson:"retention"`
+	// REDIS
 	ScheduleIn intertime.Duration `json:"schedule_in" bson:"schedule_in"`
 	UniqueTTL  intertime.Duration `json:"unique_ttl" bson:"unique_ttl"`
 	Deadline   *time.Time         `json:"deadline" bson:"deadline"`
-	QueueType  string             `json:"queue_type" bson:"queue_type"`
+	Retention  intertime.Duration `json:"retention" bson:"retention"`
+
+	// DEPRECATED: Está acoplada ao asynq ao nível de concorrência de eventos
+	// QueueType string `json:"queue_type" bson:"queue_type"`
+
+	// ALL
+	MaxRetries int               `json:"max_retries" bson:"max_retries"`
+	WqType     pubadapter.WQType `json:"wq_type" bson:"wq_type"`
 }
 
 type ValidateType string
@@ -85,21 +90,26 @@ const (
 )
 
 func (o Opt) Validate(validateType ValidateType) error {
-	c := cfg.Get()
-
-	if o.QueueType == "" {
-		return fmt.Errorf("queue type is required")
+	if o.WqType == "" {
+		return fmt.Errorf("wq type is required")
 	}
 
-	if !strings.Contains(o.QueueType, validateType.String()) {
-		return fmt.Errorf("invalid queue type: %s, you have use prefix %s.<queue-name>", o.QueueType, validateType.String())
+	if err := o.WqType.Validate(); err != nil {
+		return fmt.Errorf("invalid worker_type %w", err)
 	}
 
-	if !c.AsynqConfig.Queues.Contains(o.QueueType) {
-		return fmt.Errorf("not found queue type: %s", o.QueueType)
+	if o.MaxRetries < 0 || o.MaxRetries > 5 {
+		return fmt.Errorf("max retries must be between 0 and 5")
 	}
 
 	return nil
+}
+
+func (o Opt) Attributes() map[string]string {
+	return map[string]string{
+		"max_retries": fmt.Sprintf("%d", o.MaxRetries),
+		"wq_type":     fmt.Sprintf("%s", o.WqType),
+	}
 }
 
 func (o Opt) ToAsynqOptions() []asynq.Option {
@@ -119,14 +129,6 @@ func (o Opt) ToAsynqOptions() []asynq.Option {
 	}
 	if o.ScheduleIn > 0 {
 		opts = append(opts, asynq.ProcessIn(time.Duration(o.ScheduleIn)))
-	}
-
-	if o.QueueType != "" {
-		opts = append(opts, asynq.Queue(o.QueueType))
-	}
-
-	if o.QueueType == "" {
-		opts = append(opts, asynq.Queue("internal.low"))
 	}
 
 	return opts

@@ -9,6 +9,6 @@
   },
   "opts": {
     "max_retries": 3,
-    "queue_type": "internal.high"
+    "wq_type": "external"
   }
 }

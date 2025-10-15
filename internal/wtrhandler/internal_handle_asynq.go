@@ -13,7 +13,7 @@ import (
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
-	"github.com/IsaacDSC/gqueue/pkg/publisher"
+	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 )
 
 type Repository interface {
@@ -24,7 +24,7 @@ type PublisherInsights interface {
 	Published(ctx context.Context, input domain.PublisherMetric) error
 }
 
-func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publisher.Publisher, insights PublisherInsights) asyncadapter.Handle[InternalPayload] {
+func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub pubadapter.Publisher, insights PublisherInsights) asyncadapter.Handle[InternalPayload] {
 
 	insertInsights := func(ctx context.Context, payload InternalPayload, started time.Time, isSuccess bool) {
 		l := ctxlogger.GetLogger(ctx)
@@ -43,7 +43,7 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publi
 	}
 
 	return asyncadapter.Handle[InternalPayload]{
-		Event: domain.EventQueueInternal,
+		TopicName: domain.EventQueueInternal,
 		Handler: func(c asyncadapter.AsyncCtx[InternalPayload]) (err error) {
 			started := time.Now()
 			ctx := c.Context()
@@ -91,8 +91,8 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub publi
 				}
 
 				topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueRequestToExternal)
-				opts := publisher.Opts{Attributes: make(map[string]string), AsynqOpts: config}
-				if err = pub.Publish(ctx, topic, input, opts); err != nil {
+				opts := pubadapter.Opts{Attributes: make(map[string]string), AsynqOpts: config}
+				if err = pub.Publish(ctx, payload.Opts.WqType, topic, input, opts); err != nil {
 					err = fmt.Errorf("publish internal event: %w", err)
 					return
 				}
