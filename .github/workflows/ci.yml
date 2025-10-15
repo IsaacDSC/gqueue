@@ -71,6 +71,7 @@ jobs:
           GO_ENV: test
           REDIS_URL: redis://localhost:6379
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
+          CACHE_DEFAULT_TTL: 24h
 
       - name: Check test coverage
         run: |
