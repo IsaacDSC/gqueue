@@ -72,6 +72,7 @@ jobs:
           REDIS_URL: redis://localhost:6379
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
           CACHE_DEFAULT_TTL: 24h
+          WQ: redis
 
       - name: Check test coverage
         run: |
