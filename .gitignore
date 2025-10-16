@@ -28,3 +28,5 @@ go.work.sum
 TODO.md
 coverage.html
 coverage.out
+coverage.txt
+coverage.xml
