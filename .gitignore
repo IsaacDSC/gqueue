@@ -26,3 +26,5 @@ go.work.sum
 .idea
 .continue
 TODO.md
+coverage.html
+coverage.out

@@ -39,22 +39,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.24"
           cache: true
-
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       - name: Download dependencies
         run: go mod download
@@ -77,12 +69,33 @@ jobs:
           DB_CONNECTION_STRING: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
           WQ: redis
           WQ_CONCURRENCY: 32
-          WQ_QUEUES: '{"internal.critical": 7, "internal.high": 5, "internal.medium": 3, "internal.low": 1, "external.critical": 7, "external.high": 5, "external.medium": 3, "external.low": 1}'
 
-      - name: Check test coverage
+      - name: Check coverage for new code
+        if: github.event_name == 'pull_request'
         run: |
-          go test ./... -coverprofile=coverage.out
-          go tool cover -func=coverage.out
+          # Setup Python for diff-cover
+          python -m pip install --upgrade pip
+          pip install diff-cover
+
+          # Generate coverage
+          go test ./... -coverprofile=coverage.out -covermode=atomic
+
+          # Check if there are Go files changed (excluding specific directories)
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '\.go$' | grep -v '_test\.go$' | grep -v '_mock\.go$' | grep -v '^example/' | grep -v '^cmd/' | grep -v '^docs/' | grep -v '^deployment/' || true)
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "✅ No Go files changed"
+            exit 0
+          fi
+
+          echo "📁 Changed files: $CHANGED_FILES"
+
+          # Convert to XML for diff-cover
+          go install github.com/boumenot/gocover-cobertura@latest
+          gocover-cobertura < coverage.out > coverage.xml
+
+          # Check 80% minimum coverage for changed files only
+          diff-cover coverage.xml --compare-branch=origin/${{ github.base_ref }} --fail-under=80 --include="*.go" --exclude="*_test.go" --exclude="*_mock.go" --exclude="example/*" --exclude="cmd/*" --exclude="docs/*" --exclude="deployment/*"
         env:
           GO_ENV: test
           REDIS_URL: redis://localhost:6379
@@ -93,7 +106,6 @@ jobs:
           DB_CONNECTION_STRING: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
           WQ: redis
           WQ_CONCURRENCY: 32
-          WQ_QUEUES: '{"internal.critical": 7, "internal.high": 5, "internal.medium": 3, "internal.low": 1, "external.critical": 7, "external.high": 5, "external.medium": 3, "external.low": 1}'
 
   lint:
     name: Lint Code

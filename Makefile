@@ -13,7 +13,7 @@ YELLOW=\033[0;33m
 NC=\033[0m # No Color
 
 # Comandos principais
-.PHONY: all build run test clean load-test run-worker run-webhook run-all generate-mocks update-mocks install-mockgen check-mocks test-with-mocks clean-mocks lint
+.PHONY: all build run test clean load-test run-worker run-webhook run-all generate-mocks update-mocks install-mockgen check-mocks test-with-mocks clean-mocks lint coverage check-coverage
 
 # Comandos por padrão
 all: help
@@ -52,6 +52,35 @@ clean:
 test:
 	@echo "$(GREEN)Executando testes...$(NC)"
 	GO_ENV=test $(GO) test ./... -v
+
+# Executar testes com cobertura (excluindo pastas específicas)
+coverage:
+	@echo "$(GREEN)Executando testes com cobertura...$(NC)"
+	@echo "$(BLUE)Excluindo: example/, cmd/, docs/, deployment/, *_mock.go$(NC)"
+	@GO_ENV=test $(GO) test $$(go list ./... | grep -v '/example/' | grep -v '/cmd/' | grep -v '/docs/' | grep -v '/deployment/') -coverprofile=coverage.out -covermode=atomic
+	@# Remove mock files from coverage report
+	@grep -v '_mock.go' coverage.out > coverage_filtered.out || true
+	@mv coverage_filtered.out coverage.out || true
+	@$(GO) tool cover -func=coverage.out
+	@$(GO) tool cover -html=coverage.out -o coverage.html
+	@echo "$(BLUE)Relatório HTML gerado em coverage.html$(NC)"
+
+# Verificar se cobertura atende 80% mínimo (excluindo pastas específicas)
+check-coverage:
+	@echo "$(GREEN)Verificando cobertura mínima de 80%...$(NC)"
+	@echo "$(BLUE)Excluindo: example/, cmd/, docs/, deployment/, *_mock.go$(NC)"
+	@GO_ENV=test $(GO) test $$(go list ./... | grep -v '/example/' | grep -v '/cmd/' | grep -v '/docs/' | grep -v '/deployment/') -coverprofile=coverage.out -covermode=atomic
+	@# Remove mock files from coverage report
+	@grep -v '_mock.go' coverage.out > coverage_filtered.out || true
+	@mv coverage_filtered.out coverage.out || true
+	@COVERAGE=$$($(GO) tool cover -func=coverage.out | grep total | awk '{print $$3}' | sed 's/%//'); \
+	echo "$(BLUE)Cobertura total: $${COVERAGE}%$(NC)"; \
+	if [ $$(echo "$$COVERAGE < 80" | bc -l) -eq 1 ]; then \
+		echo "$(YELLOW)❌ FALHA: Cobertura ($${COVERAGE}%) abaixo do mínimo de 80%$(NC)"; \
+		exit 1; \
+	else \
+		echo "$(GREEN)✅ SUCESSO: Cobertura atende ao mínimo de 80%$(NC)"; \
+	fi
 
 # Executar lint
 lint:
@@ -213,6 +242,8 @@ help:
 	@echo "  $(GREEN)make run-all$(NC)         - Executa ambos os serviços"
 	@echo "  $(GREEN)make load-test$(NC)       - Executa teste de carga"
 	@echo "  $(GREEN)make test$(NC)            - Executa os testes"
+	@echo "  $(GREEN)make coverage$(NC)        - Executa testes com relatório de cobertura (exclui: example/, cmd/, docs/, deployment/, *_mock.go)"
+	@echo "  $(GREEN)make check-coverage$(NC)  - Verifica se cobertura >= 80% (exclui: example/, cmd/, docs/, deployment/, *_mock.go)"
 	@echo "  $(GREEN)make lint$(NC)            - Executa lint (fmt, vet, mod tidy)"
 	@echo "  $(GREEN)make test-with-mocks$(NC) - Executa os testes com verificação de mocks"
 	@echo "  $(GREEN)make test-fetcher$(NC)    - Executa os testes do fetcher"
