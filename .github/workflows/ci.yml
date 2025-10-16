@@ -94,10 +94,13 @@ jobs:
           go install github.com/boumenot/gocover-cobertura@latest
           gocover-cobertura < coverage.out > coverage.xml
 
-          # Check 80% minimum coverage for changed files only
-          diff-cover coverage.xml --compare-branch=origin/${{ github.base_ref }} --fail-under=80 --include="*.go" --exclude="*_test.go" --exclude="*_mock.go" --exclude="example/*" --exclude="cmd/*" --exclude="docs/*" --exclude="deployment/*"
-
           echo "🐞 In your local branch run the make coverage-check command and validate more detail"
+
+          # Check 80% minimum coverage for changed files only
+          diff-cover coverage.xml --compare-branch=origin/${{ github.base_ref }} --fail-under=80 --include="*.go" --exclude="*_test.go" --exclude="*_mock.go" --exclude="example/*" --exclude="cmd/*" --exclude="docs/*" --exclude="deployment/*" || {
+            echo "🐞 In your local branch run the make coverage-check command and validate more detail"
+            exit 1
+          }
         env:
           GO_ENV: test
           REDIS_URL: redis://localhost:6379
