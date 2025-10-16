@@ -95,4 +95,11 @@ func main() {
 		panic(err)
 	}
 	fmt.Printf("p99: %.0f ms\n", p99) // esperado: 1 ms
+	for i := range 10 {
+		fmt.Println("hahah", hahahaTEste(i))
+	}
+}
+
+func hahahaTEste(value int) bool {
+	return value%2 == 0
 }
