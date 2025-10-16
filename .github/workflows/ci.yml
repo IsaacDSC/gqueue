@@ -96,6 +96,8 @@ jobs:
 
           # Check 80% minimum coverage for changed files only
           diff-cover coverage.xml --compare-branch=origin/${{ github.base_ref }} --fail-under=80 --include="*.go" --exclude="*_test.go" --exclude="*_mock.go" --exclude="example/*" --exclude="cmd/*" --exclude="docs/*" --exclude="deployment/*"
+
+          echo "In your local branch run the make coverage-check command and validate more detail"
         env:
           GO_ENV: test
           REDIS_URL: redis://localhost:6379

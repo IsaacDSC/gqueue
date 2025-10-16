@@ -13,7 +13,7 @@ YELLOW=\033[0;33m
 NC=\033[0m # No Color
 
 # Comandos principais
-.PHONY: all build run test clean load-test run-worker run-webhook run-all generate-mocks update-mocks install-mockgen check-mocks test-with-mocks clean-mocks lint coverage check-coverage
+.PHONY: all build run test clean load-test run-worker run-webhook run-all generate-mocks update-mocks install-mockgen check-mocks test-with-mocks clean-mocks lint coverage check-coverage coverage-check
 
 # Comandos por padrão
 all: help
@@ -103,6 +103,53 @@ lint:
 		exit 1; \
 	fi
 	@echo "$(GREEN)✅ Lint passou com sucesso!$(NC)"
+
+# Verificar cobertura dos arquivos commitados (simples)
+coverage-check:
+	@echo "$(GREEN)🔍 Verificando cobertura dos arquivos commitados$(NC)"
+	@# Detectar branch principal
+	@MAIN_BRANCH=$$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@' || echo "main"); \
+	if ! git rev-parse --verify origin/$$MAIN_BRANCH >/dev/null 2>&1; then \
+		MAIN_BRANCH="master"; \
+	fi; \
+	echo "$(BLUE)Comparando com: $$MAIN_BRANCH$(NC)"; \
+	CHANGED_FILES=$$(git diff --name-only origin/$$MAIN_BRANCH...HEAD | grep '\.go$$' | grep -v '_test\.go$$' | grep -v '_mock\.go$$' | grep -v '^example/' | grep -v '^cmd/' | grep -v '^docs/' | grep -v '^deployment/' | xargs -I {} sh -c 'test -f "{}" && echo "{}"' || true); \
+	if [ -z "$$CHANGED_FILES" ]; then \
+		echo "$(YELLOW)❌ Nenhum arquivo Go commitado encontrado$(NC)"; \
+		exit 0; \
+	fi; \
+	echo "$(BLUE)Arquivos commitados:$(NC)"; \
+	echo "$$CHANGED_FILES" | sed 's/^/  - /'; \
+	echo ""; \
+	echo "$(BLUE)Executando testes...$(NC)"; \
+	GO_ENV=test $(GO) test $$(go list ./... | grep -v '/example/' | grep -v '/cmd/' | grep -v '/docs/' | grep -v '/deployment/') -coverprofile=coverage.out -covermode=atomic >/dev/null 2>&1; \
+	grep -v '_mock.go' coverage.out > coverage_filtered.out || true; \
+	mv coverage_filtered.out coverage.out || true; \
+	echo ""; \
+	echo "$(BLUE)📊 COBERTURA:$(NC)"; \
+	FAILED_COUNT=0; \
+	for file in $$CHANGED_FILES; do \
+		COVERAGE_LINE=$$($(GO) tool cover -func=coverage.out | grep "$$file" | head -1); \
+		if [ -n "$$COVERAGE_LINE" ]; then \
+			COVERAGE_PCT=$$(echo "$$COVERAGE_LINE" | awk '{print $$3}' | sed 's/%//'); \
+			if [ $$(echo "$$COVERAGE_PCT < 80" | bc -l 2>/dev/null || echo 0) -eq 1 ]; then \
+				echo "  $(YELLOW)❌ $$file: $${COVERAGE_PCT}%$(NC)"; \
+				FAILED_COUNT=$$((FAILED_COUNT + 1)); \
+			else \
+				echo "  $(GREEN)✅ $$file: $${COVERAGE_PCT}%$(NC)"; \
+			fi; \
+		else \
+			echo "  $(YELLOW)❌ $$file: 0.0% (sem testes)$(NC)"; \
+			FAILED_COUNT=$$((FAILED_COUNT + 1)); \
+		fi; \
+	done; \
+	echo ""; \
+	if [ $$FAILED_COUNT -gt 0 ]; then \
+		echo "$(YELLOW)⚠️  $$FAILED_COUNT arquivo(s) precisam de mais testes$(NC)"; \
+		echo "$(BLUE)Dica: Execute 'make coverage' e abra coverage.html para ver as linhas específicas$(NC)"; \
+	else \
+		echo "$(GREEN)✅ Todos os arquivos atendem ao critério de 80%$(NC)"; \
+	fi
 
 # Executar testes com verificação de mocks
 test-with-mocks: check-mocks test
@@ -244,6 +291,7 @@ help:
 	@echo "  $(GREEN)make test$(NC)            - Executa os testes"
 	@echo "  $(GREEN)make coverage$(NC)        - Executa testes com relatório de cobertura (exclui: example/, cmd/, docs/, deployment/, *_mock.go)"
 	@echo "  $(GREEN)make check-coverage$(NC)  - Verifica se cobertura >= 80% (exclui: example/, cmd/, docs/, deployment/, *_mock.go)"
+	@echo "  $(GREEN)make coverage-check$(NC)  - 🔍 Verifica cobertura dos arquivos commitados (SIMPLES)"
 	@echo "  $(GREEN)make lint$(NC)            - Executa lint (fmt, vet, mod tidy)"
 	@echo "  $(GREEN)make test-with-mocks$(NC) - Executa os testes com verificação de mocks"
 	@echo "  $(GREEN)make test-fetcher$(NC)    - Executa os testes do fetcher"
