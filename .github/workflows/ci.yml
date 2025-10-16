@@ -1,0 +1,173 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+  push:
+    branches: [main, master, develop]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Generate mocks
+        run: make generate-mocks
+
+      - name: Run tests
+        run: make test
+        env:
+          GO_ENV: test
+          REDIS_URL: redis://localhost:6379
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
+          CACHE_ADDR: localhost:6379
+          CACHE_DEFAULT_TTL: 24h
+          DB_DRIVER: pg
+          DB_CONNECTION_STRING: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
+          WQ: redis
+          WQ_CONCURRENCY: 32
+
+      - name: Check coverage for new code
+        if: github.event_name == 'pull_request'
+        run: |
+          # Setup Python for diff-cover
+          python -m pip install --upgrade pip
+          pip install diff-cover
+
+          # Generate coverage
+          go test ./... -coverprofile=coverage.out -covermode=atomic
+
+          # Check if there are Go files changed (excluding specific directories and deleted files)
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '\.go$' | grep -v '_test\.go$' | grep -v '_mock\.go$' | grep -v '^example/' | grep -v '^cmd/' | grep -v '^docs/' | grep -v '^deployment/' | xargs -I {} sh -c 'test -f "{}" && echo "{}"' || true)
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "✅ No Go files changed"
+            exit 0
+          fi
+
+          echo "📁 Changed files: $CHANGED_FILES"
+
+          # Convert to XML for diff-cover
+          go install github.com/boumenot/gocover-cobertura@latest
+          gocover-cobertura < coverage.out > coverage.xml
+
+          echo "🐞 In your local branch run the make coverage-check command and validate more detail"
+
+          # Check 80% minimum coverage for changed files only
+          diff-cover coverage.xml --compare-branch=origin/${{ github.base_ref }} --fail-under=80 --include="*.go" --exclude="*_test.go" --exclude="*_mock.go" --exclude="example/*" --exclude="cmd/*" --exclude="docs/*" --exclude="deployment/*" || {
+            echo "🐞 In your local branch run the make coverage-check command and validate more detail"
+            exit 1
+          }
+        env:
+          GO_ENV: test
+          REDIS_URL: redis://localhost:6379
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
+          CACHE_ADDR: localhost:6379
+          CACHE_DEFAULT_TTL: 24h
+          DB_DRIVER: pg
+          DB_CONNECTION_STRING: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
+          WQ: redis
+          WQ_CONCURRENCY: 32
+
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run go fmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not properly formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run go mod tidy check
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Build application
+        run: make build
+
+      - name: Test build artifacts
+        run: |
+          if [ ! -f "./webhook" ]; then
+            echo "Build artifact not found!"
+            exit 1
+          fi
+          echo "Build successful - webhook binary created"

@@ -1,0 +1,97 @@
+name: Retest
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  retest:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, 'retest')
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: React to comment
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          comment-id: ${{ github.event.comment.id }}
+          reactions: "+1"
+
+      - name: Get PR info
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+
+            core.setOutput('sha', pr.data.head.sha);
+            core.setOutput('ref', pr.data.head.ref);
+
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Generate mocks
+        run: make generate-mocks
+
+      - name: Run tests
+        run: make test
+        env:
+          GO_ENV: test
+          REDIS_URL: redis://localhost:6379
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
+          CACHE_ADDR: localhost:6379
+          CACHE_DEFAULT_TTL: 24h
+          DB_DRIVER: pg
+          DB_CONNECTION_STRING: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
+          WQ: redis
+          WQ_CONCURRENCY: 32
+          WQ_QUEUES: '{"internal.critical": 7, "internal.high": 5, "internal.medium": 3, "internal.low": 1, "external.critical": 7, "external.high": 5, "external.medium": 3, "external.low": 1}'
+
+      - name: Run lint
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "Files not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+          go vet ./...
+
+      - name: Build
+        run: make build
