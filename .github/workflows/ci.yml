@@ -80,8 +80,8 @@ jobs:
           # Generate coverage
           go test ./... -coverprofile=coverage.out -covermode=atomic
 
-          # Check if there are Go files changed (excluding specific directories)
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '\.go$' | grep -v '_test\.go$' | grep -v '_mock\.go$' | grep -v '^example/' | grep -v '^cmd/' | grep -v '^docs/' | grep -v '^deployment/' || true)
+          # Check if there are Go files changed (excluding specific directories and deleted files)
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '\.go$' | grep -v '_test\.go$' | grep -v '_mock\.go$' | grep -v '^example/' | grep -v '^cmd/' | grep -v '^docs/' | grep -v '^deployment/' | xargs -I {} sh -c 'test -f "{}" && echo "{}"' || true)
 
           if [ -z "$CHANGED_FILES" ]; then
             echo "✅ No Go files changed"
@@ -97,7 +97,7 @@ jobs:
           # Check 80% minimum coverage for changed files only
           diff-cover coverage.xml --compare-branch=origin/${{ github.base_ref }} --fail-under=80 --include="*.go" --exclude="*_test.go" --exclude="*_mock.go" --exclude="example/*" --exclude="cmd/*" --exclude="docs/*" --exclude="deployment/*"
 
-          echo "In your local branch run the make coverage-check command and validate more detail"
+          echo "🐞 In your local branch run the make coverage-check command and validate more detail"
         env:
           GO_ENV: test
           REDIS_URL: redis://localhost:6379
