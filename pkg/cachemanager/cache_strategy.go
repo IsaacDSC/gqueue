@@ -150,3 +150,15 @@ func (s Strategy) IncrementValue(ctx context.Context, key Key, value any) error 
 
 	return nil
 }
+
+func (s Strategy) RemoveValue(ctx context.Context, key Key, fn func(ctx context.Context) error) error {
+	if err := s.client.Del(ctx, key.String()).Err(); err != nil {
+		return fmt.Errorf("error removing value for key %s: %w", key.String(), err)
+	}
+
+	if err := fn(ctx); err != nil {
+		return fmt.Errorf("error executing function for key %s: %w", key.String(), err)
+	}
+
+	return nil
+}

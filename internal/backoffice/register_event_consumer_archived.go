@@ -8,11 +8,11 @@ import (
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
-	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
+	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 )
 
-func GetRegisterTaskConsumerArchived(cc cachemanager.Cache, repo Repository) httpsvc.HttpHandle {
-	return httpsvc.HttpHandle{
+func GetRegisterTaskConsumerArchived(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
+	return httpadapter.HttpHandle{
 		Path: "POST /events/schedule/archived",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()

@@ -1,4 +1,4 @@
-package interstore
+package backoffice
 
 import (
 	"context"
@@ -14,5 +14,4 @@ type Repository interface {
 	DisabledEvent(ctx context.Context, eventID uuid.UUID) error
 	UpdateEvent(ctx context.Context, event domain.Event) error
 	GetEventByID(ctx context.Context, eventID uuid.UUID) (domain.Event, error)
-	GetAllSchedulers(ctx context.Context, state string) ([]domain.Event, error)
 }

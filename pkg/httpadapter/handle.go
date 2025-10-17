@@ -1,4 +1,4 @@
-package httpsvc
+package httpadapter
 
 import "net/http"
 

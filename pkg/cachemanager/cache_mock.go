@@ -114,3 +114,17 @@ func (mr *MockCacheMockRecorder) Once(ctx, key, value, ttl, fn any) *gomock.Call
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Once", reflect.TypeOf((*MockCache)(nil).Once), ctx, key, value, ttl, fn)
 }
+
+// RemoveValue mocks base method.
+func (m *MockCache) RemoveValue(ctx context.Context, key Key, fn func(context.Context) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveValue", ctx, key, fn)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveValue indicates an expected call of RemoveValue.
+func (mr *MockCacheMockRecorder) RemoveValue(ctx, key, fn any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveValue", reflect.TypeOf((*MockCache)(nil).RemoveValue), ctx, key, fn)
+}

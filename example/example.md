@@ -26,9 +26,17 @@ curl -X POST \
 
 ### DELETE event
 
-curl -i -X DELETE \\n"http://localhost:8080/api/v1/event/90171244-59e8-467c-bdff-f08721df8d2a"
+curl -i -X DELETE \\n"http://localhost:8080/api/v1/event/da4543c5-3cca-4151-8737-5f4cf7fa702f"
 
 ### GET insights
 
 curl -X GET \
 http://localhost:8080/api/v1/insights | jq
+
+### PATCH event
+
+curl -X PATCH \
+ 'http://localhost:8080/api/v1/event/da4543c5-3cca-4151-8737-5f4cf7fa702f' \
+ -H "Content-Type: application/json" \
+ -H "Accept: application/json" \
+ -d @example/path_event_data.json
