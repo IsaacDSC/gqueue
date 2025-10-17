@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
+	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 )
@@ -17,8 +17,8 @@ type ExternalPayload struct {
 	Trigger   Trigger           `json:"trigger"`
 }
 
-func Publisher(pub pubadapter.Publisher) httpsvc.HttpHandle {
-	return httpsvc.HttpHandle{
+func Publisher(pub pubadapter.Publisher) httpadapter.HttpHandle {
+	return httpadapter.HttpHandle{
 		Path: "POST /api/v1/event/publisher",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			var payload InternalPayload

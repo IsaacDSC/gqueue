@@ -7,12 +7,12 @@ import (
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
-	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
+	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/IsaacDSC/gqueue/pkg/queryparser"
 )
 
-func GetEvent(cc cachemanager.Cache, repo Repository) httpsvc.HttpHandle {
-	return httpsvc.HttpHandle{
+func GetEvent(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
+	return httpadapter.HttpHandle{
 		Path: "GET /api/v1/{service_name}/events/{event_name}",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -39,8 +39,8 @@ func GetEvent(cc cachemanager.Cache, repo Repository) httpsvc.HttpHandle {
 	}
 }
 
-func GetEvents(cc cachemanager.Cache, repo Repository) httpsvc.HttpHandle {
-	return httpsvc.HttpHandle{
+func GetEvents(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
+	return httpadapter.HttpHandle{
 		Path: "GET /api/v1/events",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()

@@ -6,15 +6,15 @@ import (
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
+	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 )
 
 type InsightsStore interface {
 	GetAll(ctx context.Context) (domain.Metrics, error)
 }
 
-func GetInsightsHandle(store InsightsStore) httpsvc.HttpHandle {
-	return httpsvc.HttpHandle{
+func GetInsightsHandle(store InsightsStore) httpadapter.HttpHandle {
+	return httpadapter.HttpHandle{
 		Path: "/api/v1/insights",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()

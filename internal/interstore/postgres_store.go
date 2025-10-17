@@ -180,6 +180,36 @@ const modelEventFields = `
 	triggers
 `
 
+func (r *PostgresStore) GetEventByID(ctx context.Context, eventID uuid.UUID) (domain.Event, error) {
+	l := ctxlogger.GetLogger(ctx)
+
+	query := fmt.Sprintf(`SELECT %s FROM events WHERE id = $1 AND deleted_at IS NULL`, modelEventFields)
+
+	var event ModelEvent
+	err := r.db.QueryRowContext(ctx, query, eventID).Scan(
+		&event.ID,
+		&event.Name,
+		&event.ServiceName,
+		&event.RepoURL,
+		&event.TeamOwner,
+		&event.TypeEvent,
+		&event.State,
+		&event.Triggers,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		l.Warn("Not found event", "tag", "PostgresStore.GetEventByID")
+		return domain.Event{}, domain.EventNotFound
+	}
+
+	if err != nil {
+		l.Error("Error on get event by id", "tag", "PostgresStore.GetEventByID", "error", err)
+		return domain.Event{}, fmt.Errorf("failed to get event by id: %w", err)
+	}
+
+	return event.ToDomain(), nil
+}
+
 // State: archived | active
 func (r *PostgresStore) GetAllSchedulers(ctx context.Context, state string) ([]domain.Event, error) {
 	l := ctxlogger.GetLogger(ctx)
@@ -231,6 +261,30 @@ func (r *PostgresStore) DisabledEvent(ctx context.Context, eventID uuid.UUID) er
 	_, err := r.db.Exec(query, eventID, fmt.Sprintf("disabled.%s", uuid.New().String()))
 	if err != nil {
 		return fmt.Errorf("failed to disable event: %w", err)
+	}
+
+	return nil
+}
+
+func (r *PostgresStore) UpdateEvent(ctx context.Context, event domain.Event) error {
+	query := `
+	UPDATE
+	events SET name = $2,
+	service_name = $3,
+	repo_url = $4,
+	team_owner = $5,
+	type_event = $6,
+	state = $7,
+	triggers = $8
+	WHERE id = $1 AND deleted_at IS NULL;`
+
+	triggersJSON, err := json.Marshal(event.Triggers)
+	if err != nil {
+		return fmt.Errorf("failed to marshal triggers: %w", err)
+	}
+
+	if _, err := r.db.ExecContext(ctx, query, event.ID, event.Name, event.ServiceName, event.RepoURL, event.TeamOwner, event.TypeEvent.String(), event.State, triggersJSON); err != nil {
+		return fmt.Errorf("failed to update event: %w", err)
 	}
 
 	return nil

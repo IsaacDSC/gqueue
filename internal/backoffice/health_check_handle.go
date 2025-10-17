@@ -3,11 +3,11 @@ package backoffice
 import (
 	"net/http"
 
-	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
+	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 )
 
-func GetHealthCheckHandler() httpsvc.HttpHandle {
-	return httpsvc.HttpHandle{
+func GetHealthCheckHandler() httpadapter.HttpHandle {
+	return httpadapter.HttpHandle{
 		Path: "GET /api/v1/ping",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)

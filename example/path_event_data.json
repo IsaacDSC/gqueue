@@ -1,0 +1,38 @@
+{
+  "name": "payment.processed",
+  "service_name": "my-app",
+  "repo_url": "http://github.com/my-org/my-repo",
+  "team_owner": "my-team",
+  "triggers": [
+    {
+      "service_name": "consumer-1",
+      "type": "persistent",
+      "host": "http://localhost:3333",
+      "path": "/wq/payment/processed",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "option": {
+        "queue_type": "external.medium",
+        "max_retries": 3,
+        "retention": "168h",
+        "unique_ttl": "60s"
+      }
+    },
+    {
+      "service_name": "consumer-2",
+      "type": "persistent",
+      "host": "http://localhost:3333",
+      "path": "/wq/payment/processed",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "option": {
+        "queue_type": "external.low",
+        "max_retries": 2,
+        "retention": "168h",
+        "unique_ttl": "60s"
+      }
+    }
+  ]
+}

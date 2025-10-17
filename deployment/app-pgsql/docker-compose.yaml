@@ -176,7 +176,7 @@ services:
       - postgres
       - redis
     profiles:
-      - infra
+      - observability
 
 networks:
   app-network:

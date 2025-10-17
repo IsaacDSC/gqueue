@@ -10,7 +10,7 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
 	cache2 "github.com/IsaacDSC/gqueue/pkg/cachemanager"
-	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
+	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/redis/go-redis/v9"
 )
@@ -28,11 +28,12 @@ func StartServer(
 ) {
 	mux := http.NewServeMux()
 
-	routes := []httpsvc.HttpHandle{
+	routes := []httpadapter.HttpHandle{
 		backoffice.GetHealthCheckHandler(),
 		backoffice.CreateConsumer(cache, store),
 		backoffice.GetEvent(cache, store),
 		backoffice.GetEvents(cache, store),
+		backoffice.GetPathEventHandle(cache, store),
 		backoffice.GetRegisterTaskConsumerArchived(cache, store),
 		backoffice.RemoveEvent(cache, store),
 		backoffice.GetInsightsHandle(insightsStore),

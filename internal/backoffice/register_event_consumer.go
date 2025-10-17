@@ -8,19 +8,11 @@ import (
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
-	"github.com/IsaacDSC/gqueue/pkg/httpsvc"
-	"github.com/google/uuid"
+	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 )
 
-type Repository interface {
-	Save(ctx context.Context, event domain.Event) error
-	GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) (domain.Event, error)
-	GetInternalEvents(ctx context.Context, filters domain.FilterEvents) ([]domain.Event, error)
-	DisabledEvent(ctx context.Context, eventID uuid.UUID) error
-}
-
-func CreateConsumer(cc cachemanager.Cache, repo Repository) httpsvc.HttpHandle {
-	return httpsvc.HttpHandle{
+func CreateConsumer(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
+	return httpadapter.HttpHandle{
 		Path: "POST /api/v1/event/consumer",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			var payload domain.Event

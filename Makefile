@@ -198,6 +198,8 @@ generate-mocks: install-mockgen clean-mocks
 	@$(MOCKGEN) -source=internal/wtrhandler/request_handle_asynq.go -destination=internal/wtrhandler/fetcher_mock.go -package=wtrhandler Fetcher
 	@echo "$(BLUE)Gerando mock para Cache...$(NC)"
 	@$(MOCKGEN) -source=pkg/cachemanager/adapter.go -destination=pkg/cachemanager/cache_mock.go -package=cachemanager
+	@echo "$(BLUE)Gerando mock para Backoffice Repository...$(NC)"
+	@$(MOCKGEN) -source=internal/backoffice/interfaces.go -destination=internal/backoffice/repository_mock.go -package=backoffice
 	@echo "$(BLUE)Gerando mock para Publisher...$(NC)"
 	@$(MOCKGEN) -source=pkg/pubadapter/adapter.go -destination=pkg/publisher/publisher_task_mock.go -package=publisher
 	@echo "$(BLUE)Gerando mock para Publisher em pubadapter...$(NC)"
@@ -245,6 +247,11 @@ check-mocks:
 		echo "Execute 'make generate-mocks' para gerar os mocks"; \
 		exit 1; \
 	fi
+	@if [ ! -f "internal/backoffice/repository_mock.go" ]; then \
+		echo "$(YELLOW)⚠️  Backoffice Repository mock não encontrado!$(NC)"; \
+		echo "Execute 'make generate-mocks' para gerar os mocks"; \
+		exit 1; \
+	fi
 	# TODO: Descomentar quando os mocks de insights forem implementados
 	# @if [ ! -f "internal/wtrhandler/mock_publisher_insights.go" ]; then \
 	#	echo "$(YELLOW)⚠️  PublisherInsights mock não encontrado!$(NC)"; \
@@ -273,6 +280,8 @@ clean-mocks:
 	@rm -f pkg/publisher/publisher_task_mock.go
 	@echo "$(BLUE)Removendo Publisher mock em pubadapter...$(NC)"
 	@rm -f pkg/pubadapter/publisher_task_mock.go
+	@echo "$(BLUE)Removendo Backoffice Repository mock...$(NC)"
+	@rm -f internal/backoffice/repository_mock.go
 	@echo "$(BLUE)Removendo PublisherInsights mock...$(NC)"
 	@rm -f internal/wtrhandler/mock_publisher_insights.go
 	@echo "$(BLUE)Removendo ConsumerInsights mock...$(NC)"
@@ -297,7 +306,7 @@ help:
 	@echo "  $(GREEN)make test-fetcher$(NC)    - Executa os testes do fetcher"
 	@echo "  $(GREEN)make test-deadletter$(NC) - Executa os testes do deadletter"
 	@echo "  $(GREEN)make test-insights$(NC)   - Executa os testes do insights"
-	@echo "  $(GREEN)make generate-mocks$(NC)  - Gera todos os mocks (Repository, DeadLetter, Fetcher, Cache, Publisher)"
+	@echo "  $(GREEN)make generate-mocks$(NC)  - Gera todos os mocks (Repository, DeadLetter, Fetcher, Cache, Publisher, Backoffice Repository)"
 	@echo "  $(GREEN)make update-mocks$(NC)    - Atualiza todos os mocks"
 	@echo "  $(GREEN)make check-mocks$(NC)     - Verifica se os mocks existem"
 	@echo "  $(GREEN)make clean-mocks$(NC)     - Remove todos os mocks"
@@ -314,3 +323,4 @@ help:
 	@echo "  $(BLUE)• Cache$(NC)               - pkg/cachemanager/cache_mock.go"
 	@echo "  $(BLUE)• Publisher$(NC)           - pkg/publisher/publisher_task_mock.go"
 	@echo "  $(BLUE)• Publisher (pubadapter)$(NC) - pkg/pubadapter/publisher_task_mock.go"
+	@echo "  $(BLUE)• Backoffice Repository$(NC) - internal/backoffice/repository_mock.go"
