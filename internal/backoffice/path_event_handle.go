@@ -25,7 +25,10 @@ func GetPathEventHandle(cc cachemanager.Cache, repo Repository) httpadapter.Http
 
 			defer r.Body.Close()
 			var payload domain.Event
-			json.NewDecoder(r.Body).Decode(&payload)
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			payload.ID = id
 
 			key := eventKey(cc, payload.ServiceName, payload.Name)
