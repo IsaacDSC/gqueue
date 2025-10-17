@@ -283,7 +283,7 @@ func (r *PostgresStore) UpdateEvent(ctx context.Context, event domain.Event) err
 		return fmt.Errorf("failed to marshal triggers: %w", err)
 	}
 
-	if _, err := r.db.Exec(query, event.ID, event.Name, event.ServiceName, event.RepoURL, event.TeamOwner, event.TypeEvent.String(), event.State, triggersJSON); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, event.ID, event.Name, event.ServiceName, event.RepoURL, event.TeamOwner, event.TypeEvent.String(), event.State, triggersJSON); err != nil {
 		return fmt.Errorf("failed to update event: %w", err)
 	}
 
