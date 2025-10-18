@@ -44,18 +44,6 @@ func StartServer(
 		mux.HandleFunc(route.Path, route.Handler)
 	}
 
-	// Configuração personalizada de CORS (opcional)
-	// corsConfig := CORSConfig{
-	//     AllowedOrigins:   []string{"http://localhost:3000", "https://yourdomain.com"},
-	//     AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-	//     AllowedHeaders:   []string{"Content-Type", "Authorization", "X-API-Key"},
-	//     ExposedHeaders:   []string{"X-Total-Count"},
-	//     AllowCredentials: true,
-	//     MaxAge:          86400,
-	// }
-	// handler := CORSMiddlewareWithConfig(corsConfig)(LoggerMiddleware(mux))
-
-	// Usando configuração padrão de CORS
 	handler := CORSMiddleware(LoggerMiddleware(mux))
 
 	log.Println("Starting HTTP server on :8080")

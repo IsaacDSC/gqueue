@@ -4,36 +4,105 @@
 
 ## Introduction
 
-This webhook system is an application developed in Go that enables communication between internal services through events. The project implements an Event-Driven Architecture that allows registration, triggering, and processing of events between different services.
+Gqueue positions itself as a solution that abstracts the complexity of asynchronous communication, allowing companies to focus on their core business while maintaining a flexible, scalable, and governable architecture. The proposal is to offer **agility** and **governance** for teams and companies through an intelligent abstraction that solves real implementation and operation problems.
 
 ### Objectives
 
-#### Implementation simplicity
-- Webhooks basically work as HTTP requests between systems.
-- No need to configure brokers, topics, or clusters like in Kafka.
-- Ideal for quick and simple integrations between two or few systems.
+#### 1. Abstraction and Decoupling
 
-#### Low operational cost
-- No need for complex infrastructure.
-- Avoids costs and effort with maintenance, scalability, and monitoring of a Kafka cluster.
+**Current Problem**
 
-#### Direct and instant communication
-- The producer service immediately sends the HTTP request to the consumer.
-- Ideal for events that need to be processed in real-time, with low latency.
+- Direct use of queue tools requires complete configuration and specific setup for each application
+- Tool changes require reconfiguration and new setup
+- Strong coupling with specific technologies
 
-#### Based on widely supported standards
-- HTTP, REST, and JSON are known standards and widely supported by virtually all languages and frameworks.
-- Avoids the need for specific Kafka client libraries.
+**Gqueue Solution**
 
-#### Easy debugging and monitoring
-- As it involves HTTP calls, it's easy to capture logs, use tools like Postman, cURL, or proxies (e.g., ngrok) for testing.
-- Doesn't require specialized inspection tools like Kafka needs (e.g., Kafka Tool, KSQL, etc.).
+- **Simplified abstraction**: Intermediate layer that reduces implementation complexity
+- **Tool flexibility**: Ability to switch different queues without reconfiguring the service
+- **Single configuration**: Only configurations are needed, no complex setup in the service
 
-#### Decoupling via endpoints
-- Each system only needs to expose or consume an HTTP endpoint, without worrying about queues, partitions, or consumer groups.
+#### 2. Cost and Time Optimization
 
-#### Less dependency on technology stack
-- Webhooks can be implemented even in legacy or monolithic systems that don't have the capacity or need for Kafka adoption.
+**Problematic Scenario**
+An urgent delivery arises with small async flow. The options are:
+
+- Configure a complete queue setup (more time)
+- Use existing robust and expensive tool for something simple
+
+**Gqueue Benefits**
+
+- **Reduced implementation time**: Simple configurations replace complex setups
+- **Smart tool selection**: Use the right tool for each scenario
+- **Resource savings**: Avoid over-engineering and unnecessary costs
+
+#### 3. Enterprise Governance and Scalability
+
+**Current Architectural Problems**
+
+- Centralized tool for all teams can create single point of failure
+- Small applications need to follow unnecessary robust configurations
+- Distributed responsibilities without clear owners
+
+**Architecture Proposed by Gqueue**
+
+- **Distributed responsibilities**: Each application has its own broker
+- **Separate monitoring**: Costs and responsibilities clearly divided by teams
+- **Adequate configurations**: Each scenario can have the necessary configuration
+- **Managed communication**: Services from different teams communicate simply
+
+#### 4. Built-in Advanced Features
+
+**Order Guarantee**
+**Problem**: Need for queue with order guarantee
+
+- Enterprise messaging tools can be "using a bazooka to kill an ant" (expensive and laborious)
+- Creating internal pattern is costly in time and development
+
+**Gqueue Solution**:
+
+- Order guarantee with ease
+- Switch robustness in ordered events with just one field in the payload
+- Use internal service as needed
+
+**Message Scheduling**
+**Problem**: Publish scheduled messages for future delivery
+
+- Integration with specific tools for each service
+- Laborious and specific configurations
+
+**Gqueue Solution**:
+
+- Simple scheduling with just one item in the payload
+- No need for additional integrations
+
+#### 5. Operational Simplification
+
+**Core Business Focus**
+
+- **Business objective**: Companies should focus on product and value delivery
+- **Complexity abstraction**: Gqueue handles communication complexity
+- **Simplified governance**: Teams can concentrate on their main responsibilities
+
+**Operational Benefits**
+
+- **Clear separation of responsibilities**: Each team takes care of its internal services
+- **Reduction of laborious configurations**: Simplified setup
+- **Team agility**: Fast implementation and efficient governance
+
+#### 6. Specific Use Cases
+
+**For Medium and Large Companies**
+
+- **Distributed scenario**: Each application with its broker
+- **Separate monitoring**: Costs divided by teams
+- **Flexible configurations**: Adaptation according to specific needs
+
+**For Different Types of Applications**
+
+- **Critical applications**: Robust configurations when necessary
+- **Simple applications**: Lightweight configurations without over-engineering
+- **Legacy applications**: Integration without major architectural changes
 
 ---
 
@@ -43,33 +112,33 @@ This webhook system is an application developed in Go that enables communication
 
 ```mermaid
 graph TB
-    %% Serviços
-    Services[Serviços]
-    
-    %% Sistema Webhook Central
-    subgraph "Sistema Webhook"
-        API[API REST]
+    %% Services
+    Services[Services]
+
+    %% Central Webhook System
+    subgraph "Webhook System"
+        API[REST API]
         Worker[Worker]
-        Database[(Banco de Dados)]
-        Queue[(Fila)]
+        Database[(Database)]
+        Queue[(Queue)]
     end
-    
-    %% Consumidores
-    Consumers[Serviços Consumidores]
-    
-    %% Fluxos
-    Services -->|Criar Eventos<br/>Registrar Gatilhos<br/>Publicar Eventos| API
+
+    %% Consumers
+    Consumers[Consumer Services]
+
+    %% Flows
+    Services -->|Create Events<br/>Register Triggers<br/>Publish Events| API
     API --> Database
     API --> Queue
     Queue --> Worker
     Worker --> Database
-    Worker -->|Webhooks HTTP| Consumers
-    
-    %% Estilos
+    Worker -->|HTTP Webhooks| Consumers
+
+    %% Styles
     classDef serviceStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
     classDef systemStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
     classDef storageStyle fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
-    
+
     class Services,Consumers serviceStyle
     class API,Worker systemStyle
     class Database,Queue storageStyle
@@ -79,51 +148,78 @@ graph TB
 
 ## Installation and Usage
 
-### 🐳 Using Docker Hub
+### 🐳 Running with Docker
 
-The Docker image is available on Docker Hub for easy use:
+#### Quick Start (Recommended)
 
-**Docker Image**: `isaacdsc/gqueue:latest`
-
-**Docker Hub Link**: [https://hub.docker.com/repository/docker/isaacdsc/gqueue/general](https://hub.docker.com/repository/docker/isaacdsc/gqueue/general)
-
-#### Quick Usage with Docker
+1. Clone the repository:
 
 ```bash
-# Pull the image from Docker Hub
-docker pull isaacdsc/gqueue:latest
-
-# Run with dependencies using docker-compose
-docker compose up
+git clone https://github.com/IsaacDSC/gqueue.git
+cd gqueue
 ```
 
-#### Configuration with Docker Compose
+2. Choose your deployment profile:
 
-You can use the `compose.yaml` file included in the project that is already configured with the Docker Hub image and all dependencies (Redis and MongoDB):
+**Complete Application (App + Database + Cache):**
 
-```yaml
-services:
-  server:
-    image: isaacdsc/gqueue:latest  # Using the Docker Hub image
-    ports:
-      - 8080:8080
-    depends_on:
-      - redis
-      - mongodb
-    environment:
-      - DB_CONNECTION_STRING=mongodb://root:example@mongodb:27017/
-      - CACHE_ADDR=redis:6379
-      # ... other environment variables
+```bash
+docker-compose -f deployment/app-pgsql/docker-compose.yaml --profile complete up -d
 ```
 
-#### Main Environment Variables
+**Infrastructure Only (Database + Cache + PubSub):**
 
-- `DB_CONNECTION_STRING`: MongoDB connection string
-- `CACHE_ADDR`: Redis address
-- `WQ_CONCURRENCY`: Number of simultaneous workers
-- `WQ_QUEUES`: Queue configuration (JSON)
+```bash
+docker-compose -f deployment/app-pgsql/docker-compose.yaml --profile infra up -d
+```
 
-For more Docker details, see: [README.Docker.md](README.Docker.md)
+**With Example Consumer:**
+
+```bash
+docker-compose -f deployment/app-pgsql/docker-compose.yaml --profile complete --profile example up -d
+```
+
+**With Monitoring (Grafana):**
+
+```bash
+docker-compose -f deployment/app-pgsql/docker-compose.yaml --profile complete --profile observability up -d
+```
+
+**With Debug Tools (PgAdmin):**
+
+```bash
+docker-compose -f deployment/app-pgsql/docker-compose.yaml --profile complete --profile debug up -d
+```
+
+3. Access the application at `http://localhost:8080`
+
+#### Docker Profiles Explained
+
+- **`complete`** - Full application with server, PostgreSQL, Redis, and PubSub emulator
+- **`infra`** - Only infrastructure services (PostgreSQL, Redis, PubSub) for local development
+- **`example`** - Adds example consumer service
+- **`observability`** - Adds Grafana for monitoring at `http://localhost:3000`
+- **`debug`** - Adds PgAdmin for database management at `http://localhost:8081`
+
+#### Useful Commands
+
+```bash
+# Stop all services
+docker-compose -f deployment/app-pgsql/docker-compose.yaml down
+
+# View logs
+docker-compose -f deployment/app-pgsql/docker-compose.yaml logs -f
+
+# Rebuild and restart
+docker-compose -f deployment/app-pgsql/docker-compose.yaml --profile complete up -d --build
+```
+
+#### Service URLs
+
+- **Main Application**: `http://localhost:8080`
+- **PgAdmin** (debug profile): `http://localhost:8081` (admin@admin.com / admin)
+- **Grafana** (observability profile): `http://localhost:3000` (admin / admin123)
+- **Example Consumer** (example profile): `http://localhost:3333`
 
 ---
 
@@ -157,77 +253,6 @@ The webhook system supports various event types and trigger mechanisms:
 3. **Encryption**: Use HTTPS/TLS for communication between services, even on internal networks
 4. **Monitoring**: Implement audit logs to track all webhook communications
 5. **Rate Limiting**: Configure rate limits to prevent endpoint abuse
-
----
-
-## SDK and CLI Tools
-
-### Go SDK - Workqueue
-
-For easier integration with your Go applications, use the official SDK:
-
-**Repository**: [https://github.com/IsaacDSC/workqueue](https://github.com/IsaacDSC/workqueue)
-
-The Go SDK provides:
-- Simple client for webhook registration and management
-- Type-safe event publishing
-- Built-in retry mechanisms
-- Connection pooling and performance optimizations
-
-#### Installation
-```bash
-go get github.com/IsaacDSC/workqueue
-```
-
-#### Basic Usage
-```go
-import "github.com/IsaacDSC/workqueue"
-
-// Initialize client
-client := workqueue.NewClient("http://your-webhook-service:8080")
-
-// Register a webhook
-webhook := &workqueue.Webhook{
-    Name:        "user-created",
-    Endpoint:    "http://your-service/webhooks/user-created",
-    Description: "Triggered when a new user is created",
-}
-err := client.RegisterWebhook(webhook)
-```
-
-### CLI Tool - WorkqueueCLI
-
-For command-line operations and automation:
-
-**Repository**: [https://github.com/IsaacDSC/workqueuecli](https://github.com/IsaacDSC/workqueuecli)
-
-The CLI tool provides:
-- Webhook registration and management from command line
-- Event triggering for testing purposes
-- System health monitoring
-- Batch operations support
-
-#### Installation
-```bash
-go install github.com/IsaacDSC/workqueuecli@latest
-```
-
-#### Basic Usage
-```bash
-# Register a webhook
-workqueuecli webhook register \
-  --name "user-created" \
-  --endpoint "http://your-service/webhooks/user-created" \
-  --description "User creation webhook"
-
-# Trigger an event
-workqueuecli event trigger \
-  --name "user-created" \
-  --payload '{"user_id": 123, "email": "user@example.com"}'
-
-# List registered webhooks
-workqueuecli webhook list
-```
 
 ---
 
