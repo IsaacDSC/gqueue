@@ -31,8 +31,8 @@ func TestCORSMiddleware_DefaultConfig(t *testing.T) {
 		t.Errorf("Access-Control-Allow-Origin = %v, want %v", got, "*")
 	}
 
-	if got := rr.Header().Get("Access-Control-Allow-Methods"); got != "GET, POST, PUT, DELETE, OPTIONS" {
-		t.Errorf("Access-Control-Allow-Methods = %v, want %v", got, "GET, POST, PUT, DELETE, OPTIONS")
+	if got := rr.Header().Get("Access-Control-Allow-Methods"); got != "GET, PATCH, POST, PUT, DELETE, OPTIONS" {
+		t.Errorf("Access-Control-Allow-Methods = %v, want %v", got, "GET, PATCH, POST, PUT, DELETE, OPTIONS")
 	}
 
 	if got := rr.Header().Get("Access-Control-Allow-Headers"); got != "Content-Type, Authorization, X-Requested-With" {
@@ -206,7 +206,7 @@ func TestDefaultCORSConfig(t *testing.T) {
 		t.Errorf("Default AllowedOrigins = %v, want %v", config.AllowedOrigins, []string{"*"})
 	}
 
-	expectedMethods := []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	expectedMethods := []string{"GET", "PATCH", "POST", "PUT", "DELETE", "OPTIONS"}
 	if len(config.AllowedMethods) != len(expectedMethods) {
 		t.Errorf("Default AllowedMethods length = %v, want %v", len(config.AllowedMethods), len(expectedMethods))
 	}
