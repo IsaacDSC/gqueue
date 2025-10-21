@@ -89,7 +89,7 @@ func main() {
 
 	mediumPerformancePublisher := pubadapter.NewPublisher(asynqClient)
 
-	pub := pubadapter.NewPub(highPerformancePublisher, mediumPerformancePublisher)
+	pub := pubadapter.NewPub(highPerformancePublisher, mediumPerformancePublisher, conf.WQ)
 
 	service := flag.String("service", "all", "service to run")
 	flag.Parse()

@@ -35,23 +35,30 @@ var wqMapper = map[WQType]cfg.WQ{
 }
 
 type Pub struct {
-	gps GenericPublisher
-	rdp GenericPublisher
-	cfg map[WQType]cfg.WQ
+	gps    GenericPublisher
+	rdp    GenericPublisher
+	cfg    map[WQType]cfg.WQ
+	wqType cfg.WQ
 }
 
 func NewPub(
 	highPerformance GenericPublisher,
 	mediumPerformance GenericPublisher,
+	wQType cfg.WQ,
 ) *Pub {
 	return &Pub{
-		gps: highPerformance,
-		rdp: mediumPerformance,
-		cfg: wqMapper,
+		gps:    highPerformance,
+		rdp:    mediumPerformance,
+		cfg:    wqMapper,
+		wqType: wQType,
 	}
 }
 
 func (p *Pub) Publish(ctx context.Context, wqtype WQType, topicName string, payload any, opts Opts) error {
+	if p.wqType == cfg.WQRedis {
+		return p.rdp.Publish(ctx, topicName, payload, opts)
+	}
+
 	wq := p.cfg[wqtype]
 	switch wq {
 	case cfg.WQGooglePubSub:
