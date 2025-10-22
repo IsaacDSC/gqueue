@@ -9,6 +9,7 @@
   },
   "opts": {
     "max_retries": 3,
-    "wq_type": "external"
+    "wq_type": "external",
+    "schedule_in": "2m"
   }
 }

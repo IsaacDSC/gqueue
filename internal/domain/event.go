@@ -64,15 +64,12 @@ type Trigger struct {
 }
 
 type Opt struct {
+	// TODO: mover para uma conflig global ao invéz de usar por produtor
+	Deadline  *time.Time         `json:"deadline" bson:"deadline"`
+	Retention intertime.Duration `json:"retention" bson:"retention"`
 	// REDIS
-	ScheduleIn intertime.Duration `json:"schedule_in" bson:"schedule_in"`
 	UniqueTTL  intertime.Duration `json:"unique_ttl" bson:"unique_ttl"`
-	Deadline   *time.Time         `json:"deadline" bson:"deadline"`
-	Retention  intertime.Duration `json:"retention" bson:"retention"`
-
-	// DEPRECATED: Está acoplado ao asynq ao nível de concorrência de eventos
-	// QueueType string `json:"queue_type" bson:"queue_type"`
-
+	ScheduleIn intertime.Duration `json:"schedule_in" bson:"schedule_in"`
 	// ALL
 	MaxRetries int               `json:"max_retries" bson:"max_retries"`
 	WqType     pubadapter.WQType `json:"wq_type" bson:"wq_type"`

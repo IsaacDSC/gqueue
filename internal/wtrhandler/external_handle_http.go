@@ -34,7 +34,7 @@ func Publisher(pub pubadapter.Publisher) httpadapter.HttpHandle {
 				return
 			}
 
-			if payload.Opts.WqType == "" {
+			if payload.Opts.WqType == "" || payload.Opts.ScheduleIn > 0 {
 				payload.Opts.WqType = pubadapter.Internal
 			}
 
