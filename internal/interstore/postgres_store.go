@@ -290,6 +290,20 @@ func (r *PostgresStore) UpdateEvent(ctx context.Context, event domain.Event) err
 	return nil
 }
 
+func (r *PostgresStore) GetServiceName(ctx context.Context, ID uuid.UUID) (string, error) {
+	query := `SELECT service_name FROM events WHERE id = $1 AND deleted_at IS NULL;`
+
+	var serviceName string
+	if err := r.db.QueryRowContext(ctx, query, ID).Scan(&serviceName); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", domain.EventNotFound
+		}
+		return "", fmt.Errorf("failed to check event existence: %w", err)
+	}
+
+	return serviceName, nil
+}
+
 func (r *PostgresStore) getUniqueKey(eventName, serviceName, eventType, state string) string {
 	return fmt.Sprintf("%s:%s:%s:%s", eventName, serviceName, eventType, state)
 }

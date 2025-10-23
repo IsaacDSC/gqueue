@@ -43,6 +43,8 @@ const (
 )
 
 type Config struct {
+	ProjectID      string `env:"PROJECT_ID"`
+	SecretKey      string `env:"SECRET_KEY"`
 	ConfigDatabase ConfigDatabase
 	Cache          Cache
 	AsynqConfig    AsynqConfig

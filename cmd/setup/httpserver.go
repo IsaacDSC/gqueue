@@ -6,10 +6,12 @@ import (
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/internal/backoffice"
+	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
-	cache2 "github.com/IsaacDSC/gqueue/pkg/cachemanager"
+	"github.com/IsaacDSC/gqueue/pkg/auth"
+	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/redis/go-redis/v9"
@@ -21,7 +23,7 @@ type InsightsStore interface {
 
 func StartServer(
 	rdsclient *redis.Client,
-	cache cache2.Cache,
+	cache cachemanager.Cache,
 	store interstore.Repository,
 	pub pubadapter.Publisher,
 	insightsStore InsightsStore,
@@ -44,10 +46,17 @@ func StartServer(
 		mux.HandleFunc(route.Path, route.Handler)
 	}
 
+	config := cfg.Get()
+
+	authorization := auth.NewBasicAuth(map[string]string{
+		config.ProjectID: config.SecretKey,
+	})
+
 	handler := CORSMiddleware(LoggerMiddleware(mux))
+	h := authorization.Middleware(handler.ServeHTTP)
 
 	log.Println("Starting HTTP server on :8080")
-	if err := http.ListenAndServe(":8080", handler); err != nil {
+	if err := http.ListenAndServe(":8080", h); err != nil {
 		panic(err)
 	}
 }
