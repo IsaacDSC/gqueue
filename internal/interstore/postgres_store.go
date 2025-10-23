@@ -298,7 +298,7 @@ func (r *PostgresStore) GetServiceName(ctx context.Context, ID uuid.UUID) (strin
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", domain.EventNotFound
 		}
-		return "", fmt.Errorf("failed to check event existence: %w", err)
+		return "", fmt.Errorf("failed to get service name: %w", err)
 	}
 
 	return serviceName, nil
