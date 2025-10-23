@@ -10,6 +10,6 @@
   "opts": {
     "max_retries": 3,
     "wq_type": "external",
-    "schedule_in": "2m"
+    "schedule_in": "100ms"
   }
 }
