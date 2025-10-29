@@ -20,6 +20,8 @@ services:
       - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
       - CACHE_DEFAULT_TTL=24h
       - WQ=googlepubsub
+      - PROJECT_ID=admin
+      - SECRET_KEY=password
     networks:
       - app-network
     deploy:
