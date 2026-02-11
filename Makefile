@@ -13,10 +13,14 @@ YELLOW=\033[0;33m
 NC=\033[0m # No Color
 
 # Comandos principais
-.PHONY: all build run test clean load-test run-worker run-webhook run-all generate-mocks update-mocks install-mockgen check-mocks test-with-mocks clean-mocks lint coverage check-coverage coverage-check
+.PHONY: all build run test clean load-test run-worker run-webhook run-all generate-mocks update-mocks install-mockgen check-mocks test-with-mocks clean-mocks lint security coverage check-coverage coverage-check ci
 
 # Comandos por padrão
 all: help
+
+# Executar todos os checks do CI localmente
+ci: lint security test build clean
+	@echo "$(GREEN)✅ Todos os checks do CI passaram com sucesso!$(NC)"
 
 # Construir o aplicativo
 build:
@@ -103,6 +107,12 @@ lint:
 		exit 1; \
 	fi
 	@echo "$(GREEN)✅ Lint passou com sucesso!$(NC)"
+
+# Executar scan de segurança com govulncheck
+security:
+	@echo "$(GREEN)Executando scan de segurança com govulncheck...$(NC)"
+	@$(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	@echo "$(GREEN)✅ Security scan passou com sucesso!$(NC)"
 
 # Verificar cobertura dos arquivos commitados (simples)
 coverage-check:
@@ -292,6 +302,7 @@ clean-mocks:
 # Ajuda
 help:
 	@echo "$(YELLOW)Comandos disponíveis:$(NC)"
+	@echo "  $(GREEN)make ci$(NC)              - Executa todos os checks do CI (lint, security, test, build)"
 	@echo "  $(GREEN)make build$(NC)           - Constrói a aplicação"
 	@echo "  $(GREEN)make run-worker$(NC)      - Executa o serviço worker"
 	@echo "  $(GREEN)make run-webhook$(NC)     - Executa o serviço webhook (API)"
@@ -302,6 +313,7 @@ help:
 	@echo "  $(GREEN)make check-coverage$(NC)  - Verifica se cobertura >= 80% (exclui: example/, cmd/, docs/, deployment/, *_mock.go)"
 	@echo "  $(GREEN)make coverage-check$(NC)  - 🔍 Verifica cobertura dos arquivos commitados (SIMPLES)"
 	@echo "  $(GREEN)make lint$(NC)            - Executa lint (fmt, vet, mod tidy)"
+	@echo "  $(GREEN)make security$(NC)        - Executa scan de segurança com govulncheck"
 	@echo "  $(GREEN)make test-with-mocks$(NC) - Executa os testes com verificação de mocks"
 	@echo "  $(GREEN)make test-fetcher$(NC)    - Executa os testes do fetcher"
 	@echo "  $(GREEN)make test-deadletter$(NC) - Executa os testes do deadletter"
