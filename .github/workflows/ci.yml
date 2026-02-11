@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.24.13", "1.25"]
+        go-version: ["1.24.13", "1.25.7"]
 
     services:
       redis:
@@ -74,7 +74,7 @@ jobs:
           WQ_CONCURRENCY: 32
 
       - name: Check coverage for new code
-        if: github.event_name == 'pull_request' && matrix.go-version == '1.25'
+        if: github.event_name == 'pull_request' && matrix.go-version == '1.25.7'
         run: |
           # Setup Python for diff-cover
           python -m pip install --upgrade pip
@@ -126,7 +126,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.25.7"
           cache: true
 
       - name: Download dependencies
@@ -160,7 +160,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.25.7"
           cache: true
 
       - name: Install govulncheck
@@ -181,7 +181,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.25.7"
           cache: true
 
       - name: Build application

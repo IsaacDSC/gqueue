@@ -2,7 +2,7 @@ module github.com/IsaacDSC/gqueue
 
 go 1.24.0
 
-toolchain go1.25.0
+toolchain go1.25.7
 
 require (
 	cloud.google.com/go/pubsub v1.49.0
