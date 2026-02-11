@@ -169,6 +169,12 @@ jobs:
       - name: Run govulncheck
         run: govulncheck ./...
 
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+      - name: Run gosec
+        run: gosec -exclude-generated -severity=high -confidence=high ./...
+
   build:
     name: Build Application
     runs-on: ubuntu-latest

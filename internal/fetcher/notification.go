@@ -50,6 +50,7 @@ func fetch(ctx context.Context, url string, data any, headers map[string]string)
 		req.Header.Set(key, value)
 	}
 
+	// #nosec G704 -- SSRF is intentional: this function sends webhooks to user-configured trigger endpoints
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("post request: %w", err)

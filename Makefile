@@ -112,6 +112,8 @@ lint:
 security:
 	@echo "$(GREEN)Executando scan de segurança com govulncheck...$(NC)"
 	@$(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	@echo "$(GREEN)Executando scan de segurança com gosec...$(NC)"
+	@$(GO) run github.com/securego/gosec/v2/cmd/gosec@latest -exclude-generated -severity=high -confidence=high ./...
 	@echo "$(GREEN)✅ Security scan passou com sucesso!$(NC)"
 
 # Verificar cobertura dos arquivos commitados (simples)
