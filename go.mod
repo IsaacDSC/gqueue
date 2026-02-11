@@ -5,6 +5,7 @@ go 1.24.0
 toolchain go1.24.3
 
 require (
+	clienthttp v0.0.0-00010101000000-000000000000
 	cloud.google.com/go/pubsub v1.49.0
 	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/google/uuid v1.6.0
@@ -65,3 +66,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 // indirect
 )
+
+replace clienthttp => github.com/IsaacDSC/clienthttp v0.0.0-20260211200001-deae19a3dac7

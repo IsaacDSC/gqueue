@@ -3,27 +3,122 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
 
+	"clienthttp"
+
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 )
 
+// LoggerAuditor implements clienthttp.Auditor using ctxlogger
+type LoggerAuditor struct {
+	ctx context.Context
+}
+
+func (a *LoggerAuditor) Log(ctx context.Context, req *clienthttp.AuditRequest, resp *clienthttp.AuditResponse) {
+	logger := ctxlogger.GetLogger(a.ctx)
+
+	logger.Info("HTTP client request started",
+		"method", req.Method,
+		"url", req.URL,
+		"headers", req.Headers,
+		"body", string(req.Body),
+	)
+
+	logger.Info("HTTP client request completed",
+		"method", req.Method,
+		"url", req.URL,
+		"status_code", resp.StatusCode,
+		"status", http.StatusText(resp.StatusCode),
+		"response_headers", resp.Headers,
+		"response_body", string(resp.Body),
+	)
+}
+
+// ClientHTTPTransport implements http.RoundTripper using clienthttp
+type ClientHTTPTransport struct {
+	client *clienthttp.Client
+	ctx    context.Context
+}
+
+func (t *ClientHTTPTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Read body if present
+	var body []byte
+	if req.Body != nil {
+		var err error
+		body, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		req.Body = io.NopCloser(bytes.NewReader(body))
+	}
+
+	// Build headers map
+	headers := make(map[string]string)
+	for key := range req.Header {
+		headers[key] = req.Header.Get(key)
+	}
+
+	// Build request options
+	opts := make([]clienthttp.RequestOption, 0)
+	if len(headers) > 0 {
+		opts = append(opts, clienthttp.WithHeaders(headers))
+	}
+
+	// Execute request using clienthttp
+	resp, err := t.client.Do(req.Context(), req.Method, req.URL.String(), body, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to http.Response
+	httpResp := &http.Response{
+		StatusCode: resp.StatusCode,
+		Status:     fmt.Sprintf("%d %s", resp.StatusCode, http.StatusText(resp.StatusCode)),
+		Header:     resp.Headers,
+		Body:       io.NopCloser(bytes.NewReader(resp.Body)),
+		Request:    req,
+	}
+
+	return httpResp, nil
+}
+
+// NewHTTPClientWithLogging creates a new HTTP client with logging using clienthttp
+func NewHTTPClientWithLogging(ctx context.Context) *http.Client {
+	auditor := &LoggerAuditor{ctx: ctx}
+
+	client, err := clienthttp.New("",
+		clienthttp.WithTimeout(30*time.Second),
+		clienthttp.WithMaxIdleConns(100),
+		clienthttp.WithMaxIdleConnsPerHost(2),
+		clienthttp.WithIdleConnTimeout(90*time.Second),
+		clienthttp.WithAuditor(auditor),
+	)
+	if err != nil {
+		// Fallback to standard http.Client
+		return &http.Client{Timeout: 30 * time.Second}
+	}
+
+	return &http.Client{
+		Transport: &ClientHTTPTransport{
+			client: client,
+			ctx:    ctx,
+		},
+		Timeout: 30 * time.Second,
+	}
+}
+
+// HTTPClientTransport kept for backward compatibility (deprecated)
 type HTTPClientTransport struct {
 	Transport http.RoundTripper
 	ctx       context.Context
 }
 
+// NewHTTPClientTransport creates a new HTTPClientTransport (deprecated, use NewHTTPClientWithLogging)
 func NewHTTPClientTransport(ctx context.Context, transport http.RoundTripper) *HTTPClientTransport {
-	if transport == nil {
-		transport = &http.Transport{
-			DisableKeepAlives:   false,
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 2,
-			IdleConnTimeout:     90 * time.Second,
-		}
-	}
 	return &HTTPClientTransport{
 		Transport: transport,
 		ctx:       ctx,
@@ -31,71 +126,7 @@ func NewHTTPClientTransport(ctx context.Context, transport http.RoundTripper) *H
 }
 
 func (t *HTTPClientTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	start := time.Now()
-	logger := ctxlogger.GetLogger(t.ctx)
-
-	var reqBody string
-	if req.Body != nil {
-		bodyBytes, err := io.ReadAll(req.Body)
-		if err != nil {
-			logger.Error("Failed to read request body", "error", err)
-		} else {
-			reqBody = string(bodyBytes)
-		}
-
-		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-	}
-
-	logger.Info("HTTP client request started",
-		"method", req.Method,
-		"url", req.URL.String(),
-		"headers", req.Header,
-		"body", reqBody,
-	)
-
-	resp, err := t.Transport.RoundTrip(req)
-
-	elapsed := time.Since(start)
-
-	if err != nil {
-		logger.Error("HTTP client request failed",
-			"method", req.Method,
-			"url", req.URL.String(),
-			"error", err.Error(),
-			"elapsed_time", elapsed,
-		)
-		return nil, err
-	}
-
-	var respBody string
-	if resp.Body != nil {
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			logger.Error("Failed to read response body", "error", err)
-		} else {
-			respBody = string(bodyBytes)
-		}
-
-		resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-	}
-
-	logger.Info("HTTP client request completed",
-		"method", req.Method,
-		"url", req.URL.String(),
-		"status_code", resp.StatusCode,
-		"status", resp.Status,
-		"response_headers", resp.Header,
-		"response_body", respBody,
-		"elapsed_time", elapsed,
-	)
-
-	return resp, nil
-}
-
-func NewHTTPClientWithLogging(ctx context.Context) *http.Client {
-	transport := NewHTTPClientTransport(ctx, nil)
-	return &http.Client{
-		Transport: transport,
-		Timeout:   30 * time.Second,
-	}
+	// Delegate to new implementation
+	client := NewHTTPClientWithLogging(t.ctx)
+	return client.Transport.RoundTrip(req)
 }

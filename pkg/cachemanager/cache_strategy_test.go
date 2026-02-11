@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -11,6 +12,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	// Set required environment variables for tests
+	os.Setenv("GO_ENV", "test")
+	os.Setenv("WQ", "redis")
+	os.Setenv("WQ_QUEUES", `{"internal.critical": 7, "internal.high": 5, "internal.medium": 3, "internal.low": 1, "external.critical": 7, "external.high": 5, "external.medium": 3, "external.low": 1}`)
+	os.Setenv("CACHE_ADDR", "localhost:6379")
+	os.Setenv("CACHE_DEFAULT_TTL", "24h")
+	os.Setenv("DB_DRIVER", "pg")
+	os.Setenv("DB_CONNECTION_STRING", "postgresql://test:test@localhost:5432/test?sslmode=disable")
+	os.Setenv("WQ_CONCURRENCY", "32")
+}
 
 type testPerson struct {
 	Name string `json:"name"`
