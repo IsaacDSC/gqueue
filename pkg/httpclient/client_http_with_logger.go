@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"clienthttp"
+	"github.com/IsaacDSC/clienthttp"
 
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 )
