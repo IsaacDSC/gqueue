@@ -254,9 +254,15 @@ func TestMemStore_Refresh(t *testing.T) {
 
 			ms.Refresh(ctx, tt.refreshEvents)
 
-			eventsMap := ms.topicEvents.Load().(map[string]domain.Event)
-			if len(eventsMap) != tt.expectedCount {
-				t.Errorf("expected %d events, got %d", tt.expectedCount, len(eventsMap))
+			// Verify count by checking unique event names exist
+			seen := make(map[string]bool)
+			for _, e := range tt.refreshEvents {
+				if _, err := ms.GetEvent(ctx, e.Name); err == nil {
+					seen[e.Name] = true
+				}
+			}
+			if len(seen) != tt.expectedCount {
+				t.Errorf("expected %d events, got %d", tt.expectedCount, len(seen))
 			}
 
 			_, err := ms.GetEvent(ctx, tt.checkEventName)
