@@ -40,7 +40,7 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "successful_publish_minimal_payload",
 			payload: InternalPayload{
-				EventName:   "user.created",
+				EventName: "user.created",
 				Data: Data{
 					"user_id": "123",
 					"email":   "test@example.com",
@@ -84,7 +84,7 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "successful_publish_full_payload",
 			payload: InternalPayload{
-				EventName:   "order.completed",
+				EventName: "order.completed",
 				Data: Data{
 					"order_id":    "ord_123456",
 					"customer_id": "cust_789",
@@ -145,7 +145,7 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "successful_publish_with_deadline",
 			payload: InternalPayload{
-				EventName:   "notification.send",
+				EventName: "notification.send",
 				Data: Data{
 					"user_id":     "user_456",
 					"message":     "Welcome to our platform!",
@@ -199,7 +199,7 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "publisher_error",
 			payload: InternalPayload{
-				EventName:   "payment.failed",
+				EventName: "payment.failed",
 				Data: Data{
 					"payment_id": "pay_error123",
 					"reason":     "insufficient_funds",
@@ -240,8 +240,8 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "empty_payload_with_defaults",
 			payload: InternalPayload{
-				EventName:   "system.ping",
-				Data:        Data{},
+				EventName: "system.ping",
+				Data:      Data{},
 				Metadata: Metadata{
 					Source:      "health-check",
 					Version:     "1.0",

@@ -189,7 +189,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "error_event_not_found",
 			payload: InternalPayload{
-				EventName:   "nonexistent.event",
+				EventName: "nonexistent.event",
 				Data: Data{
 					"key": "value",
 				},
@@ -224,7 +224,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "error_publisher_fails",
 			payload: InternalPayload{
-				EventName:   "user.updated",
+				EventName: "user.updated",
 				Data: Data{
 					"user_id": "456",
 				},
@@ -280,7 +280,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "successful_processing_no_triggers",
 			payload: InternalPayload{
-				EventName:   "archived.event",
+				EventName: "archived.event",
 				Data: Data{
 					"archive_id": "archive-123",
 				},
