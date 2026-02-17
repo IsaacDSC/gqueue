@@ -47,7 +47,7 @@ func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, service
 	uniqueKey := r.getUniqueKey(eventName, serviceName, state)
 
 	query := `
-			SELECT id, name, service_name, repo_url, team_owner, triggers
+			SELECT id, name, service_name, triggers
 			FROM events
 			WHERE unique_key = $1 AND deleted_at IS NULL
 		`
@@ -254,8 +254,8 @@ func (r *PostgresStore) UpdateEvent(ctx context.Context, event domain.Event) err
 	UPDATE
 	events SET name = $2,
 	service_name = $3,
-	state = $7,
-	triggers = $8
+	state = $4,
+	triggers = $5
 	WHERE id = $1 AND deleted_at IS NULL;`
 
 	triggersJSON, err := json.Marshal(event.Triggers)

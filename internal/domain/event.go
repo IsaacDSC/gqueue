@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/pkg/intertime"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/google/uuid"
@@ -15,15 +14,12 @@ type Event struct {
 	ID          uuid.UUID `json:"id" bson:"id"`
 	Name        string    `json:"name" bson:"name"`
 	ServiceName string    `json:"service_name" bson:"service_name"`
-	State       string    `json:"state" bson:"state"` //TODO: QUE TAL REMOVER ESSE CAMPO STATE?
+	State       string    `json:"state" bson:"state"`
 	Type        Type      `json:"type" bson:"type"`
 	Triggers    []Trigger `json:"triggers" bson:"triggers"`
 }
 
 func (e *Event) Validate() error {
-	env := cfg.Get()
-	e.ServiceName = env.InternalServiceName
-
 	if e.Type != TriggerTypeInternal && e.Type != TriggerTypeExternal {
 		return fmt.Errorf("invalid event type: %s", e.Type)
 	}

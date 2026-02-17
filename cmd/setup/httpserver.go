@@ -6,11 +6,9 @@ import (
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/internal/backoffice"
-	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
-	"github.com/IsaacDSC/gqueue/pkg/auth"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
@@ -46,17 +44,17 @@ func StartServer(
 		mux.HandleFunc(route.Path, route.Handler)
 	}
 
-	config := cfg.Get()
+	// config := cfg.Get()
 
-	authorization := auth.NewBasicAuth(map[string]string{
-		config.ProjectID: config.SecretKey,
-	})
+	// authorization := auth.NewBasicAuth(map[string]string{
+	// 	config.ProjectID: config.SecretKey,
+	// })
 
 	handler := CORSMiddleware(LoggerMiddleware(mux))
-	h := authorization.Middleware(handler.ServeHTTP)
+	// h := authorization.Middleware(handler.ServeHTTP)
 
 	log.Println("Starting HTTP server on :8080")
-	if err := http.ListenAndServe(":8080", h); err != nil {
+	if err := http.ListenAndServe(":8080", handler); err != nil {
 		panic(err)
 	}
 }
