@@ -29,7 +29,7 @@ func StartTaskSyncMemStore(ctx context.Context, store PersistentRepository, memS
 		}
 	}()
 
-	// refresh schedulers in memory strore every 5 minutes
+	// refresh schedulers in memory store every 5 minutes
 	go func() {
 		fmt.Println("Starting task to sync mem store with persistent store for schedulers")
 		trigger := time.NewTicker(5 * time.Minute)
