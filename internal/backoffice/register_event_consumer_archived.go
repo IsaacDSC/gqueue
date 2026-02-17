@@ -24,10 +24,10 @@ func GetRegisterTaskConsumerArchived(cc cachemanager.Cache, repo Repository) htt
 				return
 			}
 
-			payload.TypeEvent = domain.TypeEventSchedule
 			payload.State = "archived"
+			typeEvent := "schedule"
 
-			key := cc.Key(payload.TypeEvent.String(), payload.State, payload.ServiceName, payload.Name)
+			key := cc.Key(typeEvent, payload.State, payload.ServiceName, payload.Name)
 
 			if err := cc.Hydrate(ctx, key, &payload, cc.GetDefaultTTL(), func(ctx context.Context) (any, error) {
 				if err := repo.Save(ctx, payload); err != nil {
@@ -39,7 +39,7 @@ func GetRegisterTaskConsumerArchived(cc cachemanager.Cache, repo Repository) htt
 				return
 			}
 
-			consumersKey := cc.Key("consumers", payload.TypeEvent.String(), payload.State)
+			consumersKey := cc.Key("consumers", typeEvent, payload.State)
 			cc.IncrementValue(ctx, consumersKey, &payload)
 
 			w.WriteHeader(http.StatusCreated)

@@ -41,13 +41,13 @@ func NewPostgresStore(db *sql.DB) *PostgresStore {
 
 var _ Repository = (*PostgresStore)(nil)
 
-func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) (domain.Event, error) {
+func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, serviceName string, state string) (domain.Event, error) {
 	l := ctxlogger.GetLogger(ctx)
 
-	uniqueKey := r.getUniqueKey(eventName, serviceName, eventType, state)
+	uniqueKey := r.getUniqueKey(eventName, serviceName, state)
 
 	query := `
-			SELECT id, name, service_name, repo_url, team_owner, triggers
+			SELECT id, name, service_name, triggers
 			FROM events
 			WHERE unique_key = $1 AND deleted_at IS NULL
 		`
@@ -57,8 +57,6 @@ func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, service
 		&event.ID,
 		&event.Name,
 		&event.ServiceName,
-		&event.RepoURL,
-		&event.TeamOwner,
 		&triggersJSON,
 	)
 
@@ -109,9 +107,6 @@ func (r *PostgresStore) GetInternalEvents(ctx context.Context, filters domain.Fi
 			&event.ID,
 			&event.Name,
 			&event.ServiceName,
-			&event.RepoURL,
-			&event.TeamOwner,
-			&event.TypeEvent,
 			&event.State,
 			&event.Triggers,
 		); err != nil {
@@ -139,11 +134,11 @@ func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
 		event.State = "active"
 	}
 
-	uniqueKey := r.getUniqueKey(event.Name, event.ServiceName, event.TypeEvent.String(), event.State)
+	uniqueKey := r.getUniqueKey(event.Name, event.ServiceName, event.State)
 
 	query := `
-		INSERT INTO events (id, unique_key, name, service_name, repo_url, team_owner, type_event, state, triggers, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO events (id, unique_key, name, service_name, state, triggers, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
 	now := time.Now()
@@ -152,9 +147,6 @@ func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
 		uniqueKey,
 		event.Name,
 		event.ServiceName,
-		event.RepoURL,
-		event.TeamOwner,
-		event.TypeEvent.String(),
 		event.State,
 		triggersJSON,
 		now,
@@ -173,9 +165,6 @@ const modelEventFields = `
 	id,
 	name,
 	service_name,
-	repo_url,
-	team_owner,
-	type_event,
 	state,
 	triggers
 `
@@ -190,9 +179,6 @@ func (r *PostgresStore) GetEventByID(ctx context.Context, eventID uuid.UUID) (do
 		&event.ID,
 		&event.Name,
 		&event.ServiceName,
-		&event.RepoURL,
-		&event.TeamOwner,
-		&event.TypeEvent,
 		&event.State,
 		&event.Triggers,
 	)
@@ -214,7 +200,7 @@ func (r *PostgresStore) GetEventByID(ctx context.Context, eventID uuid.UUID) (do
 func (r *PostgresStore) GetAllSchedulers(ctx context.Context, state string) ([]domain.Event, error) {
 	l := ctxlogger.GetLogger(ctx)
 
-	query := fmt.Sprintf(`SELECT %s FROM events WHERE type_event = 'schedule' AND state = $1 AND deleted_at IS NULL`, modelEventFields)
+	query := fmt.Sprintf(`SELECT %s FROM events WHERE state = $1 AND deleted_at IS NULL`, modelEventFields)
 
 	rows, err := r.db.QueryContext(ctx, query, state)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -236,9 +222,6 @@ func (r *PostgresStore) GetAllSchedulers(ctx context.Context, state string) ([]d
 			&event.ID,
 			&event.Name,
 			&event.ServiceName,
-			&event.RepoURL,
-			&event.TeamOwner,
-			&event.TypeEvent,
 			&event.State,
 			&event.Triggers,
 		); err != nil {
@@ -271,11 +254,8 @@ func (r *PostgresStore) UpdateEvent(ctx context.Context, event domain.Event) err
 	UPDATE
 	events SET name = $2,
 	service_name = $3,
-	repo_url = $4,
-	team_owner = $5,
-	type_event = $6,
-	state = $7,
-	triggers = $8
+	state = $4,
+	triggers = $5
 	WHERE id = $1 AND deleted_at IS NULL;`
 
 	triggersJSON, err := json.Marshal(event.Triggers)
@@ -283,13 +263,13 @@ func (r *PostgresStore) UpdateEvent(ctx context.Context, event domain.Event) err
 		return fmt.Errorf("failed to marshal triggers: %w", err)
 	}
 
-	if _, err := r.db.ExecContext(ctx, query, event.ID, event.Name, event.ServiceName, event.RepoURL, event.TeamOwner, event.TypeEvent.String(), event.State, triggersJSON); err != nil {
+	if _, err := r.db.ExecContext(ctx, query, event.ID, event.Name, event.ServiceName, event.State, triggersJSON); err != nil {
 		return fmt.Errorf("failed to update event: %w", err)
 	}
 
 	return nil
 }
 
-func (r *PostgresStore) getUniqueKey(eventName, serviceName, eventType, state string) string {
-	return fmt.Sprintf("%s:%s:%s:%s", eventName, serviceName, eventType, state)
+func (r *PostgresStore) getUniqueKey(eventName, serviceName, state string) string {
+	return fmt.Sprintf("%s:%s:%s", eventName, serviceName, state)
 }

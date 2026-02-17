@@ -10,13 +10,6 @@ import (
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 )
 
-type ExternalPayload struct {
-	EventName string            `json:"event_name"`
-	Data      map[string]any    `json:"data"`
-	Headers   map[string]string `json:"headers"`
-	Trigger   Trigger           `json:"trigger"`
-}
-
 func Publisher(pub pubadapter.Publisher) httpadapter.HttpHandle {
 	return httpadapter.HttpHandle{
 		Path: "POST /api/v1/event/publisher",
@@ -35,7 +28,7 @@ func Publisher(pub pubadapter.Publisher) httpadapter.HttpHandle {
 			}
 
 			if payload.Opts.WqType == "" || payload.Opts.ScheduleIn > 0 {
-				payload.Opts.WqType = pubadapter.Internal
+				payload.Opts.WqType = pubadapter.LowThroughput
 			}
 
 			topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueInternal)

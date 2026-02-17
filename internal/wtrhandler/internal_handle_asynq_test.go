@@ -37,8 +37,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "successful_processing_single_trigger",
 			payload: InternalPayload{
-				ServiceName: "user-service",
-				EventName:   "user.created",
+				EventName: "user.created",
 				Data: Data{
 					"user_id": "123",
 					"email":   "test@example.com",
@@ -65,10 +64,10 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 						event := domain.Event{
 							Name:        "user.created",
 							ServiceName: "user-service",
+							Type:        "internal",
 							Triggers: []domain.Trigger{
 								{
 									ServiceName: "notification-service",
-									Type:        "persistent",
 									Host:        "https://api.notification.com",
 									Path:        "/webhook/user-created",
 									Headers: map[string]string{
@@ -86,7 +85,6 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					DoAndReturn(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload RequestPayload, opts pubadapter.Opts) error {
 						assert.Equal(t, "user.created", payload.EventName)
 						assert.Equal(t, "notification-service", payload.Trigger.ServiceName)
-						assert.Equal(t, TriggerType("persistent"), payload.Trigger.Type)
 						assert.Equal(t, "https://api.notification.com", payload.Trigger.BaseUrl)
 						assert.Equal(t, "/webhook/user-created", payload.Trigger.Path)
 						assert.Equal(t, "secret", payload.Trigger.Headers["X-API-Key"])
@@ -112,8 +110,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "successful_processing_multiple_triggers",
 			payload: InternalPayload{
-				ServiceName: "order-service",
-				EventName:   "order.completed",
+				EventName: "order.completed",
 				Data: Data{
 					"order_id":    "order-123",
 					"customer_id": "customer-456",
@@ -130,7 +127,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{
 					MaxRetries: 5,
-					WqType:     pubadapter.Internal,
+					WqType:     pubadapter.LowLatency,
 				},
 			},
 			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
@@ -145,7 +142,6 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 							Triggers: []domain.Trigger{
 								{
 									ServiceName: "billing-service",
-									Type:        "persistent",
 									Host:        "https://api.billing.com",
 									Path:        "/webhook/order-completed",
 									Headers: map[string]string{
@@ -154,7 +150,6 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 								},
 								{
 									ServiceName: "analytics-service",
-									Type:        "notPersistent",
 									Host:        "https://api.analytics.com",
 									Path:        "/webhook/order-completed",
 									Headers: map[string]string{
@@ -194,8 +189,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "error_event_not_found",
 			payload: InternalPayload{
-				ServiceName: "api-service",
-				EventName:   "nonexistent.event",
+				EventName: "nonexistent.event",
 				Data: Data{
 					"key": "value",
 				},
@@ -230,8 +224,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "error_publisher_fails",
 			payload: InternalPayload{
-				ServiceName: "user-service",
-				EventName:   "user.updated",
+				EventName: "user.updated",
 				Data: Data{
 					"user_id": "456",
 				},
@@ -255,7 +248,6 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 							Triggers: []domain.Trigger{
 								{
 									ServiceName: "notification-service",
-									Type:        "persistent",
 									Host:        "https://api.notification.com",
 									Path:        "/webhook/user-updated",
 									Headers:     map[string]string{},
@@ -288,8 +280,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 		{
 			name: "successful_processing_no_triggers",
 			payload: InternalPayload{
-				ServiceName: "archive-service",
-				EventName:   "archived.event",
+				EventName: "archived.event",
 				Data: Data{
 					"archive_id": "archive-123",
 				},
