@@ -46,7 +46,6 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			},
 			trigger: wtrhandler.Trigger{
 				ServiceName: "test-service",
-				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/webhook",
 			},
@@ -67,7 +66,6 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			},
 			trigger: wtrhandler.Trigger{
 				ServiceName: "user-service",
-				Type:        wtrhandler.TriggerTypeNotPersistent,
 				BaseUrl:     "",
 				Path:        "/users/webhook",
 			},
@@ -85,7 +83,6 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			headers: map[string]string{},
 			trigger: wtrhandler.Trigger{
 				ServiceName: "ping-service",
-				Type:        wtrhandler.TriggerTypeFireForGet,
 				BaseUrl:     "",
 				Path:        "/ping",
 			},
@@ -103,7 +100,6 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			headers: map[string]string{},
 			trigger: wtrhandler.Trigger{
 				ServiceName: "boundary-service",
-				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/boundary",
 			},
@@ -121,7 +117,6 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			headers: map[string]string{},
 			trigger: wtrhandler.Trigger{
 				ServiceName: "validation-service",
-				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/validate",
 			},
@@ -140,7 +135,6 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			headers: map[string]string{},
 			trigger: wtrhandler.Trigger{
 				ServiceName: "auth-service",
-				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/secure",
 			},
@@ -159,7 +153,6 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			headers: map[string]string{},
 			trigger: wtrhandler.Trigger{
 				ServiceName: "missing-service",
-				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/missing",
 			},
@@ -178,7 +171,6 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			headers: map[string]string{},
 			trigger: wtrhandler.Trigger{
 				ServiceName: "error-service",
-				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/error",
 			},
@@ -197,7 +189,6 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			headers: map[string]string{},
 			trigger: wtrhandler.Trigger{
 				ServiceName: "redirect-service",
-				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/redirect",
 			},
@@ -216,7 +207,6 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			headers: map[string]string{},
 			trigger: wtrhandler.Trigger{
 				ServiceName: "complex-service",
-				Type:        wtrhandler.TriggerTypePersistent,
 				BaseUrl:     "",
 				Path:        "/api/v1/webhooks",
 			},
@@ -267,7 +257,6 @@ func TestNotification_NotifyTrigger_InvalidData(t *testing.T) {
 
 	trigger := wtrhandler.Trigger{
 		ServiceName: "test-service",
-		Type:        wtrhandler.TriggerTypePersistent,
 		BaseUrl:     "http://example.com",
 		Path:        "/webhook",
 	}

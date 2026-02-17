@@ -40,7 +40,6 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "successful_publish_minimal_payload",
 			payload: InternalPayload{
-				ServiceName: "user-service",
 				EventName:   "user.created",
 				Data: Data{
 					"user_id": "123",
@@ -56,7 +55,7 @@ func TestGetExternalHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{
 					MaxRetries: 3,
-					WqType:     pubadapter.Internal,
+					WqType:     pubadapter.LowLatency,
 				},
 			},
 			setupMock: func(m *pubadapter.MockPublisher) {
@@ -85,7 +84,6 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "successful_publish_full_payload",
 			payload: InternalPayload{
-				ServiceName: "order-service",
 				EventName:   "order.completed",
 				Data: Data{
 					"order_id":    "ord_123456",
@@ -112,7 +110,7 @@ func TestGetExternalHandle(t *testing.T) {
 					Retention:  intertime.Duration(24 * time.Hour),
 					UniqueTTL:  intertime.Duration(1 * time.Hour),
 					ScheduleIn: intertime.Duration(30 * time.Second),
-					WqType:     pubadapter.Internal,
+					WqType:     pubadapter.LowLatency,
 				},
 			},
 			setupMock: func(m *pubadapter.MockPublisher) {
@@ -147,7 +145,6 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "successful_publish_with_deadline",
 			payload: InternalPayload{
-				ServiceName: "notification-service",
 				EventName:   "notification.send",
 				Data: Data{
 					"user_id":     "user_456",
@@ -167,7 +164,7 @@ func TestGetExternalHandle(t *testing.T) {
 				Opts: domain.Opt{
 					MaxRetries: 2,
 					Deadline:   func() *time.Time { t := time.Now().Add(5 * time.Minute); return &t }(),
-					WqType:     pubadapter.Internal,
+					WqType:     pubadapter.LowLatency,
 				},
 			},
 			setupMock: func(m *pubadapter.MockPublisher) {
@@ -202,7 +199,6 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "publisher_error",
 			payload: InternalPayload{
-				ServiceName: "payment-service",
 				EventName:   "payment.failed",
 				Data: Data{
 					"payment_id": "pay_error123",
@@ -215,7 +211,7 @@ func TestGetExternalHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{
 					MaxRetries: 3,
-					WqType:     pubadapter.Internal,
+					WqType:     pubadapter.LowLatency,
 				},
 			},
 			setupMock: func(m *pubadapter.MockPublisher) {
@@ -244,7 +240,6 @@ func TestGetExternalHandle(t *testing.T) {
 		{
 			name: "empty_payload_with_defaults",
 			payload: InternalPayload{
-				ServiceName: "health-check-service",
 				EventName:   "system.ping",
 				Data:        Data{},
 				Metadata: Metadata{
@@ -253,7 +248,7 @@ func TestGetExternalHandle(t *testing.T) {
 					Environment: "test",
 				},
 				Opts: domain.Opt{
-					WqType: pubadapter.Internal,
+					WqType: pubadapter.LowLatency,
 				},
 			},
 			setupMock: func(m *pubadapter.MockPublisher) {

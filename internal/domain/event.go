@@ -4,49 +4,32 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/pkg/intertime"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 )
 
-type TypeEvent int
-
-const (
-	TypeEventTrigger TypeEvent = iota + 1
-	TypeEventSchedule
-)
-
-var typeEventList = [3]string{"trigger", "trigger", "schedule"}
-
-func (te TypeEvent) NewTypeEvent(input string) (TypeEvent, error) {
-	for i := range typeEventList {
-		if typeEventList[i] == input {
-			return TypeEvent(i), nil
-		}
-	}
-
-	return -1, fmt.Errorf("invalid type event: %s", input)
-}
-
-func (te TypeEvent) String() string {
-	return typeEventList[te]
-}
-
 type Event struct {
 	ID          uuid.UUID `json:"id" bson:"id"`
 	Name        string    `json:"name" bson:"name"`
 	ServiceName string    `json:"service_name" bson:"service_name"`
-	RepoURL     string    `json:"repo_url" bson:"repo_url"`
-	TeamOwner   string    `json:"team_owner" bson:"team_owner"`
-	TypeEvent   TypeEvent `json:"type_event" bson:"type_event"`
-	State       string    `json:"state" bson:"state"`
+	State       string    `json:"state" bson:"state"` //TODO: QUE TAL REMOVER ESSE CAMPO STATE?
+	Type        Type      `json:"type" bson:"type"`
 	Triggers    []Trigger `json:"triggers" bson:"triggers"`
 }
 
-func (e Event) Validate(validateType ValidateType) error {
+func (e *Event) Validate() error {
+	env := cfg.Get()
+	e.ServiceName = env.InternalServiceName
+
+	if e.Type != TriggerTypeInternal && e.Type != TriggerTypeExternal {
+		return fmt.Errorf("invalid event type: %s", e.Type)
+	}
+
 	for _, trigger := range e.Triggers {
-		if err := trigger.Option.Validate(validateType); err != nil {
+		if err := trigger.Option.Validate(); err != nil {
 			return fmt.Errorf("invalid trigger option: %w", err)
 		}
 	}
@@ -56,7 +39,6 @@ func (e Event) Validate(validateType ValidateType) error {
 
 type Trigger struct {
 	ServiceName string            `json:"service_name" bson:"service_name"`
-	Type        string            `json:"type" bson:"type"`
 	Host        string            `json:"host" bson:"host"`
 	Path        string            `json:"path" bson:"path"`
 	Headers     map[string]string `json:"headers" bson:"headers"`
@@ -75,18 +57,18 @@ type Opt struct {
 	WqType     pubadapter.WQType `json:"wq_type" bson:"wq_type"`
 }
 
-type ValidateType string
+type Type string
 
-func (vt ValidateType) String() string {
+func (vt Type) String() string {
 	return string(vt)
 }
 
 const (
-	ValidateTypeInternal ValidateType = "internal"
-	ValidateTypeExternal ValidateType = "external"
+	TriggerTypeInternal Type = "internal"
+	TriggerTypeExternal Type = "external"
 )
 
-func (o Opt) Validate(validateType ValidateType) error {
+func (o Opt) Validate() error {
 	if o.WqType == "" {
 		return fmt.Errorf("wq type is required")
 	}

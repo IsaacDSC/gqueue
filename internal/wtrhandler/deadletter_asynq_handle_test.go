@@ -101,7 +101,6 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 			Triggers: []domain.Trigger{
 				{
 					ServiceName: "notification-service",
-					Type:        "webhook",
 					Host:        "http://localhost:8080",
 					Path:        "/webhook/user-created",
 					Headers: map[string]string{
@@ -111,7 +110,6 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 				},
 				{
 					ServiceName: "analytics-service",
-					Type:        "webhook",
 					Host:        "http://localhost:8081",
 					Path:        "/analytics/event",
 					Headers: map[string]string{
@@ -127,7 +125,6 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 			Triggers: []domain.Trigger{
 				{
 					ServiceName: "email-service",
-					Type:        "webhook",
 					Host:        "http://localhost:8082",
 					Path:        "/send-confirmation",
 					Headers: map[string]string{
@@ -181,7 +178,6 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 	assert.Equal(t, map[string]string{"Content-Type": "application/json", "Authorization": "Bearer token"}, firstCall.headers)
 	assert.Equal(t, Trigger{
 		ServiceName: "notification-service",
-		Type:        TriggerType("webhook"),
 		BaseUrl:     "http://localhost:8080",
 		Path:        "/webhook/user-created",
 		Headers:     map[string]string{"Content-Type": "application/json", "Authorization": "Bearer token"},
@@ -197,7 +193,6 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 	assert.Equal(t, map[string]string{"X-API-Key": "analytics-key"}, secondCall.headers)
 	assert.Equal(t, Trigger{
 		ServiceName: "analytics-service",
-		Type:        TriggerType("webhook"),
 		BaseUrl:     "http://localhost:8081",
 		Path:        "/analytics/event",
 		Headers:     map[string]string{"X-API-Key": "analytics-key"},
@@ -213,7 +208,6 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 	assert.Equal(t, map[string]string{"Content-Type": "application/json"}, thirdCall.headers)
 	assert.Equal(t, Trigger{
 		ServiceName: "email-service",
-		Type:        TriggerType("webhook"),
 		BaseUrl:     "http://localhost:8082",
 		Path:        "/send-confirmation",
 		Headers:     map[string]string{"Content-Type": "application/json"},
@@ -419,7 +413,6 @@ func TestDeadLetterQueue_Handler_FetcherError(t *testing.T) {
 			Triggers: []domain.Trigger{
 				{
 					ServiceName: "webhook-service",
-					Type:        "webhook",
 					Host:        "http://localhost:8080",
 					Path:        "/webhook",
 					Headers:     map[string]string{"Content-Type": "application/json"},
@@ -481,7 +474,6 @@ func TestDeadLetterQueue_Handler_MultipleEventsWithMixedTriggers(t *testing.T) {
 			Triggers: []domain.Trigger{
 				{
 					ServiceName: "inventory-service",
-					Type:        "webhook",
 					Host:        "http://inventory.local",
 					Path:        "/reserve",
 					Headers:     map[string]string{"Authorization": "Bearer inventory-token"},
@@ -501,14 +493,12 @@ func TestDeadLetterQueue_Handler_MultipleEventsWithMixedTriggers(t *testing.T) {
 			Triggers: []domain.Trigger{
 				{
 					ServiceName: "logging-service",
-					Type:        "webhook",
 					Host:        "http://logs.local",
 					Path:        "/audit",
 					Headers:     map[string]string{"X-Service": "audit"},
 				},
 				{
 					ServiceName: "backup-service",
-					Type:        "webhook",
 					Host:        "http://backup.local",
 					Path:        "/store",
 					Headers:     map[string]string{"X-Backup": "true"},

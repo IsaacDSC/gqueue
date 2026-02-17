@@ -169,7 +169,6 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 				EventName: "user.created",
 				Trigger: Trigger{
 					ServiceName: "user-service",
-					Type:        TriggerTypePersistent,
 					BaseUrl:     testServer.URL,
 					Path:        "/webhook",
 					Headers: map[string]string{
@@ -281,7 +280,6 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 			},
 			trigger: Trigger{
 				ServiceName: "user-service",
-				Type:        TriggerTypePersistent,
 				BaseUrl:     "http://example.com",
 				Path:        "/webhook",
 			},
@@ -312,7 +310,6 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 			headers: map[string]string{},
 			trigger: Trigger{
 				ServiceName: "user-service",
-				Type:        TriggerTypePersistent,
 				BaseUrl:     "http://example.com",
 				Path:        "/webhook",
 			},
@@ -421,7 +418,6 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 				EventName: "user.created",
 				Trigger: Trigger{
 					ServiceName: "user-service",
-					Type:        TriggerTypePersistent,
 					BaseUrl:     "http://localhost:99999", // Unreachable port
 					Path:        "/webhook",
 				},
@@ -474,7 +470,6 @@ func TestGetRequestHandle_HeaderMerging(t *testing.T) {
 		EventName: "user.created",
 		Trigger: Trigger{
 			ServiceName: "user-service",
-			Type:        TriggerTypePersistent,
 			BaseUrl:     "http://example.com",
 			Path:        "/webhook",
 			Headers: map[string]string{
@@ -547,7 +542,6 @@ func TestGetRequestHandle_DataPassing(t *testing.T) {
 		EventName: "user.created",
 		Trigger: Trigger{
 			ServiceName: "user-service",
-			Type:        TriggerTypePersistent,
 			BaseUrl:     "http://example.com",
 			Path:        "/webhook",
 		},

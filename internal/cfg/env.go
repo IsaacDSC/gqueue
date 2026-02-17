@@ -43,12 +43,14 @@ const (
 )
 
 type Config struct {
-	ProjectID      string `env:"PROJECT_ID"`
-	SecretKey      string `env:"SECRET_KEY"`
-	ConfigDatabase ConfigDatabase
-	Cache          Cache
-	AsynqConfig    AsynqConfig
-	WQ             WQ `env:"WQ"`
+	ProjectID           string `env:"PROJECT_ID"`
+	SecretKey           string `env:"SECRET_KEY"`
+	ConfigDatabase      ConfigDatabase
+	Cache               Cache
+	AsynqConfig         AsynqConfig
+	WQ                  WQ     `env:"WQ"`
+	InternalBaseURL     string `env:"INTERNAL_BASE_URL"`
+	InternalServiceName string `env:"INTERNAL_SERVICE_NAME"`
 }
 
 var cfg Config

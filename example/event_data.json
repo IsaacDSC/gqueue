@@ -1,12 +1,9 @@
 {
   "name": "payment.processed",
   "service_name": "my-app",
-  "repo_url": "http://github.com/my-org/my-repo",
-  "team_owner": "my-team",
   "triggers": [
     {
       "service_name": "consumer-1",
-      "type": "persistent",
       "host": "http://localhost:3333",
       "path": "/wq/payment/processed",
       "headers": {

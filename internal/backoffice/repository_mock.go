@@ -72,18 +72,18 @@ func (mr *MockRepositoryMockRecorder) GetEventByID(ctx, eventID any) *gomock.Cal
 }
 
 // GetInternalEvent mocks base method.
-func (m *MockRepository) GetInternalEvent(ctx context.Context, eventName, serviceName, eventType, state string) (domain.Event, error) {
+func (m *MockRepository) GetInternalEvent(ctx context.Context, eventName, serviceName, state string) (domain.Event, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetInternalEvent", ctx, eventName, serviceName, eventType, state)
+	ret := m.ctrl.Call(m, "GetInternalEvent", ctx, eventName, serviceName, state)
 	ret0, _ := ret[0].(domain.Event)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetInternalEvent indicates an expected call of GetInternalEvent.
-func (mr *MockRepositoryMockRecorder) GetInternalEvent(ctx, eventName, serviceName, eventType, state any) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) GetInternalEvent(ctx, eventName, serviceName, state any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInternalEvent", reflect.TypeOf((*MockRepository)(nil).GetInternalEvent), ctx, eventName, serviceName, eventType, state)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInternalEvent", reflect.TypeOf((*MockRepository)(nil).GetInternalEvent), ctx, eventName, serviceName, state)
 }
 
 // GetInternalEvents mocks base method.

@@ -47,7 +47,6 @@ func NewDeadLatterQueue(store DeadLetterStore, fetcher Fetcher) asyncadapter.Han
 						"event_at": p.PublishTime,
 					}, trigger.Headers, Trigger{
 						ServiceName: trigger.ServiceName,
-						Type:        TriggerType(trigger.Type),
 						BaseUrl:     trigger.Host,
 						Path:        trigger.Path,
 						Headers:     trigger.Headers,

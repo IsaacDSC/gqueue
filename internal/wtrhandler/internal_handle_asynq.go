@@ -11,13 +11,14 @@ import (
 	"github.com/IsaacDSC/gqueue/pkg/logs"
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 
+	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 )
 
 type Repository interface {
-	GetInternalEvent(ctx context.Context, eventName, serviceName string, eventType string, state string) (domain.Event, error)
+	GetInternalEvent(ctx context.Context, eventName, serviceName string, state string) (domain.Event, error)
 }
 
 type PublisherInsights interface {
@@ -59,8 +60,9 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub pubad
 			var event domain.Event
 			key := cc.Key(domain.CacheKeyEventPrefix, payload.EventName)
 
+			env := cfg.Get()
 			err = cc.Once(ctx, key, &event, cc.GetDefaultTTL(), func(ctx context.Context) (any, error) {
-				return repo.GetInternalEvent(ctx, payload.EventName, payload.ServiceName, "trigger", "active")
+				return repo.GetInternalEvent(ctx, payload.EventName, env.InternalServiceName, "active")
 			})
 
 			if errors.Is(err, domain.EventNotFound) {
@@ -83,7 +85,6 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub pubad
 					Headers:   payload.Metadata.Headers,
 					Trigger: Trigger{
 						ServiceName: tt.ServiceName,
-						Type:        TriggerType(tt.Type),
 						BaseUrl:     tt.Host,
 						Path:        tt.Path,
 						Headers:     tt.Headers,
@@ -92,7 +93,7 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub pubad
 
 				topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueRequestToExternal)
 				opts := pubadapter.Opts{Attributes: make(map[string]string), AsynqOpts: config}
-				if err = pub.Publish(ctx, payload.Opts.WqType, topic, input, opts); err != nil {
+				if err = pub.Publish(ctx, tt.Option.WqType, topic, input, opts); err != nil {
 					err = fmt.Errorf("publish internal event: %w", err)
 					return
 				}

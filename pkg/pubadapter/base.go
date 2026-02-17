@@ -11,7 +11,7 @@ type WQType string
 
 func (wt WQType) Validate() error {
 	switch wt {
-	case Internal, External, LowThroughput, HighThroughput, LowLatency:
+	case LowThroughput, HighThroughput, LowLatency:
 		return nil
 	default:
 		return fmt.Errorf("invalid WQType: %s", wt)
@@ -19,16 +19,12 @@ func (wt WQType) Validate() error {
 }
 
 const (
-	Internal       WQType = "internal"
-	External       WQType = "external"
 	LowThroughput  WQType = "low_throughput"
 	HighThroughput WQType = "high_throughput"
 	LowLatency     WQType = "low_latency"
 )
 
 var wqMapper = map[WQType]cfg.WQ{
-	Internal:       cfg.WQRedis,
-	External:       cfg.WQGooglePubSub,
 	LowThroughput:  cfg.WQRedis,
 	HighThroughput: cfg.WQGooglePubSub,
 	LowLatency:     cfg.WQRedis,

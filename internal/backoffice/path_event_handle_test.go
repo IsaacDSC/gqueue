@@ -36,14 +36,11 @@ func TestGetPathEventHandle(t *testing.T) {
 			payload: domain.Event{
 				Name:        "user.updated",
 				ServiceName: "user-service",
-				RepoURL:     "https://github.com/user/repo",
-				TeamOwner:   "team-alpha",
-				TypeEvent:   domain.TypeEventTrigger,
 				State:       "active",
+				Type:        "http",
 				Triggers: []domain.Trigger{
 					{
 						ServiceName: "notification-service",
-						Type:        "http",
 						Host:        "https://api.example.com",
 						Path:        "/webhook",
 						Headers:     map[string]string{"Content-Type": "application/json"},
