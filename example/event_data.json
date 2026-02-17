@@ -1,6 +1,6 @@
 {
   "name": "payment.processed",
-  "service_name": "my-app",
+  "type": "external",
   "triggers": [
     {
       "service_name": "consumer-1",
