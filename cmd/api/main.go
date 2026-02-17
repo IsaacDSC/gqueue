@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -29,6 +30,32 @@ import (
 )
 
 const appName = "gqueue"
+
+// waitForShutdown waits for SIGINT/SIGTERM and gracefully shuts down the provided servers.
+func waitForShutdown(apiServer, backofficeServer *http.Server) {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down servers...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if apiServer != nil {
+		if err := apiServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("API server shutdown error: %v", err)
+		}
+	}
+
+	if backofficeServer != nil {
+		if err := backofficeServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Backoffice server shutdown error: %v", err)
+		}
+	}
+
+	log.Println("Server shutdown complete")
+}
 
 // TODO: rename to --scope=...
 // go run . --service=all
@@ -101,25 +128,27 @@ func main() {
 
 	// TODO: adicionar graceful shutdown
 	if *service == "api" {
-		api.Start(
+		apiServer := api.Start(
 			ctx,
 			store,
 			highPerformanceAsyncClient,
 			mediumPerformancePublisher,
 			storeInsights,
 		)
+		waitForShutdown(apiServer, nil)
 		return
 	}
 
 	// TODO: adicionar graceful shutdown
 	if *service == "backoffice" {
-		backoffice.Start(
+		backofficeServer := backoffice.Start(
 			cacheClient,
 			cc,
 			store,
 			pub,
 			storeInsights,
 		)
+		waitForShutdown(nil, backofficeServer)
 		return
 	}
 
@@ -129,7 +158,7 @@ func main() {
 		return
 	}
 
-	go backoffice.Start(
+	backofficeServer := backoffice.Start(
 		cacheClient,
 		cc,
 		store,
@@ -137,7 +166,7 @@ func main() {
 		storeInsights,
 	)
 
-	go api.Start(
+	apiServer := api.Start(
 		ctx,
 		store,
 		highPerformanceAsyncClient,
@@ -145,16 +174,5 @@ func main() {
 		storeInsights,
 	)
 
-	// Graceful shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	log.Println("Shutting down servers...")
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	<-shutdownCtx.Done()
-	log.Println("Server shutdown complete")
+	waitForShutdown(apiServer, backofficeServer)
 }

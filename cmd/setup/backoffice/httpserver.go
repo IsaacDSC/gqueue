@@ -26,7 +26,7 @@ func Start(
 	store interstore.Repository,
 	pub pubadapter.Publisher,
 	insightsStore InsightsStore,
-) {
+) *http.Server {
 	mux := http.NewServeMux()
 
 	routes := []httpadapter.HttpHandle{
@@ -56,9 +56,18 @@ func Start(
 	env := cfg.Get()
 	port := env.BackofficePort
 
+	server := &http.Server{
+		Addr:    port.String(),
+		Handler: handler,
+	}
+
 	log.Printf("Starting Backoffice server on :%d", port)
 
-	if err := http.ListenAndServe(port.String(), handler); err != nil {
-		panic(err)
-	}
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("Backoffice server error: %v", err)
+		}
+	}()
+
+	return server
 }

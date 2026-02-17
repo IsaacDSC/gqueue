@@ -2,22 +2,26 @@ package api
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/interstore"
+	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 )
 
 func StartTaskSyncMemStore(ctx context.Context, store PersistentRepository, memStore *interstore.MemStore) {
+	l := ctxlogger.GetLogger(ctx)
+
 	// refresh events in memory store every minute
 	go func() {
-		fmt.Println("Starting task to sync mem store with persistent store")
+		l.Info("Starting task to sync mem store with persistent store")
 		trigger := time.NewTicker(time.Minute)
 		for {
 			select {
 			case <-trigger.C:
 				events, err := store.GetAllEvents(ctx)
 				if err != nil {
+					l.Warn("error fetching events from persistent store", "error", err)
 					continue
 				}
 
@@ -31,7 +35,7 @@ func StartTaskSyncMemStore(ctx context.Context, store PersistentRepository, memS
 
 	// refresh schedulers in memory store every 5 minutes
 	go func() {
-		fmt.Println("Starting task to sync mem store with persistent store for schedulers")
+		log.Println("Starting task to sync mem store with persistent store for schedulers")
 		trigger := time.NewTicker(5 * time.Minute)
 		for {
 			select {
@@ -41,7 +45,7 @@ func StartTaskSyncMemStore(ctx context.Context, store PersistentRepository, memS
 					continue
 				}
 
-				memStore.Refresh(ctx, events)
+				memStore.RefreshRetryTopics(ctx, events)
 			case <-ctx.Done():
 				trigger.Stop()
 				return

@@ -28,7 +28,7 @@ func Start(
 	clientPubsub *pubsub.Client,
 	redisAsync pubadapter.GenericPublisher,
 	insightsStore *storests.Store,
-) {
+) *http.Server {
 	fetch := fetcher.NewNotification()
 
 	memStore := loadInMemStore(store)
@@ -66,9 +66,18 @@ func Start(
 	env := cfg.Get()
 	port := env.ApiPort
 
+	server := &http.Server{
+		Addr:    port.String(),
+		Handler: handler,
+	}
+
 	log.Printf("Starting API server on :%d", port)
 
-	if err := http.ListenAndServe(port.String(), handler); err != nil {
-		panic(err)
-	}
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("API server error: %v", err)
+		}
+	}()
+
+	return server
 }
