@@ -4,6 +4,10 @@ import (
 	"context"
 	"flag"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -17,6 +21,8 @@ import (
 	"github.com/hibiken/asynq"
 
 	"github.com/IsaacDSC/gqueue/cmd/setup"
+	"github.com/IsaacDSC/gqueue/cmd/setup/api"
+	"github.com/IsaacDSC/gqueue/cmd/setup/backoffice"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
@@ -25,11 +31,37 @@ import (
 
 const appName = "gqueue"
 
+// waitForShutdown waits for SIGINT/SIGTERM and gracefully shuts down the provided servers.
+func waitForShutdown(apiServer, backofficeServer *http.Server) {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down servers...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if apiServer != nil {
+		if err := apiServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("API server shutdown error: %v", err)
+		}
+	}
+
+	if backofficeServer != nil {
+		if err := backofficeServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Backoffice server shutdown error: %v", err)
+		}
+	}
+
+	log.Println("Server shutdown complete")
+}
+
 // TODO: rename to --scope=...
-// go run . --service=server
-// go run . --service=worker
+// go run . --service=all
+// go run . --service=backoffice
+// go run . --service=api
 // go run . --service=archived-notification
-// go run . [server, worker]
 func main() {
 	conf := cfg.Get()
 	ctx := context.Background()
@@ -78,7 +110,7 @@ func main() {
 		panic(err)
 	}
 
-	insights := storests.NewStore(cacheClient)
+	storeInsights := storests.NewStore(cacheClient)
 
 	store, err := interstore.NewPostgresStoreFromDSN(conf.ConfigDatabase.DbConn)
 	if err != nil {
@@ -94,14 +126,29 @@ func main() {
 	service := flag.String("service", "all", "service to run")
 	flag.Parse()
 
-	if *service == "worker" {
-		setup.NewWorker().WithClientPubsub(highPerformanceAsyncClient).Start(cc, store, pub, insights)
+	// TODO: adicionar graceful shutdown
+	if *service == "api" {
+		apiServer := api.Start(
+			ctx,
+			store,
+			highPerformanceAsyncClient,
+			mediumPerformancePublisher,
+			storeInsights,
+		)
+		waitForShutdown(apiServer, nil)
 		return
 	}
 
 	// TODO: adicionar graceful shutdown
-	if *service == "server" {
-		setup.StartServer(cacheClient, cc, store, pub, insights)
+	if *service == "backoffice" {
+		backofficeServer := backoffice.Start(
+			cacheClient,
+			cc,
+			store,
+			pub,
+			storeInsights,
+		)
+		waitForShutdown(nil, backofficeServer)
 		return
 	}
 
@@ -111,7 +158,21 @@ func main() {
 		return
 	}
 
-	go setup.StartServer(cacheClient, cc, store, pub, insights)
-	setup.NewWorker().WithClientPubsub(highPerformanceAsyncClient).Start(cc, store, pub, insights)
+	backofficeServer := backoffice.Start(
+		cacheClient,
+		cc,
+		store,
+		pub,
+		storeInsights,
+	)
 
+	apiServer := api.Start(
+		ctx,
+		store,
+		highPerformanceAsyncClient,
+		mediumPerformancePublisher,
+		storeInsights,
+	)
+
+	waitForShutdown(apiServer, backofficeServer)
 }

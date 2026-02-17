@@ -1,7 +1,8 @@
-package setup
+package api
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/IsaacDSC/gqueue/cmd/setup/middleware"
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/fetcher"
@@ -19,7 +21,6 @@ import (
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 
 	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
-	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 
 	"github.com/IsaacDSC/gqueue/internal/interstore"
@@ -27,30 +28,27 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-type Worker struct {
-	clientPubsub *pubsub.Client
-}
+func loadInMemStore(store PersistentRepository) *interstore.MemStore {
+	memStore := interstore.NewMemStore()
 
-func NewWorker() *Worker {
-	return &Worker{}
-}
-
-func (w *Worker) WithClientPubsub(clientPubsub *pubsub.Client) *Worker {
-	w.clientPubsub = clientPubsub
-	return w
-}
-
-func (w *Worker) Start(cache cachemanager.Cache, store interstore.Repository, redisAsync pubadapter.Publisher, insightsStore *storests.Store) {
-	fetch := fetcher.NewNotification()
-
-	if w.clientPubsub != nil {
-		go startUsingGooglePubSub(w.clientPubsub, cache, store, redisAsync, fetch, insightsStore)
+	events, err := store.GetAllEvents(context.Background())
+	if err != nil && !errors.Is(err, domain.EventNotFound) {
+		log.Printf("[!] Error loading events into in-memory store: %v", err)
+		return memStore
 	}
 
-	startUsingAsynq(cache, store, redisAsync, fetch, insightsStore)
+	memStore.Refresh(context.Background(), events)
+
+	return memStore
 }
 
-func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cache, store interstore.Repository, pub pubadapter.Publisher, fetch *fetcher.Notification, insightsStore *storests.Store) {
+func startUsingGooglePubSub(
+	clientPubsub *pubsub.Client,
+	store *interstore.MemStore,
+	redisPubsub pubadapter.GenericPublisher,
+	fetch *fetcher.Notification,
+	insightsStore *storests.Store,
+) {
 	ctx := context.Background()
 
 	sigChan := make(chan os.Signal, 1)
@@ -64,9 +62,9 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 	concurrency := cfg.AsynqConfig.Concurrency
 
 	handlers := []gpubsub.Handle{
-		wtrhandler.NewDeadLatterQueue(store, fetch).ToGPubSubHandler(pub),
-		wtrhandler.GetRequestHandle(fetch, insightsStore).ToGPubSubHandler(pub),
-		wtrhandler.GetInternalConsumerHandle(store, cache, pub, insightsStore).ToGPubSubHandler(pub),
+		wtrhandler.NewDeadLatterQueue(store, fetch).ToGPubSubHandler(redisPubsub),
+		wtrhandler.GetRequestHandle(fetch, insightsStore).ToGPubSubHandler(redisPubsub),
+		wtrhandler.GetInternalConsumerHandle(store, redisPubsub, insightsStore).ToGPubSubHandler(redisPubsub),
 	}
 
 	var wg sync.WaitGroup
@@ -163,7 +161,7 @@ func startUsingGooglePubSub(clientPubsub *pubsub.Client, cache cachemanager.Cach
 	}
 }
 
-func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub pubadapter.Publisher, fetch *fetcher.Notification, insightsStore *storests.Store) {
+func startUsingAsynq(store *interstore.MemStore, pub pubadapter.GenericPublisher, fetch *fetcher.Notification, insightsStore *storests.Store) {
 	cfg := cfg.Get()
 
 	asynqCfg := asynq.Config{
@@ -179,11 +177,11 @@ func startUsingAsynq(cache cachemanager.Cache, store interstore.Repository, pub 
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 
 	mux := asynq.NewServeMux()
-	mux.Use(AsynqLogger)
+	mux.Use(middleware.AsynqLogger)
 
 	events := []asynqsvc.AsynqHandle{
 		wtrhandler.GetRequestHandle(fetch, insightsStore).ToAsynqHandler(),
-		wtrhandler.GetInternalConsumerHandle(store, cache, pub, insightsStore).ToAsynqHandler(),
+		wtrhandler.GetInternalConsumerHandle(store, pub, insightsStore).ToAsynqHandler(),
 	}
 
 	for _, event := range events {

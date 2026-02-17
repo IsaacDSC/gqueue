@@ -41,19 +41,19 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 	return m.recorder
 }
 
-// GetInternalEvent mocks base method.
-func (m *MockRepository) GetInternalEvent(ctx context.Context, eventName, serviceName, state string) (domain.Event, error) {
+// GetEvent mocks base method.
+func (m *MockRepository) GetEvent(ctx context.Context, eventName string) (domain.Event, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetInternalEvent", ctx, eventName, serviceName, state)
+	ret := m.ctrl.Call(m, "GetEvent", ctx, eventName)
 	ret0, _ := ret[0].(domain.Event)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetInternalEvent indicates an expected call of GetInternalEvent.
-func (mr *MockRepositoryMockRecorder) GetInternalEvent(ctx, eventName, serviceName, state any) *gomock.Call {
+// GetEvent indicates an expected call of GetEvent.
+func (mr *MockRepositoryMockRecorder) GetEvent(ctx, eventName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetInternalEvent", reflect.TypeOf((*MockRepository)(nil).GetInternalEvent), ctx, eventName, serviceName, state)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEvent", reflect.TypeOf((*MockRepository)(nil).GetEvent), ctx, eventName)
 }
 
 // MockPublisherInsights is a mock of PublisherInsights interface.

@@ -15,4 +15,5 @@ type Repository interface {
 	UpdateEvent(ctx context.Context, event domain.Event) error
 	GetEventByID(ctx context.Context, eventID uuid.UUID) (domain.Event, error)
 	GetAllSchedulers(ctx context.Context, state string) ([]domain.Event, error)
+	GetAllEvents(ctx context.Context) ([]domain.Event, error)
 }

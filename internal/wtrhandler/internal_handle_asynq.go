@@ -11,21 +11,19 @@ import (
 	"github.com/IsaacDSC/gqueue/pkg/logs"
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 
-	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 )
 
 type Repository interface {
-	GetInternalEvent(ctx context.Context, eventName, serviceName string, state string) (domain.Event, error)
+	GetEvent(ctx context.Context, eventName string) (domain.Event, error)
 }
 
 type PublisherInsights interface {
 	Published(ctx context.Context, input domain.PublisherMetric) error
 }
 
-func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub pubadapter.Publisher, insights PublisherInsights) asyncadapter.Handle[InternalPayload] {
+func GetInternalConsumerHandle(repo Repository, pub pubadapter.GenericPublisher, insights PublisherInsights) asyncadapter.Handle[InternalPayload] {
 
 	insertInsights := func(ctx context.Context, payload InternalPayload, started time.Time, isSuccess bool) {
 		l := ctxlogger.GetLogger(ctx)
@@ -57,16 +55,8 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub pubad
 
 			defer insertInsights(ctx, payload, started, err == nil)
 
-			var event domain.Event
-			key := cc.Key(domain.CacheKeyEventPrefix, payload.EventName)
-
-			env := cfg.Get()
-			err = cc.Once(ctx, key, &event, cc.GetDefaultTTL(), func(ctx context.Context) (any, error) {
-				return repo.GetInternalEvent(ctx, payload.EventName, env.InternalServiceName, "active")
-			})
-
+			event, err := repo.GetEvent(ctx, payload.EventName)
 			if errors.Is(err, domain.EventNotFound) {
-				logs.Warn("Event not found", "eventName", payload.EventName)
 				return nil
 			}
 
@@ -93,7 +83,7 @@ func GetInternalConsumerHandle(repo Repository, cc cachemanager.Cache, pub pubad
 
 				topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueRequestToExternal)
 				opts := pubadapter.Opts{Attributes: make(map[string]string), AsynqOpts: config}
-				if err = pub.Publish(ctx, tt.Option.WqType, topic, input, opts); err != nil {
+				if err = pub.Publish(ctx, topic, input, opts); err != nil {
 					err = fmt.Errorf("publish internal event: %w", err)
 					return
 				}
