@@ -28,12 +28,12 @@ func TestGetExternalHandle(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockPublisher := pubadapter.NewMockPublisher(ctrl)
+	mockPublisher := pubadapter.NewMockGenericPublisher(ctrl)
 
 	tests := []struct {
 		name           string
 		payload        InternalPayload
-		setupMock      func(*pubadapter.MockPublisher)
+		setupMock      func(*pubadapter.MockGenericPublisher)
 		expectedStatus int
 		expectedError  bool
 	}{
@@ -58,16 +58,15 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
-			setupMock: func(m *pubadapter.MockPublisher) {
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
-						gomock.Any(),
 						gomock.Any(),
 						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "user.created", payload.EventName)
 						assert.Equal(t, "123", payload.Data["user_id"])
@@ -113,16 +112,15 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
-			setupMock: func(m *pubadapter.MockPublisher) {
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
-						gomock.Any(),
 						gomock.Any(),
 						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "order.completed", payload.EventName)
 						assert.Equal(t, "ord_123456", payload.Data["order_id"])
@@ -167,16 +165,15 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
-			setupMock: func(m *pubadapter.MockPublisher) {
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
-						gomock.Any(),
 						gomock.Any(),
 						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "notification.send", payload.EventName)
 						assert.Equal(t, "user_456", payload.Data["user_id"])
@@ -214,16 +211,15 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
-			setupMock: func(m *pubadapter.MockPublisher) {
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
-						gomock.Any(),
 						gomock.Any(),
 						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
 						// Validate payload even on error scenario using assert
 						assert.Equal(t, "payment.failed", payload.EventName)
 						assert.Equal(t, "pay_error123", payload.Data["payment_id"])
@@ -251,16 +247,15 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType: pubadapter.LowLatency,
 				},
 			},
-			setupMock: func(m *pubadapter.MockPublisher) {
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
-						gomock.Any(),
 						gomock.Any(),
 						"your-project-id-event-queue-internal",
 						gomock.AssignableToTypeOf(InternalPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
 						// Validate empty/default payload using assert
 						assert.Equal(t, "system.ping", payload.EventName)
 						assert.Empty(t, payload.Data)

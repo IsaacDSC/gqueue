@@ -14,11 +14,17 @@ type ConfigDatabase struct {
 
 type Cache struct {
 	CacheAddr  string        `env:"CACHE_ADDR"`
-	DefaultTTL time.Duration `env:"CACHE_DEFAULT_TTL" default:"24h"`
+	DefaultTTL time.Duration `env:"CACHE_DEFAULT_TTL" env-default:"24h"`
 }
 
 type AsynqConfig struct {
 	Concurrency int `env:"WQ_CONCURRENCY"`
+}
+
+type ServerPort int
+
+func (p ServerPort) String() string {
+	return fmt.Sprintf(":%d", p)
 }
 
 type WQ string
@@ -48,9 +54,11 @@ type Config struct {
 	ConfigDatabase      ConfigDatabase
 	Cache               Cache
 	AsynqConfig         AsynqConfig
-	WQ                  WQ     `env:"WQ"`
-	InternalBaseURL     string `env:"INTERNAL_BASE_URL"`
-	InternalServiceName string `env:"INTERNAL_SERVICE_NAME"`
+	WQ                  WQ         `env:"WQ"`
+	InternalBaseURL     string     `env:"INTERNAL_BASE_URL"`
+	InternalServiceName string     `env:"INTERNAL_SERVICE_NAME"`
+	ApiPort             ServerPort `env:"API_PORT" env-default:"8080"`
+	BackofficePort      ServerPort `env:"BACKOFFICE_PORT" env-default:"8081"`
 }
 
 var cfg Config

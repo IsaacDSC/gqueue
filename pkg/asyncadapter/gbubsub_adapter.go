@@ -12,12 +12,12 @@ import (
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 )
 
-func (h Handle[T]) ToGPubSubHandler(pub pubadapter.Publisher) gpubsub.Handle {
+func (h Handle[T]) ToGPubSubHandler(pub pubadapter.GenericPublisher) gpubsub.Handle {
 
 	archivedMsg := func(ctx context.Context, msg *pubsub.Message) {
 		defer msg.Ack()
 		topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueDeadLetter)
-		if err := pub.Publish(ctx, pubadapter.HighThroughput, topic, msg, pubadapter.Opts{
+		if err := pub.Publish(ctx, topic, msg, pubadapter.Opts{
 			Attributes: msg.Attributes,
 		}); err != nil {
 			msg.Nack()
@@ -53,7 +53,7 @@ func (h Handle[T]) ToGPubSubHandler(pub pubadapter.Publisher) gpubsub.Handle {
 		msg.Attributes["retry_count"] = strconv.Itoa(retryCount)
 		topic := msg.Attributes["topic"]
 		time.Sleep(time.Second * 5)
-		if err := pub.Publish(ctx, pubadapter.HighThroughput, topic, msg, pubadapter.Opts{
+		if err := pub.Publish(ctx, topic, msg, pubadapter.Opts{
 			Attributes: msg.Attributes,
 		}); err != nil {
 			msg.Nack()

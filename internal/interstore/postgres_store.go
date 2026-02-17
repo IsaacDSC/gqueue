@@ -41,6 +41,38 @@ func NewPostgresStore(db *sql.DB) *PostgresStore {
 
 var _ Repository = (*PostgresStore)(nil)
 
+func (r *PostgresStore) GetAllEvents(ctx context.Context) ([]domain.Event, error) {
+	query := fmt.Sprintf(`SELECT %s FROM events WHERE deleted_at IS NULL AND state != 'archived'`, modelEventFields)
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query events: %w", err)
+	}
+
+	defer rows.Close()
+
+	events := make([]domain.Event, 0)
+	for rows.Next() {
+		var event ModelEvent
+		if err := rows.Scan(
+			&event.ID,
+			&event.Name,
+			&event.ServiceName,
+			&event.State,
+			&event.Triggers,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		events = append(events, event.ToDomain())
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate over events: %w", err)
+	}
+
+	return events, nil
+}
+
 func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, serviceName string, state string) (domain.Event, error) {
 	l := ctxlogger.GetLogger(ctx)
 

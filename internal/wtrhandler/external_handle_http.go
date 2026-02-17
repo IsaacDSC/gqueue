@@ -10,7 +10,7 @@ import (
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 )
 
-func Publisher(pub pubadapter.Publisher) httpadapter.HttpHandle {
+func Publisher(pub pubadapter.GenericPublisher) httpadapter.HttpHandle {
 	return httpadapter.HttpHandle{
 		Path: "POST /api/v1/event/publisher",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +33,7 @@ func Publisher(pub pubadapter.Publisher) httpadapter.HttpHandle {
 
 			topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueInternal)
 			opts := pubadapter.Opts{Attributes: payload.Attributes(topic), AsynqOpts: payload.AsynqOpts()}
-			if err := pub.Publish(r.Context(), payload.Opts.WqType, topic, payload, opts); err != nil {
+			if err := pub.Publish(r.Context(), topic, payload, opts); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}

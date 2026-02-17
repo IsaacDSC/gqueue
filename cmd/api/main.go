@@ -4,6 +4,9 @@ import (
 	"context"
 	"flag"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -17,6 +20,8 @@ import (
 	"github.com/hibiken/asynq"
 
 	"github.com/IsaacDSC/gqueue/cmd/setup"
+	"github.com/IsaacDSC/gqueue/cmd/setup/api"
+	"github.com/IsaacDSC/gqueue/cmd/setup/backoffice"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
@@ -26,10 +31,10 @@ import (
 const appName = "gqueue"
 
 // TODO: rename to --scope=...
-// go run . --service=server
-// go run . --service=worker
+// go run . --service=all
+// go run . --service=backoffice
+// go run . --service=api
 // go run . --service=archived-notification
-// go run . [server, worker]
 func main() {
 	conf := cfg.Get()
 	ctx := context.Background()
@@ -78,7 +83,7 @@ func main() {
 		panic(err)
 	}
 
-	insights := storests.NewStore(cacheClient)
+	storeInsights := storests.NewStore(cacheClient)
 
 	store, err := interstore.NewPostgresStoreFromDSN(conf.ConfigDatabase.DbConn)
 	if err != nil {
@@ -94,14 +99,27 @@ func main() {
 	service := flag.String("service", "all", "service to run")
 	flag.Parse()
 
-	if *service == "worker" {
-		setup.NewWorker().WithClientPubsub(highPerformanceAsyncClient).Start(cc, store, pub, insights)
+	// TODO: adicionar graceful shutdown
+	if *service == "api" {
+		api.Start(
+			ctx,
+			store,
+			highPerformanceAsyncClient,
+			mediumPerformancePublisher,
+			storeInsights,
+		)
 		return
 	}
 
 	// TODO: adicionar graceful shutdown
-	if *service == "server" {
-		setup.StartServer(cacheClient, cc, store, pub, insights)
+	if *service == "backoffice" {
+		backoffice.Start(
+			cacheClient,
+			cc,
+			store,
+			pub,
+			storeInsights,
+		)
 		return
 	}
 
@@ -111,7 +129,32 @@ func main() {
 		return
 	}
 
-	go setup.StartServer(cacheClient, cc, store, pub, insights)
-	setup.NewWorker().WithClientPubsub(highPerformanceAsyncClient).Start(cc, store, pub, insights)
+	go backoffice.Start(
+		cacheClient,
+		cc,
+		store,
+		pub,
+		storeInsights,
+	)
 
+	go api.Start(
+		ctx,
+		store,
+		highPerformanceAsyncClient,
+		mediumPerformancePublisher,
+		storeInsights,
+	)
+
+	// Graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down servers...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	<-shutdownCtx.Done()
+	log.Println("Server shutdown complete")
 }

@@ -31,3 +31,4 @@ coverage.out
 coverage.txt
 coverage.xml
 specs
+.vscode

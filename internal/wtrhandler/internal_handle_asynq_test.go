@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
-	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +28,7 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 	tests := []struct {
 		name           string
 		payload        InternalPayload
-		setupMocks     func(*pubadapter.MockPublisher, *MockRepository, *cachemanager.MockCache, *MockPublisherInsights)
+		setupMocks     func(*pubadapter.MockGenericPublisher, *MockRepository, *MockPublisherInsights)
 		expectedError  bool
 		expectedErrMsg string
 	}{
@@ -55,34 +53,26 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					MaxRetries: 3,
 				},
 			},
-			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
-				key := cachemanager.Key("event-queue.user.created")
-				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.created").Return(key)
-				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
-				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						event := domain.Event{
-							Name:        "user.created",
-							ServiceName: "user-service",
-							Type:        "internal",
-							Triggers: []domain.Trigger{
-								{
-									ServiceName: "notification-service",
-									Host:        "https://api.notification.com",
-									Path:        "/webhook/user-created",
-									Headers: map[string]string{
-										"X-API-Key": "secret",
-									},
-								},
+			setupMocks: func(mockPub *pubadapter.MockGenericPublisher, mockRepo *MockRepository, mockInsights *MockPublisherInsights) {
+				mockRepo.EXPECT().GetEvent(gomock.Any(), "user.created").Return(domain.Event{
+					Name:        "user.created",
+					ServiceName: "user-service",
+					Type:        "internal",
+					Triggers: []domain.Trigger{
+						{
+							ServiceName: "notification-service",
+							Host:        "https://api.notification.com",
+							Path:        "/webhook/user-created",
+							Headers: map[string]string{
+								"X-API-Key": "secret",
 							},
-						}
-						*dest = event
-						return nil
-					})
+						},
+					},
+				}, nil)
 
 				mockPub.EXPECT().
-					Publish(gomock.Any(), gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload RequestPayload, opts pubadapter.Opts) error {
+					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) error {
 						assert.Equal(t, "user.created", payload.EventName)
 						assert.Equal(t, "notification-service", payload.Trigger.ServiceName)
 						assert.Equal(t, "https://api.notification.com", payload.Trigger.BaseUrl)
@@ -130,41 +120,33 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
-			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
-				key := cachemanager.Key("event-queue.order.completed")
-				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "order.completed").Return(key)
-				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
-				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						event := domain.Event{
-							Name:        "order.completed",
-							ServiceName: "order-service",
-							Triggers: []domain.Trigger{
-								{
-									ServiceName: "billing-service",
-									Host:        "https://api.billing.com",
-									Path:        "/webhook/order-completed",
-									Headers: map[string]string{
-										"X-API-Key": "billing-key",
-									},
-								},
-								{
-									ServiceName: "analytics-service",
-									Host:        "https://api.analytics.com",
-									Path:        "/webhook/order-completed",
-									Headers: map[string]string{
-										"X-API-Key": "analytics-key",
-									},
-								},
+			setupMocks: func(mockPub *pubadapter.MockGenericPublisher, mockRepo *MockRepository, mockInsights *MockPublisherInsights) {
+				mockRepo.EXPECT().GetEvent(gomock.Any(), "order.completed").Return(domain.Event{
+					Name:        "order.completed",
+					ServiceName: "order-service",
+					Triggers: []domain.Trigger{
+						{
+							ServiceName: "billing-service",
+							Host:        "https://api.billing.com",
+							Path:        "/webhook/order-completed",
+							Headers: map[string]string{
+								"X-API-Key": "billing-key",
 							},
-						}
-						*dest = event
-						return nil
-					})
+						},
+						{
+							ServiceName: "analytics-service",
+							Host:        "https://api.analytics.com",
+							Path:        "/webhook/order-completed",
+							Headers: map[string]string{
+								"X-API-Key": "analytics-key",
+							},
+						},
+					},
+				}, nil)
 
 				mockPub.EXPECT().
-					Publish(gomock.Any(), gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
-					DoAndReturn(func(ctx context.Context, wqtype pubadapter.WQType, eventName string, payload RequestPayload, opts pubadapter.Opts) error {
+					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
+					DoAndReturn(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) error {
 						assert.Equal(t, "order.completed", payload.EventName)
 						assert.Contains(t, []string{"billing-service", "analytics-service"}, payload.Trigger.ServiceName)
 						assert.Equal(t, "order-123", payload.Data["order_id"])
@@ -201,12 +183,9 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
-				key := cachemanager.Key("event-queue.nonexistent.event")
-				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "nonexistent.event").Return(key)
-				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
-				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					Return(domain.EventNotFound)
+			setupMocks: func(mockPub *pubadapter.MockGenericPublisher, mockRepo *MockRepository, mockInsights *MockPublisherInsights) {
+				mockRepo.EXPECT().GetEvent(gomock.Any(), "nonexistent.event").Return(domain.Event{}, domain.EventNotFound)
+
 				// Insights is called even when event is not found
 				mockInsights.EXPECT().
 					Published(gomock.Any(), gomock.Any()).
@@ -236,30 +215,22 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
-				key := cachemanager.Key("event-queue.user.updated")
-				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "user.updated").Return(key)
-				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
-				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						event := domain.Event{
-							Name:        "user.updated",
-							ServiceName: "user-service",
-							Triggers: []domain.Trigger{
-								{
-									ServiceName: "notification-service",
-									Host:        "https://api.notification.com",
-									Path:        "/webhook/user-updated",
-									Headers:     map[string]string{},
-								},
-							},
-						}
-						*dest = event
-						return nil
-					})
+			setupMocks: func(mockPub *pubadapter.MockGenericPublisher, mockRepo *MockRepository, mockInsights *MockPublisherInsights) {
+				mockRepo.EXPECT().GetEvent(gomock.Any(), "user.updated").Return(domain.Event{
+					Name:        "user.updated",
+					ServiceName: "user-service",
+					Triggers: []domain.Trigger{
+						{
+							ServiceName: "notification-service",
+							Host:        "https://api.notification.com",
+							Path:        "/webhook/user-updated",
+							Headers:     map[string]string{},
+						},
+					},
+				}, nil)
 
 				mockPub.EXPECT().
-					Publish(gomock.Any(), gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
+					Publish(gomock.Any(), "your-project-id-event-queue-request-to-external", gomock.Any(), gomock.Any()).
 					Return(errors.New("publisher connection failed")).
 					Times(1)
 
@@ -292,20 +263,13 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 				},
 				Opts: domain.Opt{},
 			},
-			setupMocks: func(mockPub *pubadapter.MockPublisher, mockRepo *MockRepository, mockCache *cachemanager.MockCache, mockInsights *MockPublisherInsights) {
-				key := cachemanager.Key("event-queue.archived.event")
-				mockCache.EXPECT().Key(domain.CacheKeyEventPrefix, "archived.event").Return(key)
-				mockCache.EXPECT().GetDefaultTTL().Return(5 * time.Minute)
-				mockCache.EXPECT().Once(gomock.Any(), key, gomock.Any(), 5*time.Minute, gomock.Any()).
-					DoAndReturn(func(ctx context.Context, key cachemanager.Key, dest *domain.Event, ttl time.Duration, fetchFunc func(context.Context) (any, error)) error {
-						event := domain.Event{
-							Name:        "archived.event",
-							ServiceName: "archive-service",
-							Triggers:    []domain.Trigger{}, // Empty triggers
-						}
-						*dest = event
-						return nil
-					})
+			setupMocks: func(mockPub *pubadapter.MockGenericPublisher, mockRepo *MockRepository, mockInsights *MockPublisherInsights) {
+				mockRepo.EXPECT().GetEvent(gomock.Any(), "archived.event").Return(domain.Event{
+					Name:        "archived.event",
+					ServiceName: "archive-service",
+					Triggers:    []domain.Trigger{}, // Empty triggers
+				}, nil)
+
 				// Insights is called even when there are no triggers to process
 				mockInsights.EXPECT().
 					Published(gomock.Any(), gomock.Any()).
@@ -325,16 +289,15 @@ func TestGetInternalConsumerHandle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create fresh mocks for each test
-			mockPublisher := pubadapter.NewMockPublisher(ctrl)
+			mockPublisher := pubadapter.NewMockGenericPublisher(ctrl)
 			mockRepository := NewMockRepository(ctrl)
-			mockCache := cachemanager.NewMockCache(ctrl)
 			mockInsights := NewMockPublisherInsights(ctrl)
 
 			// Setup mocks
-			tt.setupMocks(mockPublisher, mockRepository, mockCache, mockInsights)
+			tt.setupMocks(mockPublisher, mockRepository, mockInsights)
 
 			// Create the handler
-			handle := GetInternalConsumerHandle(mockRepository, mockCache, mockPublisher, mockInsights)
+			handle := GetInternalConsumerHandle(mockRepository, mockPublisher, mockInsights)
 
 			// Verify event name
 			assert.Equal(t, "event-queue.internal", handle.EventName)
