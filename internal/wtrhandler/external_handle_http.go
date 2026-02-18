@@ -99,7 +99,7 @@ func PublisherEvent(
 				topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueRequestToExternal)
 				opts := pubadapter.Opts{Attributes: make(map[string]string), AsynqOpts: config, Type: eventType}
 				if err = adaptpub.Publish(ctx, topic, input, opts); err != nil {
-					err = fmt.Errorf("publish internal event: %w", err)
+					err = fmt.Errorf("publish event: %w", err)
 					l.Error("failed to publish event", "error", err.Error())
 					http.Error(w, "failed to publish event", http.StatusInternalServerError)
 					return
