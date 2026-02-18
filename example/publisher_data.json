@@ -1,6 +1,6 @@
 {
   "service_name": "my-app",
-  "event_name": "payment.charged1",
+  "event_name": "payment.charged",
   "data": {
     "key": "value"
   },
