@@ -38,7 +38,7 @@ func TestGetPathEventHandle(t *testing.T) {
 				ServiceName: "user-service",
 				State:       "active",
 				Type:        "external",
-				Triggers: []domain.Trigger{
+				Consumers: []domain.Consumer{
 					{
 						ServiceName: "notification-service",
 						Host:        "https://api.example.com",

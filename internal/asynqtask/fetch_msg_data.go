@@ -7,7 +7,7 @@ type FetchMsg struct {
 	QueueName  string
 	Tasks      []string
 	Data       any
-	Schedulers []domain.Trigger
+	Schedulers []domain.Consumer
 }
 
 type TaskArchivedData struct {

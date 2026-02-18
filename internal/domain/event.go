@@ -11,29 +11,29 @@ import (
 )
 
 type Event struct {
-	ID          uuid.UUID `json:"id" bson:"id"`
-	Name        string    `json:"name" bson:"name"`
-	ServiceName string    `json:"service_name" bson:"service_name"`
-	State       string    `json:"state" bson:"state"`
-	Type        Type      `json:"type" bson:"type"`
-	Triggers    []Trigger `json:"triggers" bson:"triggers"`
+	ID          uuid.UUID  `json:"id" bson:"id"`
+	Name        string     `json:"name" bson:"name"`
+	ServiceName string     `json:"service_name" bson:"service_name"`
+	State       string     `json:"state" bson:"state"`
+	Type        Type       `json:"type" bson:"type"`
+	Consumers   []Consumer `json:"consumers" bson:"consumers"`
 }
 
 func (e *Event) Validate() error {
-	if e.Type != TriggerTypeInternal && e.Type != TriggerTypeExternal {
+	if e.Type != EventTypeInternal && e.Type != EventTypeExternal {
 		return fmt.Errorf("invalid event type: %s", e.Type)
 	}
 
-	for _, trigger := range e.Triggers {
-		if err := trigger.Option.Validate(); err != nil {
-			return fmt.Errorf("invalid trigger option: %w", err)
+	for _, consumer := range e.Consumers {
+		if err := consumer.Option.Validate(); err != nil {
+			return fmt.Errorf("invalid consumer option: %w", err)
 		}
 	}
 
 	return nil
 }
 
-type Trigger struct {
+type Consumer struct {
 	ServiceName string            `json:"service_name" bson:"service_name"`
 	Host        string            `json:"host" bson:"host"`
 	Path        string            `json:"path" bson:"path"`
@@ -60,8 +60,8 @@ func (vt Type) String() string {
 }
 
 const (
-	TriggerTypeInternal Type = "internal"
-	TriggerTypeExternal Type = "external"
+	EventTypeInternal Type = "internal"
+	EventTypeExternal Type = "external"
 )
 
 func (o Opt) Validate() error {

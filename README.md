@@ -127,7 +127,7 @@ graph TB
     Consumers[Consumer Services]
 
     %% Flows
-    Services -->|Create Events<br/>Register Triggers<br/>Publish Events| API
+    Services -->|Create Events<br/>Register Consumers<br/>Publish Events| API
     API --> Database
     API --> Queue
     Queue --> Worker

@@ -84,21 +84,21 @@ func PublisherEvent(
 			eventType := event.Type.String()
 			if eventType == "" {
 				l.Warn("event type is empty, defaulting to internal", "event_name", event.Name)
-				eventType = domain.TriggerTypeInternal.String()
+				eventType = domain.EventTypeInternal.String()
 			}
 
-			for _, trigger := range event.Triggers {
-				config := trigger.Option.ToAsynqOptions()
+			for _, consumer := range event.Consumers {
+				config := consumer.Option.ToAsynqOptions()
 
 				input := RequestPayload{
 					EventName: event.Name,
 					Data:      payload.Data,
 					Headers:   payload.Metadata.Headers,
-					Trigger: Trigger{
-						ServiceName: trigger.ServiceName,
-						BaseUrl:     trigger.Host,
-						Path:        trigger.Path,
-						Headers:     trigger.Headers,
+					Consumer: Consumer{
+						ServiceName: consumer.ServiceName,
+						BaseUrl:     consumer.Host,
+						Path:        consumer.Path,
+						Headers:     consumer.Headers,
 					},
 				}
 

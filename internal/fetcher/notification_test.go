@@ -28,7 +28,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 		name           string
 		data           map[string]any
 		headers        map[string]string
-		trigger        wtrhandler.Trigger
+		consumer       wtrhandler.Consumer
 		serverResponse serverResponse
 		wantErr        bool
 		errContains    string
@@ -44,7 +44,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"Authorization": "Bearer token123",
 				"X-Custom":      "custom-value",
 			},
-			trigger: wtrhandler.Trigger{
+			consumer: wtrhandler.Consumer{
 				ServiceName: "test-service",
 				BaseUrl:     "",
 				Path:        "/webhook",
@@ -64,7 +64,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			headers: map[string]string{
 				"Content-Type": "application/json",
 			},
-			trigger: wtrhandler.Trigger{
+			consumer: wtrhandler.Consumer{
 				ServiceName: "user-service",
 				BaseUrl:     "",
 				Path:        "/users/webhook",
@@ -81,7 +81,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"ping": "pong",
 			},
 			headers: map[string]string{},
-			trigger: wtrhandler.Trigger{
+			consumer: wtrhandler.Consumer{
 				ServiceName: "ping-service",
 				BaseUrl:     "",
 				Path:        "/ping",
@@ -98,7 +98,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"test": "boundary",
 			},
 			headers: map[string]string{},
-			trigger: wtrhandler.Trigger{
+			consumer: wtrhandler.Consumer{
 				ServiceName: "boundary-service",
 				BaseUrl:     "",
 				Path:        "/boundary",
@@ -115,7 +115,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"invalid": "data",
 			},
 			headers: map[string]string{},
-			trigger: wtrhandler.Trigger{
+			consumer: wtrhandler.Consumer{
 				ServiceName: "validation-service",
 				BaseUrl:     "",
 				Path:        "/validate",
@@ -133,7 +133,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"sensitive": "data",
 			},
 			headers: map[string]string{},
-			trigger: wtrhandler.Trigger{
+			consumer: wtrhandler.Consumer{
 				ServiceName: "auth-service",
 				BaseUrl:     "",
 				Path:        "/secure",
@@ -151,7 +151,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"event": "not-found",
 			},
 			headers: map[string]string{},
-			trigger: wtrhandler.Trigger{
+			consumer: wtrhandler.Consumer{
 				ServiceName: "missing-service",
 				BaseUrl:     "",
 				Path:        "/missing",
@@ -169,7 +169,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"event": "server-error",
 			},
 			headers: map[string]string{},
-			trigger: wtrhandler.Trigger{
+			consumer: wtrhandler.Consumer{
 				ServiceName: "error-service",
 				BaseUrl:     "",
 				Path:        "/error",
@@ -187,7 +187,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"redirect": "test",
 			},
 			headers: map[string]string{},
-			trigger: wtrhandler.Trigger{
+			consumer: wtrhandler.Consumer{
 				ServiceName: "redirect-service",
 				BaseUrl:     "",
 				Path:        "/redirect",
@@ -205,7 +205,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"complex": "url",
 			},
 			headers: map[string]string{},
-			trigger: wtrhandler.Trigger{
+			consumer: wtrhandler.Consumer{
 				ServiceName: "complex-service",
 				BaseUrl:     "",
 				Path:        "/api/v1/webhooks",
@@ -223,24 +223,24 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			server := createTestServer(t, tt.serverResponse)
 			defer server.Close()
 
-			tt.trigger.BaseUrl = server.URL
+			tt.consumer.BaseUrl = server.URL
 
 			notification := NewNotification()
 
 			ctx := context.Background()
-			err := notification.NotifyTrigger(ctx, tt.data, tt.headers, tt.trigger)
+			err := notification.Notify(ctx, tt.data, tt.headers, tt.consumer)
 
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("NotifyTrigger() expected error but got none")
+					t.Errorf("Notify() expected error but got none")
 					return
 				}
 				if tt.errContains != "" && !containsString(err.Error(), tt.errContains) {
-					t.Errorf("NotifyTrigger() error = %v, want error containing %v", err, tt.errContains)
+					t.Errorf("Notify() error = %v, want error containing %v", err, tt.errContains)
 				}
 			} else {
 				if err != nil {
-					t.Errorf("NotifyTrigger() unexpected error = %v", err)
+					t.Errorf("Notify() unexpected error = %v", err)
 				}
 			}
 		})
@@ -255,20 +255,20 @@ func TestNotification_NotifyTrigger_InvalidData(t *testing.T) {
 		"channel": make(chan int),
 	}
 
-	trigger := wtrhandler.Trigger{
+	trigger := wtrhandler.Consumer{
 		ServiceName: "test-service",
 		BaseUrl:     "http://example.com",
 		Path:        "/webhook",
 	}
 
-	err := notification.NotifyTrigger(ctx, invalidData, nil, trigger)
+	err := notification.Notify(ctx, invalidData, nil, trigger)
 	if err == nil {
-		t.Error("NotifyTrigger() expected error for invalid data but got none")
+		t.Error("Notify() expected error for invalid data but got none")
 		return
 	}
 
 	if !containsString(err.Error(), "marshal data") {
-		t.Errorf("NotifyTrigger() error = %v, want error containing 'marshal data'", err)
+		t.Errorf("Notify() error = %v, want error containing 'marshal data'", err)
 	}
 }
 

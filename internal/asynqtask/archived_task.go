@@ -11,7 +11,7 @@ import (
 )
 
 type CacheManager interface {
-	FindAllTriggers(ctx context.Context) ([]domain.Event, error)
+	FindAllConsumers(ctx context.Context) ([]domain.Event, error)
 	FindAllQueues(ctx context.Context) ([]Queue, error)
 	FindArchivedTasks(ctx context.Context, queue string) ([]string, error)
 	GetMsgArchivedTask(ctx context.Context, queue, task string) (RawMsg, error)
@@ -42,7 +42,7 @@ func (n TaskManager) NotifyListeners(ctx context.Context) error {
 	l := ctxlogger.GetLogger(ctx)
 	l.Debug("Starting notification process")
 
-	events, err := n.cm.FindAllTriggers(ctx)
+	events, err := n.cm.FindAllConsumers(ctx)
 	if errors.Is(err, ErrorNotFound) {
 		results, err := n.store.GetAllSchedulers(ctx, "archived")
 		if errors.Is(domain.EventNotFound, err) {
@@ -80,7 +80,7 @@ func (n TaskManager) NotifyListeners(ctx context.Context) error {
 					QueueName:  msg.Queue,
 					Tasks:      msg.Tasks,
 					Data:       msg.Msg["data"],
-					Schedulers: events.Triggers,
+					Schedulers: events.Consumers,
 				})
 			}
 		}

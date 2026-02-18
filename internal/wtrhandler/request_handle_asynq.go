@@ -12,7 +12,7 @@ import (
 
 type RequestPayload struct {
 	EventName string            `json:"event_name"`
-	Trigger   Trigger           `json:"trigger"`
+	Consumer  Consumer          `json:"consumer"`
 	Data      map[string]any    `json:"data"`
 	Headers   map[string]string `json:"headers,omitempty"`
 }
@@ -30,7 +30,7 @@ func (p RequestPayload) mergeHeaders(headers map[string]string) map[string]strin
 }
 
 type Fetcher interface {
-	NotifyTrigger(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error
+	Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error
 }
 
 type ConsumerInsights interface {
@@ -44,7 +44,7 @@ func GetRequestHandle(fetch Fetcher, insights ConsumerInsights) asyncadapter.Han
 		finished := time.Now()
 		if err := insights.Consumed(ctx, domain.ConsumerMetric{
 			TopicName:      payload.EventName,
-			ConsumerName:   payload.Trigger.ServiceName,
+			ConsumerName:   payload.Consumer.ServiceName,
 			TimeStarted:    started,
 			TimeEnded:      finished,
 			TimeDurationMs: finished.Sub(started).Milliseconds(),
@@ -66,10 +66,10 @@ func GetRequestHandle(fetch Fetcher, insights ConsumerInsights) asyncadapter.Han
 				return fmt.Errorf("get payload: %w", err)
 			}
 
-			headers := payload.mergeHeaders(payload.Trigger.Headers)
-			if err := fetch.NotifyTrigger(ctx, payload.Data, headers, payload.Trigger); err != nil {
+			headers := payload.mergeHeaders(payload.Consumer.Headers)
+			if err := fetch.Notify(ctx, payload.Data, headers, payload.Consumer); err != nil {
 				insertInsights(ctx, payload, started, false)
-				return fmt.Errorf("fetch trigger: %w", err)
+				return fmt.Errorf("fetch consumer: %w", err)
 			}
 
 			insertInsights(ctx, payload, started, true)

@@ -12,18 +12,18 @@ type ModelEvent struct {
 	Name        string
 	ServiceName string
 	State       string
-	Triggers    []byte
+	Consumers   []byte
 }
 
 func (m ModelEvent) ToDomain() domain.Event {
-	var triggers []domain.Trigger
-	json.Unmarshal(m.Triggers, &triggers)
+	var consumers []domain.Consumer
+	json.Unmarshal(m.Consumers, &consumers)
 
 	return domain.Event{
 		ID:          m.ID,
 		Name:        m.Name,
 		ServiceName: m.ServiceName,
 		State:       m.State,
-		Triggers:    triggers,
+		Consumers:   consumers,
 	}
 }

@@ -1,7 +1,7 @@
 {
   "name": "payment.charged",
   "type": "external",
-  "triggers": [
+  "consumers": [
     {
       "service_name": "external-service",
       "type": "persistent",
