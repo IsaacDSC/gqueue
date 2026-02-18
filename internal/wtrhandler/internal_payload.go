@@ -3,16 +3,12 @@ package wtrhandler
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/hibiken/asynq"
 )
 
 type InternalPayload struct {
-	EventName string     `json:"event_name"`
-	Data      Data       `json:"data"`
-	Metadata  Metadata   `json:"metadata"`
-	Opts      domain.Opt `json:"opts"`
+	EventName string   `json:"event_name"`
+	Data      Data     `json:"data"`
+	Metadata  Metadata `json:"metadata"`
 }
 
 func (p InternalPayload) Validate() error {
@@ -25,16 +21,6 @@ func (p InternalPayload) Validate() error {
 	}
 
 	return nil
-}
-
-func (p InternalPayload) AsynqOpts() []asynq.Option {
-	return p.Opts.ToAsynqOptions()
-}
-
-func (p InternalPayload) Attributes(topicName string) map[string]string {
-	opts := p.Opts.Attributes()
-	opts["topic"] = topicName
-	return opts
 }
 
 type Metadata struct {

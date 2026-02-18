@@ -32,7 +32,6 @@ func Start(
 		backoffice.CreateConsumer(cache, store),
 		backoffice.GetEvent(cache, store),
 		backoffice.GetEvents(cache, store),
-		backoffice.GetPathEventHandle(cache, store),
 		backoffice.GetRegisterTaskConsumerArchived(cache, store),
 		backoffice.RemoveEvent(cache, store),
 		backoffice.GetInsightsHandle(insightsStore),

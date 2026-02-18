@@ -1,6 +1,13 @@
 {
   "name": "payment.charged",
   "type": "external",
+  "option": {
+    "wq_type": "low_throughput",
+    "max_retries": 3,
+    "retention": "168h",
+    "unique_ttl": "60s",
+    "schedule_in": "100ms"
+  },
   "consumers": [
     {
       "service_name": "external-service",
@@ -9,12 +16,6 @@
       "path": "/payment/charged",
       "headers": {
         "Content-Type": "application/json"
-      },
-      "option": {
-        "wq_type": "low_throughput",
-        "max_retries": 3,
-        "retention": "168h",
-        "unique_ttl": "60s"
       }
     }
   ]

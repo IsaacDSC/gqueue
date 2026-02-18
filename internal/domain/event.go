@@ -16,6 +16,7 @@ type Event struct {
 	ServiceName string     `json:"service_name" bson:"service_name"`
 	State       string     `json:"state" bson:"state"`
 	Type        Type       `json:"type" bson:"type"`
+	Option      Opt        `json:"option" bson:"option"`
 	Consumers   []Consumer `json:"consumers" bson:"consumers"`
 }
 
@@ -24,10 +25,8 @@ func (e *Event) Validate() error {
 		return fmt.Errorf("invalid event type: %s", e.Type)
 	}
 
-	for _, consumer := range e.Consumers {
-		if err := consumer.Option.Validate(); err != nil {
-			return fmt.Errorf("invalid consumer option: %w", err)
-		}
+	if err := e.Option.Validate(); err != nil {
+		return fmt.Errorf("invalid event option: %w", err)
 	}
 
 	return nil
@@ -38,7 +37,6 @@ type Consumer struct {
 	Host        string            `json:"host" bson:"host"`
 	Path        string            `json:"path" bson:"path"`
 	Headers     map[string]string `json:"headers" bson:"headers"`
-	Option      Opt               `json:"option" bson:"option"`
 }
 
 type Opt struct {
