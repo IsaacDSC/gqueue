@@ -1,6 +1,6 @@
 -- CONSUMERS INSCRITOS NOS TOPICOS
 SELECT
-  e.unique_key as topic,
+  e.name as topic,
   CONCAT(elem->>'host', elem->>'path') AS consumer
 FROM events AS e
 CROSS JOIN LATERAL jsonb_array_elements(e.consumers) AS elem

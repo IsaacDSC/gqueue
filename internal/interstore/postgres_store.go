@@ -73,7 +73,7 @@ func (r *PostgresStore) GetAllEvents(ctx context.Context) ([]domain.Event, error
 	return events, nil
 }
 
-func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName, serviceName string, state string) (domain.Event, error) {
+func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName string) (domain.Event, error) {
 	l := ctxlogger.GetLogger(ctx)
 
 	query := `

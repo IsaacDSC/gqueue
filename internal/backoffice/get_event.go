@@ -24,7 +24,7 @@ func GetEvent(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
 
 			var event domain.Event
 			if err := cc.Once(ctx, key, &event, defaultTTL, func(ctx context.Context) (any, error) {
-				return repo.GetInternalEvent(ctx, eventName, serviceName, "active")
+				return repo.GetInternalEvent(ctx, eventName)
 			}); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
