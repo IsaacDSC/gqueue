@@ -34,6 +34,7 @@ func TestGetExternalHandle(t *testing.T) {
 		name           string
 		payload        InternalPayload
 		setupMock      func(*pubadapter.MockGenericPublisher)
+		setupStoreMock func(*MockStore)
 		expectedStatus int
 		expectedError  bool
 	}{
@@ -57,6 +58,17 @@ func TestGetExternalHandle(t *testing.T) {
 					MaxRetries: 3,
 					WqType:     pubadapter.LowLatency,
 				},
+			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "user.created").Return(domain.Event{
+					Name: "user.created",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{{
+						ServiceName: "test-service",
+						Host:        "http://localhost:8080",
+						Path:        "/webhook",
+					}},
+				}, nil).Times(1)
 			},
 			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
@@ -110,6 +122,17 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "order.completed").Return(domain.Event{
+					Name: "order.completed",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{{
+						ServiceName: "test-service",
+						Host:        "http://localhost:8080",
+						Path:        "/webhook",
+					}},
+				}, nil).Times(1)
+			},
 			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
@@ -157,6 +180,17 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "notification.send").Return(domain.Event{
+					Name: "notification.send",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{{
+						ServiceName: "test-service",
+						Host:        "http://localhost:8080",
+						Path:        "/webhook",
+					}},
+				}, nil).Times(1)
+			},
 			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
@@ -198,6 +232,17 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "payment.failed").Return(domain.Event{
+					Name: "payment.failed",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{{
+						ServiceName: "test-service",
+						Host:        "http://localhost:8080",
+						Path:        "/webhook",
+					}},
+				}, nil).Times(1)
+			},
 			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
@@ -232,6 +277,17 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType: pubadapter.LowLatency,
 				},
 			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "system.ping").Return(domain.Event{
+					Name: "system.ping",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{{
+						ServiceName: "test-service",
+						Host:        "http://localhost:8080",
+						Path:        "/webhook",
+					}},
+				}, nil).Times(1)
+			},
 			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
@@ -251,6 +307,142 @@ func TestGetExternalHandle(t *testing.T) {
 			expectedStatus: http.StatusAccepted,
 			expectedError:  false,
 		},
+		{
+			name: "get_event_returns_event_not_found",
+			payload: InternalPayload{
+				EventName: "nonexistent.event",
+				Data: Data{
+					"key": "value",
+				},
+				Metadata: Metadata{
+					Source:      "test-service",
+					Version:     "1.0",
+					Environment: "test",
+				},
+				Opts: domain.Opt{
+					WqType: pubadapter.LowLatency,
+				},
+			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "nonexistent.event").Return(domain.Event{}, domain.EventNotFound).Times(1)
+			},
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
+				// No publish should be called when event is not found
+			},
+			expectedStatus: http.StatusNotFound,
+			expectedError:  true,
+		},
+		{
+			name: "get_event_returns_other_error",
+			payload: InternalPayload{
+				EventName: "error.event",
+				Data: Data{
+					"key": "value",
+				},
+				Metadata: Metadata{
+					Source:      "test-service",
+					Version:     "1.0",
+					Environment: "test",
+				},
+				Opts: domain.Opt{
+					WqType: pubadapter.LowLatency,
+				},
+			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "error.event").Return(domain.Event{}, errors.New("database connection error")).Times(1)
+			},
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
+				// No publish should be called when store returns error
+			},
+			expectedStatus: http.StatusInternalServerError,
+			expectedError:  true,
+		},
+		{
+			name: "event_with_zero_triggers",
+			payload: InternalPayload{
+				EventName: "no.triggers.event",
+				Data: Data{
+					"key": "value",
+				},
+				Metadata: Metadata{
+					Source:      "test-service",
+					Version:     "1.0",
+					Environment: "test",
+				},
+				Opts: domain.Opt{
+					WqType: pubadapter.LowLatency,
+				},
+			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "no.triggers.event").Return(domain.Event{
+					Name:     "no.triggers.event",
+					Type:     domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{}, // Empty triggers
+				}, nil).Times(1)
+			},
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
+				// No publish should be called when there are no triggers
+			},
+			expectedStatus: http.StatusAccepted,
+			expectedError:  false,
+		},
+		{
+			name: "event_with_multiple_triggers",
+			payload: InternalPayload{
+				EventName: "multi.trigger.event",
+				Data: Data{
+					"user_id": "456",
+				},
+				Metadata: Metadata{
+					Source:      "multi-service",
+					Version:     "1.0",
+					Environment: "test",
+					Headers: map[string]string{
+						"Content-Type": "application/json",
+					},
+				},
+				Opts: domain.Opt{
+					MaxRetries: 3,
+					WqType:     pubadapter.LowLatency,
+				},
+			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "multi.trigger.event").Return(domain.Event{
+					Name: "multi.trigger.event",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{
+						{
+							ServiceName: "service-one",
+							Host:        "http://localhost:8081",
+							Path:        "/webhook1",
+						},
+						{
+							ServiceName: "service-two",
+							Host:        "http://localhost:8082",
+							Path:        "/webhook2",
+						},
+						{
+							ServiceName: "service-three",
+							Host:        "http://localhost:8083",
+							Path:        "/webhook3",
+						},
+					},
+				}, nil).Times(1)
+			},
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
+				m.EXPECT().
+					Publish(
+						gomock.Any(),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
+						gomock.Any(),
+					).
+					Return(nil).
+					Times(3) // Should be called once for each trigger
+			},
+			expectedStatus: http.StatusAccepted,
+			expectedError:  false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -260,15 +452,7 @@ func TestGetExternalHandle(t *testing.T) {
 
 			// Create mocks for Store and PublisherInsights using generated mocks
 			store := NewMockStore(ctrl)
-			store.EXPECT().GetEvent(gomock.Any(), tt.payload.EventName).Return(domain.Event{
-				Name: tt.payload.EventName,
-				Type: domain.TriggerTypeInternal,
-				Triggers: []domain.Trigger{{
-					ServiceName: "test-service",
-					Host:        "http://localhost:8080",
-					Path:        "/webhook",
-				}},
-			}, nil).Times(1)
+			tt.setupStoreMock(store)
 
 			insights := NewMockPublisherInsights(ctrl)
 			insights.EXPECT().Published(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()

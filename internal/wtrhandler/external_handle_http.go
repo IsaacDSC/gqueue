@@ -74,6 +74,12 @@ func PublisherEvent(
 				http.Error(w, "event not found", http.StatusNotFound)
 				return
 			}
+			if err != nil {
+				err = fmt.Errorf("get event: %w", err)
+				l.Error("failed to get event", "error", err.Error())
+				http.Error(w, "failed to get event", http.StatusInternalServerError)
+				return
+			}
 
 			eventType := event.Type.String()
 			if eventType == "" {
