@@ -27,12 +27,12 @@ func init() {
 
 // mockFetcher implements the Fetcher interface for testing
 type mockFetcher struct {
-	notifyTriggerFunc func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error
+	notifyTriggerFunc func(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error
 }
 
-func (m *mockFetcher) NotifyTrigger(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+func (m *mockFetcher) Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error {
 	if m.notifyTriggerFunc != nil {
-		return m.notifyTriggerFunc(ctx, data, headers, trigger)
+		return m.notifyTriggerFunc(ctx, data, headers, consumer)
 	}
 	return nil
 }
@@ -167,7 +167,7 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 			name: "successful_request",
 			payload: RequestPayload{
 				EventName: "user.created",
-				Trigger: Trigger{
+				Consumer: Consumer{
 					ServiceName: "user-service",
 					BaseUrl:     testServer.URL,
 					Path:        "/webhook",
@@ -184,7 +184,7 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 				},
 			},
 			mockFetcher: &mockFetcher{
-				notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+				notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error {
 					return nil
 				},
 			},
@@ -262,8 +262,8 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 		name                string
 		data                map[string]any
 		headers             map[string]string
-		trigger             Trigger
-		mockNotifyTriggerFn func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error
+		consumer             Consumer
+		mockNotifyTriggerFn func(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error
 		setupMocks          func(*MockConsumerInsights)
 		expectedError       bool
 		expectedErrMsg      string
@@ -278,12 +278,12 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 				"Authorization": "Bearer token",
 				"User-Agent":    "webhook-client",
 			},
-			trigger: Trigger{
+			consumer: Consumer{
 				ServiceName: "user-service",
 				BaseUrl:     "http://example.com",
 				Path:        "/webhook",
 			},
-			mockNotifyTriggerFn: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+			mockNotifyTriggerFn: func(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error {
 				// Verify the merged headers are passed correctly
 				assert.Equal(t, "Bearer token", headers["Authorization"])
 				assert.Equal(t, "webhook-client", headers["User-Agent"])
@@ -308,12 +308,12 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 				"user_id": "123",
 			},
 			headers: map[string]string{},
-			trigger: Trigger{
+			consumer: Consumer{
 				ServiceName: "user-service",
 				BaseUrl:     "http://example.com",
 				Path:        "/webhook",
 			},
-			mockNotifyTriggerFn: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+			mockNotifyTriggerFn: func(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error {
 				return assert.AnError
 			},
 			setupMocks: func(mockInsights *MockConsumerInsights) {
@@ -328,7 +328,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 					Times(1)
 			},
 			expectedError:  true,
-			expectedErrMsg: "fetch trigger:",
+			expectedErrMsg: "fetch consumer:",
 		},
 	}
 
@@ -350,7 +350,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 
 			payload := RequestPayload{
 				EventName: "user.created",
-				Trigger:   tt.trigger,
+				Consumer:  tt.consumer,
 				Data:      tt.data,
 				Headers:   tt.headers,
 			}
@@ -386,7 +386,7 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 		{
 			name:           "network_error_simulation",
 			mockError:      assert.AnError,
-			expectedErrMsg: "fetch trigger:",
+			expectedErrMsg: "fetch consumer:",
 		},
 	}
 
@@ -407,7 +407,7 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 				Times(1)
 
 			mockFetch := &mockFetcher{
-				notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+				notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error {
 					return tt.mockError
 				},
 			}
@@ -416,7 +416,7 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 
 			payload := RequestPayload{
 				EventName: "user.created",
-				Trigger: Trigger{
+				Consumer: Consumer{
 					ServiceName: "user-service",
 					BaseUrl:     "http://localhost:99999", // Unreachable port
 					Path:        "/webhook",
@@ -458,7 +458,7 @@ func TestGetRequestHandle_HeaderMerging(t *testing.T) {
 		Times(1)
 
 	mockFetch := &mockFetcher{
-		notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+		notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error {
 			receivedHeaders = headers
 			return nil
 		},
@@ -468,7 +468,7 @@ func TestGetRequestHandle_HeaderMerging(t *testing.T) {
 
 	payload := RequestPayload{
 		EventName: "user.created",
-		Trigger: Trigger{
+		Consumer: Consumer{
 			ServiceName: "user-service",
 			BaseUrl:     "http://example.com",
 			Path:        "/webhook",
@@ -522,7 +522,7 @@ func TestGetRequestHandle_DataPassing(t *testing.T) {
 		Times(1)
 
 	mockFetch := &mockFetcher{
-		notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+		notifyTriggerFunc: func(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error {
 			receivedData = data
 			return nil
 		},
@@ -540,7 +540,7 @@ func TestGetRequestHandle_DataPassing(t *testing.T) {
 
 	payload := RequestPayload{
 		EventName: "user.created",
-		Trigger: Trigger{
+		Consumer: Consumer{
 			ServiceName: "user-service",
 			BaseUrl:     "http://example.com",
 			Path:        "/webhook",

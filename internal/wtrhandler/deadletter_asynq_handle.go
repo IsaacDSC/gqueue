@@ -38,18 +38,18 @@ func NewDeadLatterQueue(store DeadLetterStore, fetcher Fetcher) asyncadapter.Han
 			}
 
 			for _, event := range events {
-				for _, trigger := range event.Triggers {
-					fetcher.NotifyTrigger(ctx, map[string]any{
+				for _, consumer := range event.Consumers {
+					fetcher.Notify(ctx, map[string]any{
 						"event":    event.Name,
 						"id":       p.ID,
 						"data":     p.Data,
 						"metadata": p.Attributes,
 						"event_at": p.PublishTime,
-					}, trigger.Headers, Trigger{
-						ServiceName: trigger.ServiceName,
-						BaseUrl:     trigger.Host,
-						Path:        trigger.Path,
-						Headers:     trigger.Headers,
+					}, consumer.Headers, Consumer{
+						ServiceName: consumer.ServiceName,
+						BaseUrl:     consumer.Host,
+						Path:        consumer.Path,
+						Headers:     consumer.Headers,
 					})
 				}
 			}

@@ -14,9 +14,9 @@ import (
 )
 
 type EventDto struct {
-	Name     string           `json:"name"`
-	Type     domain.Type      `json:"type"`
-	Triggers []domain.Trigger `json:"triggers"`
+	Name     string            `json:"name"`
+	Type     domain.Type       `json:"type"`
+	Consumers []domain.Consumer `json:"consumers"`
 }
 
 func (e *EventDto) ToDomain() domain.Event {
@@ -27,7 +27,7 @@ func (e *EventDto) ToDomain() domain.Event {
 		Name:        e.Name,
 		ServiceName: env.InternalServiceName,
 		Type:        e.Type,
-		Triggers:    e.Triggers,
+		Consumers:   e.Consumers,
 	}
 }
 

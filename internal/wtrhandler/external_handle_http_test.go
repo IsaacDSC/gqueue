@@ -62,8 +62,8 @@ func TestGetExternalHandle(t *testing.T) {
 			setupStoreMock: func(s *MockStore) {
 				s.EXPECT().GetEvent(gomock.Any(), "user.created").Return(domain.Event{
 					Name: "user.created",
-					Type: domain.TriggerTypeInternal,
-					Triggers: []domain.Trigger{{
+					Type: domain.EventTypeInternal,
+					Consumers: []domain.Consumer{{
 						ServiceName: "test-service",
 						Host:        "http://localhost:8080",
 						Path:        "/webhook",
@@ -125,8 +125,8 @@ func TestGetExternalHandle(t *testing.T) {
 			setupStoreMock: func(s *MockStore) {
 				s.EXPECT().GetEvent(gomock.Any(), "order.completed").Return(domain.Event{
 					Name: "order.completed",
-					Type: domain.TriggerTypeInternal,
-					Triggers: []domain.Trigger{{
+					Type: domain.EventTypeInternal,
+					Consumers: []domain.Consumer{{
 						ServiceName: "test-service",
 						Host:        "http://localhost:8080",
 						Path:        "/webhook",
@@ -183,8 +183,8 @@ func TestGetExternalHandle(t *testing.T) {
 			setupStoreMock: func(s *MockStore) {
 				s.EXPECT().GetEvent(gomock.Any(), "notification.send").Return(domain.Event{
 					Name: "notification.send",
-					Type: domain.TriggerTypeInternal,
-					Triggers: []domain.Trigger{{
+					Type: domain.EventTypeInternal,
+					Consumers: []domain.Consumer{{
 						ServiceName: "test-service",
 						Host:        "http://localhost:8080",
 						Path:        "/webhook",
@@ -235,8 +235,8 @@ func TestGetExternalHandle(t *testing.T) {
 			setupStoreMock: func(s *MockStore) {
 				s.EXPECT().GetEvent(gomock.Any(), "payment.failed").Return(domain.Event{
 					Name: "payment.failed",
-					Type: domain.TriggerTypeInternal,
-					Triggers: []domain.Trigger{{
+					Type: domain.EventTypeInternal,
+					Consumers: []domain.Consumer{{
 						ServiceName: "test-service",
 						Host:        "http://localhost:8080",
 						Path:        "/webhook",
@@ -280,8 +280,8 @@ func TestGetExternalHandle(t *testing.T) {
 			setupStoreMock: func(s *MockStore) {
 				s.EXPECT().GetEvent(gomock.Any(), "system.ping").Return(domain.Event{
 					Name: "system.ping",
-					Type: domain.TriggerTypeInternal,
-					Triggers: []domain.Trigger{{
+					Type: domain.EventTypeInternal,
+					Consumers: []domain.Consumer{{
 						ServiceName: "test-service",
 						Host:        "http://localhost:8080",
 						Path:        "/webhook",
@@ -358,9 +358,9 @@ func TestGetExternalHandle(t *testing.T) {
 			expectedError:  true,
 		},
 		{
-			name: "event_with_zero_triggers",
+			name: "event_with_zero_consumers",
 			payload: InternalPayload{
-				EventName: "no.triggers.event",
+				EventName: "no.consumers.event",
 				Data: Data{
 					"key": "value",
 				},
@@ -374,22 +374,22 @@ func TestGetExternalHandle(t *testing.T) {
 				},
 			},
 			setupStoreMock: func(s *MockStore) {
-				s.EXPECT().GetEvent(gomock.Any(), "no.triggers.event").Return(domain.Event{
-					Name:     "no.triggers.event",
-					Type:     domain.TriggerTypeInternal,
-					Triggers: []domain.Trigger{}, // Empty triggers
+				s.EXPECT().GetEvent(gomock.Any(), "no.consumers.event").Return(domain.Event{
+					Name:      "no.consumers.event",
+					Type:      domain.EventTypeInternal,
+					Consumers: []domain.Consumer{}, // Empty consumers
 				}, nil).Times(1)
 			},
 			setupMock: func(m *pubadapter.MockGenericPublisher) {
-				// No publish should be called when there are no triggers
+				// No publish should be called when there are no consumers
 			},
 			expectedStatus: http.StatusAccepted,
 			expectedError:  false,
 		},
 		{
-			name: "event_with_multiple_triggers",
+			name: "event_with_multiple_consumers",
 			payload: InternalPayload{
-				EventName: "multi.trigger.event",
+				EventName: "multi.consumer.event",
 				Data: Data{
 					"user_id": "456",
 				},
@@ -407,10 +407,10 @@ func TestGetExternalHandle(t *testing.T) {
 				},
 			},
 			setupStoreMock: func(s *MockStore) {
-				s.EXPECT().GetEvent(gomock.Any(), "multi.trigger.event").Return(domain.Event{
-					Name: "multi.trigger.event",
-					Type: domain.TriggerTypeInternal,
-					Triggers: []domain.Trigger{
+				s.EXPECT().GetEvent(gomock.Any(), "multi.consumer.event").Return(domain.Event{
+					Name: "multi.consumer.event",
+					Type: domain.EventTypeInternal,
+					Consumers: []domain.Consumer{
 						{
 							ServiceName: "service-one",
 							Host:        "http://localhost:8081",
@@ -438,7 +438,7 @@ func TestGetExternalHandle(t *testing.T) {
 						gomock.Any(),
 					).
 					Return(nil).
-					Times(3) // Should be called once for each trigger
+					Times(3) // Should be called once for each consumer
 			},
 			expectedStatus: http.StatusAccepted,
 			expectedError:  false,

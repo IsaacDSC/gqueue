@@ -13,7 +13,7 @@ import (
 )
 
 type Cacher interface {
-	FindAllTriggers(ctx context.Context) ([]domain.Event, error)
+	FindAllConsumers(ctx context.Context) ([]domain.Event, error)
 	FindAllQueues(ctx context.Context) ([]asynqtask.Queue, error)
 	FindArchivedTasks(ctx context.Context, queue string) ([]string, error)
 	GetMsgArchivedTask(ctx context.Context, queue, task string) (asynqtask.RawMsg, error)
@@ -34,7 +34,7 @@ var _ Cacher = (*Cache)(nil)
 
 const archivedKey = "gqueue:consumers:schedule:archived"
 
-func (c Cache) FindAllTriggers(ctx context.Context) ([]domain.Event, error) {
+func (c Cache) FindAllConsumers(ctx context.Context) ([]domain.Event, error) {
 	cResult, err := c.cache.Get(ctx, archivedKey).Result()
 	if errors.Is(err, redis.Nil) {
 		return nil, asynqtask.ErrorNotFound

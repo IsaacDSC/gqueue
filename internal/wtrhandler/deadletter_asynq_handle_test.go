@@ -24,9 +24,9 @@ func init() {
 
 // notifyCall struct to track calls made to the mock fetcher
 type notifyCall struct {
-	data    map[string]any
-	headers map[string]string
-	trigger Trigger
+	data     map[string]any
+	headers  map[string]string
+	consumer Consumer
 }
 
 // mockFetcherWithCalls wraps MockFetcher to track calls
@@ -35,13 +35,13 @@ type mockFetcherWithCalls struct {
 	notifyCalls []notifyCall
 }
 
-func (m *mockFetcherWithCalls) NotifyTrigger(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+func (m *mockFetcherWithCalls) Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error {
 	m.notifyCalls = append(m.notifyCalls, notifyCall{
-		data:    data,
-		headers: headers,
-		trigger: trigger,
+		data:     data,
+		headers:  headers,
+		consumer: consumer,
 	})
-	return m.MockFetcher.NotifyTrigger(ctx, data, headers, trigger)
+	return m.MockFetcher.Notify(ctx, data, headers, consumer)
 }
 
 func TestNewDeadLatterQueue(t *testing.T) {
@@ -98,7 +98,7 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 			Name:        "user.created",
 			ServiceName: "user-service",
 			State:       "archived",
-			Triggers: []domain.Trigger{
+			Consumers: []domain.Consumer{
 				{
 					ServiceName: "notification-service",
 					Host:        "http://localhost:8080",
@@ -122,7 +122,7 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 			Name:        "order.completed",
 			ServiceName: "order-service",
 			State:       "archived",
-			Triggers: []domain.Trigger{
+			Consumers: []domain.Consumer{
 				{
 					ServiceName: "email-service",
 					Host:        "http://localhost:8082",
@@ -146,9 +146,9 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 		notifyCalls: []notifyCall{},
 	}
 
-	// Expect 3 calls to NotifyTrigger (2 triggers from first event + 1 trigger from second event)
+	// Expect 3 calls to Notify (2 consumers from first event + 1 consumer from second event)
 	mockFetcher.MockFetcher.EXPECT().
-		NotifyTrigger(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Notify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil).
 		Times(3)
 
@@ -163,11 +163,11 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// Verify that NotifyTrigger was called for each trigger in each event
-	expectedCalls := 3 // 2 triggers from first event + 1 trigger from second event
+	// Verify that Notify was called for each consumer in each event
+	expectedCalls := 3 // 2 consumers from first event + 1 consumer from second event
 	assert.Len(t, mockFetcher.notifyCalls, expectedCalls)
 
-	// Verify first call (first trigger of first event)
+	// Verify first call (first consumer of first event)
 	firstCall := mockFetcher.notifyCalls[0]
 	assert.Equal(t, "user.created", firstCall.data["event"])
 	assert.Equal(t, "test-message-id", firstCall.data["id"])
@@ -176,14 +176,14 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 	// Don't compare exact time due to marshaling precision loss
 	assert.NotNil(t, firstCall.data["event_at"])
 	assert.Equal(t, map[string]string{"Content-Type": "application/json", "Authorization": "Bearer token"}, firstCall.headers)
-	assert.Equal(t, Trigger{
+	assert.Equal(t, Consumer{
 		ServiceName: "notification-service",
 		BaseUrl:     "http://localhost:8080",
 		Path:        "/webhook/user-created",
 		Headers:     map[string]string{"Content-Type": "application/json", "Authorization": "Bearer token"},
-	}, firstCall.trigger)
+	}, firstCall.consumer)
 
-	// Verify second call (second trigger of first event)
+	// Verify second call (second consumer of first event)
 	secondCall := mockFetcher.notifyCalls[1]
 	assert.Equal(t, "user.created", secondCall.data["event"])
 	assert.Equal(t, "test-message-id", secondCall.data["id"])
@@ -191,14 +191,14 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 	assert.Equal(t, map[string]string{"source": "api", "version": "1.0"}, secondCall.data["metadata"])
 	assert.NotNil(t, secondCall.data["event_at"])
 	assert.Equal(t, map[string]string{"X-API-Key": "analytics-key"}, secondCall.headers)
-	assert.Equal(t, Trigger{
+	assert.Equal(t, Consumer{
 		ServiceName: "analytics-service",
 		BaseUrl:     "http://localhost:8081",
 		Path:        "/analytics/event",
 		Headers:     map[string]string{"X-API-Key": "analytics-key"},
-	}, secondCall.trigger)
+	}, secondCall.consumer)
 
-	// Verify third call (first trigger of second event)
+	// Verify third call (first consumer of second event)
 	thirdCall := mockFetcher.notifyCalls[2]
 	assert.Equal(t, "order.completed", thirdCall.data["event"])
 	assert.Equal(t, "test-message-id", thirdCall.data["id"])
@@ -206,12 +206,12 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 	assert.Equal(t, map[string]string{"source": "api", "version": "1.0"}, thirdCall.data["metadata"])
 	assert.NotNil(t, thirdCall.data["event_at"])
 	assert.Equal(t, map[string]string{"Content-Type": "application/json"}, thirdCall.headers)
-	assert.Equal(t, Trigger{
+	assert.Equal(t, Consumer{
 		ServiceName: "email-service",
 		BaseUrl:     "http://localhost:8082",
 		Path:        "/send-confirmation",
 		Headers:     map[string]string{"Content-Type": "application/json"},
-	}, thirdCall.trigger)
+	}, thirdCall.consumer)
 }
 
 func TestDeadLetterQueue_Handler_EventNotFound(t *testing.T) {
@@ -248,7 +248,7 @@ func TestDeadLetterQueue_Handler_EventNotFound(t *testing.T) {
 	// Should return nil when EventNotFound
 	require.NoError(t, err)
 
-	// Verify that NotifyTrigger was not called
+	// Verify that Notify was not called
 	assert.Empty(t, mockFetcher.notifyCalls)
 }
 
@@ -289,7 +289,7 @@ func TestDeadLetterQueue_Handler_StoreError(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to get all schedulers:")
 	assert.Contains(t, err.Error(), "database connection failed")
 
-	// Verify that NotifyTrigger was not called
+	// Verify that Notify was not called
 	assert.Empty(t, mockFetcher.notifyCalls)
 }
 
@@ -343,11 +343,11 @@ func TestDeadLetterQueue_Handler_EmptyEvents(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// Verify that NotifyTrigger was not called since there are no events
+	// Verify that Notify was not called since there are no events
 	assert.Empty(t, mockFetcher.notifyCalls)
 }
 
-func TestDeadLetterQueue_Handler_EventsWithNoTriggers(t *testing.T) {
+func TestDeadLetterQueue_Handler_EventsWithNoconsumers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -360,10 +360,10 @@ func TestDeadLetterQueue_Handler_EventsWithNoTriggers(t *testing.T) {
 
 	mockEvents := []domain.Event{
 		{
-			Name:        "event.without.triggers",
+			Name:        "event.without.consumers",
 			ServiceName: "test-service",
 			State:       "archived",
-			Triggers:    []domain.Trigger{}, // No triggers
+			Consumers:   []domain.Consumer{}, // No consumers
 		},
 	}
 
@@ -389,7 +389,7 @@ func TestDeadLetterQueue_Handler_EventsWithNoTriggers(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// Verify that NotifyTrigger was not called since there are no triggers
+	// Verify that Notify was not called since there are no consumers
 	assert.Empty(t, mockFetcher.notifyCalls)
 }
 
@@ -410,7 +410,7 @@ func TestDeadLetterQueue_Handler_FetcherError(t *testing.T) {
 			Name:        "test.event",
 			ServiceName: "test-service",
 			State:       "archived",
-			Triggers: []domain.Trigger{
+			Consumers: []domain.Consumer{
 				{
 					ServiceName: "webhook-service",
 					Host:        "http://localhost:8080",
@@ -434,7 +434,7 @@ func TestDeadLetterQueue_Handler_FetcherError(t *testing.T) {
 	}
 
 	mockFetcher.MockFetcher.EXPECT().
-		NotifyTrigger(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Notify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(fetcherError).
 		Times(1)
 
@@ -447,14 +447,14 @@ func TestDeadLetterQueue_Handler_FetcherError(t *testing.T) {
 	asyncCtx := asyncadapter.NewAsyncCtx[pubsub.Message](context.Background(), messageBytes)
 	err = handle.Handler(asyncCtx)
 
-	// The handler should continue even if NotifyTrigger fails (no error propagation in current implementation)
+	// The handler should continue even if Notify fails (no error propagation in current implementation)
 	require.NoError(t, err)
 
-	// Verify that NotifyTrigger was called despite the error
+	// Verify that Notify was called despite the error
 	assert.Len(t, mockFetcher.notifyCalls, 1)
 }
 
-func TestDeadLetterQueue_Handler_MultipleEventsWithMixedTriggers(t *testing.T) {
+func TestDeadLetterQueue_Handler_MultipleEventsWithMixedconsumers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -471,7 +471,7 @@ func TestDeadLetterQueue_Handler_MultipleEventsWithMixedTriggers(t *testing.T) {
 			Name:        "order.created",
 			ServiceName: "order-service",
 			State:       "archived",
-			Triggers: []domain.Trigger{
+			Consumers: []domain.Consumer{
 				{
 					ServiceName: "inventory-service",
 					Host:        "http://inventory.local",
@@ -484,13 +484,13 @@ func TestDeadLetterQueue_Handler_MultipleEventsWithMixedTriggers(t *testing.T) {
 			Name:        "notification.send",
 			ServiceName: "notification-service",
 			State:       "archived",
-			Triggers:    []domain.Trigger{}, // Event with no triggers
+			Consumers:   []domain.Consumer{}, // Event with no consumers
 		},
 		{
 			Name:        "audit.log",
 			ServiceName: "audit-service",
 			State:       "archived",
-			Triggers: []domain.Trigger{
+			Consumers: []domain.Consumer{
 				{
 					ServiceName: "logging-service",
 					Host:        "http://logs.local",
@@ -518,9 +518,9 @@ func TestDeadLetterQueue_Handler_MultipleEventsWithMixedTriggers(t *testing.T) {
 		notifyCalls: []notifyCall{},
 	}
 
-	// Expect 3 calls to NotifyTrigger: 1 from first event + 0 from second event + 2 from third event
+	// Expect 3 calls to Notify: 1 from first event + 0 from second event + 2 from third event
 	mockFetcher.MockFetcher.EXPECT().
-		NotifyTrigger(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Notify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil).
 		Times(3)
 
@@ -546,7 +546,7 @@ func TestDeadLetterQueue_Handler_MultipleEventsWithMixedTriggers(t *testing.T) {
 
 	assert.Contains(t, eventNames, "order.created")
 	assert.Contains(t, eventNames, "audit.log")
-	assert.NotContains(t, eventNames, "notification.send") // This event has no triggers
+	assert.NotContains(t, eventNames, "notification.send") // This event has no consumers
 
 	// Count occurrences of each event
 	orderCount := 0
@@ -561,7 +561,7 @@ func TestDeadLetterQueue_Handler_MultipleEventsWithMixedTriggers(t *testing.T) {
 	}
 
 	assert.Equal(t, 1, orderCount, "order.created should appear once")
-	assert.Equal(t, 2, auditCount, "audit.log should appear twice (2 triggers)")
+	assert.Equal(t, 2, auditCount, "audit.log should appear twice (2 consumers)")
 }
 
 func TestDeadLetterQueue_Handler_VerifyState(t *testing.T) {

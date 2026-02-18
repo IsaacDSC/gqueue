@@ -1,11 +1,10 @@
 -- Internal Events Table
 CREATE TABLE IF NOT EXISTS events (
     id UUID PRIMARY KEY,
-    unique_key TEXT NOT NULL UNIQUE,
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL UNIQUE,
     service_name VARCHAR(255) NOT NULL,
     state VARCHAR(100) NOT NULL,
-    triggers JSONB NOT NULL,
+    consumers JSONB NOT NULL,         
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMP NULL

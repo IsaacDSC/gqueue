@@ -41,18 +41,18 @@ func (m *MockFetcher) EXPECT() *MockFetcherMockRecorder {
 	return m.recorder
 }
 
-// NotifyTrigger mocks base method.
-func (m *MockFetcher) NotifyTrigger(ctx context.Context, data map[string]any, headers map[string]string, trigger Trigger) error {
+// Notify mocks base method.
+func (m *MockFetcher) Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NotifyTrigger", ctx, data, headers, trigger)
+	ret := m.ctrl.Call(m, "Notify", ctx, data, headers, consumer)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// NotifyTrigger indicates an expected call of NotifyTrigger.
-func (mr *MockFetcherMockRecorder) NotifyTrigger(ctx, data, headers, trigger any) *gomock.Call {
+// Notify indicates an expected call of Notify.
+func (mr *MockFetcherMockRecorder) Notify(ctx, data, headers, consumer any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NotifyTrigger", reflect.TypeOf((*MockFetcher)(nil).NotifyTrigger), ctx, data, headers, trigger)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Notify", reflect.TypeOf((*MockFetcher)(nil).Notify), ctx, data, headers, consumer)
 }
 
 // MockConsumerInsights is a mock of ConsumerInsights interface.
