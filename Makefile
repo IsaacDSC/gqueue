@@ -202,7 +202,6 @@ install-mockgen:
 
 generate-mocks: install-mockgen clean-mocks
 	@echo "$(GREEN)Gerando mocks...$(NC)"
-	@echo "$(BLUE)Gerando mock para Repository...$(NC)"
 	@echo "$(BLUE)Gerando mock para DeadLetter...$(NC)"
 	@$(MOCKGEN) -source=internal/wtrhandler/deadletter_asynq_handle.go -destination=internal/wtrhandler/deadletter_mock.go -package=wtrhandler DeadLetterStore
 	@echo "$(BLUE)Gerando mock para Fetcher...$(NC)"
