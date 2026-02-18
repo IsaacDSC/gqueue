@@ -13,11 +13,15 @@ type ModelEvent struct {
 	ServiceName string
 	State       string
 	Consumers   []byte
+	Option      []byte
 }
 
 func (m ModelEvent) ToDomain() domain.Event {
 	var consumers []domain.Consumer
 	json.Unmarshal(m.Consumers, &consumers)
+
+	var option domain.Opt
+	json.Unmarshal(m.Option, &option)
 
 	return domain.Event{
 		ID:          m.ID,
@@ -25,5 +29,6 @@ func (m ModelEvent) ToDomain() domain.Event {
 		ServiceName: m.ServiceName,
 		State:       m.State,
 		Consumers:   consumers,
+		Option:      option,
 	}
 }

@@ -8,11 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/pkg/intertime"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -53,10 +51,6 @@ func TestGetExternalHandle(t *testing.T) {
 					Headers: map[string]string{
 						"Content-Type": "application/json",
 					},
-				},
-				Opts: domain.Opt{
-					MaxRetries: 3,
-					WqType:     pubadapter.LowLatency,
 				},
 			},
 			setupStoreMock: func(s *MockStore) {
@@ -114,13 +108,6 @@ func TestGetExternalHandle(t *testing.T) {
 						"X-Correlation": "corr_def456",
 					},
 				},
-				Opts: domain.Opt{
-					MaxRetries: 5,
-					Retention:  intertime.Duration(24 * time.Hour),
-					UniqueTTL:  intertime.Duration(1 * time.Hour),
-					ScheduleIn: intertime.Duration(30 * time.Second),
-					WqType:     pubadapter.LowLatency,
-				},
 			},
 			setupStoreMock: func(s *MockStore) {
 				s.EXPECT().GetEvent(gomock.Any(), "order.completed").Return(domain.Event{
@@ -174,11 +161,6 @@ func TestGetExternalHandle(t *testing.T) {
 						"X-Service":    "notification-worker",
 					},
 				},
-				Opts: domain.Opt{
-					MaxRetries: 2,
-					Deadline:   func() *time.Time { t := time.Now().Add(5 * time.Minute); return &t }(),
-					WqType:     pubadapter.LowLatency,
-				},
 			},
 			setupStoreMock: func(s *MockStore) {
 				s.EXPECT().GetEvent(gomock.Any(), "notification.send").Return(domain.Event{
@@ -227,10 +209,6 @@ func TestGetExternalHandle(t *testing.T) {
 					Version:     "1.0",
 					Environment: "test",
 				},
-				Opts: domain.Opt{
-					MaxRetries: 3,
-					WqType:     pubadapter.LowLatency,
-				},
 			},
 			setupStoreMock: func(s *MockStore) {
 				s.EXPECT().GetEvent(gomock.Any(), "payment.failed").Return(domain.Event{
@@ -272,9 +250,6 @@ func TestGetExternalHandle(t *testing.T) {
 					Source:      "health-check",
 					Version:     "1.0",
 					Environment: "test",
-				},
-				Opts: domain.Opt{
-					WqType: pubadapter.LowLatency,
 				},
 			},
 			setupStoreMock: func(s *MockStore) {
@@ -319,9 +294,6 @@ func TestGetExternalHandle(t *testing.T) {
 					Version:     "1.0",
 					Environment: "test",
 				},
-				Opts: domain.Opt{
-					WqType: pubadapter.LowLatency,
-				},
 			},
 			setupStoreMock: func(s *MockStore) {
 				s.EXPECT().GetEvent(gomock.Any(), "nonexistent.event").Return(domain.Event{}, domain.EventNotFound).Times(1)
@@ -344,9 +316,6 @@ func TestGetExternalHandle(t *testing.T) {
 					Version:     "1.0",
 					Environment: "test",
 				},
-				Opts: domain.Opt{
-					WqType: pubadapter.LowLatency,
-				},
 			},
 			setupStoreMock: func(s *MockStore) {
 				s.EXPECT().GetEvent(gomock.Any(), "error.event").Return(domain.Event{}, errors.New("database connection error")).Times(1)
@@ -368,9 +337,6 @@ func TestGetExternalHandle(t *testing.T) {
 					Source:      "test-service",
 					Version:     "1.0",
 					Environment: "test",
-				},
-				Opts: domain.Opt{
-					WqType: pubadapter.LowLatency,
 				},
 			},
 			setupStoreMock: func(s *MockStore) {
@@ -400,10 +366,6 @@ func TestGetExternalHandle(t *testing.T) {
 					Headers: map[string]string{
 						"Content-Type": "application/json",
 					},
-				},
-				Opts: domain.Opt{
-					MaxRetries: 3,
-					WqType:     pubadapter.LowLatency,
 				},
 			},
 			setupStoreMock: func(s *MockStore) {

@@ -38,15 +38,15 @@ func TestGetPathEventHandle(t *testing.T) {
 				ServiceName: "user-service",
 				State:       "active",
 				Type:        "external",
+				Option: domain.Opt{
+					MaxRetries: 3,
+				},
 				Consumers: []domain.Consumer{
 					{
 						ServiceName: "notification-service",
 						Host:        "https://api.example.com",
 						Path:        "/webhook",
 						Headers:     map[string]string{"Content-Type": "application/json"},
-						Option: domain.Opt{
-							MaxRetries: 3,
-						},
 					},
 				},
 			},

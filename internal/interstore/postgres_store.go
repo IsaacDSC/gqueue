@@ -60,6 +60,7 @@ func (r *PostgresStore) GetAllEvents(ctx context.Context) ([]domain.Event, error
 			&event.ServiceName,
 			&event.State,
 			&event.Consumers,
+			&event.Option,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
@@ -77,17 +78,19 @@ func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName string) 
 	l := ctxlogger.GetLogger(ctx)
 
 	query := `
-			SELECT id, name, service_name, consumers
+			SELECT id, name, service_name, consumers, opts
 			FROM events
 			WHERE name = $1 AND deleted_at IS NULL
 		`
 	var event domain.Event
 	var consumersJSON []byte
+	var optsJSON []byte
 	err := r.db.QueryRowContext(ctx, query, eventName).Scan(
 		&event.ID,
 		&event.Name,
 		&event.ServiceName,
 		&consumersJSON,
+		&optsJSON,
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -102,6 +105,10 @@ func (r *PostgresStore) GetInternalEvent(ctx context.Context, eventName string) 
 
 	if err := json.Unmarshal(consumersJSON, &event.Consumers); err != nil {
 		return domain.Event{}, fmt.Errorf("failed to unmarshal consumers: %w", err)
+	}
+
+	if err := json.Unmarshal(optsJSON, &event.Option); err != nil {
+		return domain.Event{}, fmt.Errorf("failed to unmarshal event option: %w", err)
 	}
 
 	return event, nil
@@ -140,6 +147,7 @@ func (r *PostgresStore) GetInternalEvents(ctx context.Context, filters domain.Fi
 			&event.ServiceName,
 			&event.State,
 			&event.Consumers,
+			&event.Option,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
@@ -161,13 +169,18 @@ func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
 		return fmt.Errorf("failed to marshal consumers: %w", err)
 	}
 
+	optsJSON, err := json.Marshal(event.Option)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event option: %w", err)
+	}
+
 	if event.State == "" {
 		event.State = "active"
 	}
 
 	query := `
-		INSERT INTO events (id, name, service_name, state, consumers, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO events (id, name, service_name, state, consumers, opts, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
 	now := time.Now()
@@ -177,6 +190,7 @@ func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
 		event.ServiceName,
 		event.State,
 		consumersJSON,
+		optsJSON,
 		now,
 		now,
 	)
@@ -194,7 +208,8 @@ const modelEventFields = `
 	name,
 	service_name,
 	state,
-	consumers
+	consumers,
+	opts
 `
 
 func (r *PostgresStore) GetEventByID(ctx context.Context, eventID uuid.UUID) (domain.Event, error) {
@@ -209,6 +224,7 @@ func (r *PostgresStore) GetEventByID(ctx context.Context, eventID uuid.UUID) (do
 		&event.ServiceName,
 		&event.State,
 		&event.Consumers,
+		&event.Option,
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -252,6 +268,7 @@ func (r *PostgresStore) GetAllSchedulers(ctx context.Context, state string) ([]d
 			&event.ServiceName,
 			&event.State,
 			&event.Consumers,
+			&event.Option,
 		); err != nil {
 			l.Error("Error on scan row", "error", err)
 			return nil, fmt.Errorf("failed to scan row: %w", err)
@@ -283,7 +300,8 @@ func (r *PostgresStore) UpdateEvent(ctx context.Context, event domain.Event) err
 	events SET name = $2,
 	service_name = $3,
 	state = $4,
-	consumers = $5
+	consumers = $5,
+	opts = $6
 	WHERE id = $1 AND deleted_at IS NULL;`
 
 	consumersJSON, err := json.Marshal(event.Consumers)
@@ -291,7 +309,12 @@ func (r *PostgresStore) UpdateEvent(ctx context.Context, event domain.Event) err
 		return fmt.Errorf("failed to marshal consumers: %w", err)
 	}
 
-	if _, err := r.db.ExecContext(ctx, query, event.ID, event.Name, event.ServiceName, event.State, consumersJSON); err != nil {
+	optsJSON, err := json.Marshal(event.Option)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event option: %w", err)
+	}
+
+	if _, err := r.db.ExecContext(ctx, query, event.ID, event.Name, event.ServiceName, event.State, consumersJSON, optsJSON); err != nil {
 		return fmt.Errorf("failed to update event: %w", err)
 	}
 

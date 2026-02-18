@@ -87,8 +87,8 @@ func PublisherEvent(
 				eventType = domain.EventTypeInternal.String()
 			}
 
+			config := event.Option.ToAsynqOptions()
 			for _, consumer := range event.Consumers {
-				config := consumer.Option.ToAsynqOptions()
 
 				input := RequestPayload{
 					EventName: event.Name,
