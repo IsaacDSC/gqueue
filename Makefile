@@ -209,7 +209,7 @@ generate-mocks: install-mockgen clean-mocks
 	@echo "$(BLUE)Gerando mock para Cache...$(NC)"
 	@$(MOCKGEN) -source=pkg/cachemanager/adapter.go -destination=pkg/cachemanager/cache_mock.go -package=cachemanager
 	@echo "$(BLUE)Gerando mock para Backoffice Repository...$(NC)"
-	@$(MOCKGEN) -source=internal/backoffice/interfaces.go -destination=internal/backoffice/repository_mock.go -package=backoffice
+	@$(MOCKGEN) -source=internal/backoffice/register_consumer.go -destination=internal/backoffice/repository_mock.go -package=backoffice
 	@echo "$(BLUE)Gerando mock para Publisher...$(NC)"
 	@$(MOCKGEN) -source=pkg/pubadapter/adapter.go -destination=pkg/publisher/publisher_task_mock.go -package=publisher
 	@echo "$(BLUE)Gerando mock para Publisher em pubadapter...$(NC)"

@@ -161,7 +161,7 @@ func (r *PostgresStore) GetInternalEvents(ctx context.Context, filters domain.Fi
 	return events, nil
 }
 
-func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
+func (r *PostgresStore) Upsert(ctx context.Context, event domain.Event) error {
 	l := ctxlogger.GetLogger(ctx)
 
 	consumersJSON, err := json.Marshal(event.Consumers)
@@ -181,6 +181,13 @@ func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
 	query := `
 		INSERT INTO events (id, name, service_name, state, consumers, opts, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		ON CONFLICT (name)
+		DO UPDATE SET
+			service_name = EXCLUDED.service_name,
+			state = EXCLUDED.state,
+			consumers = EXCLUDED.consumers,
+			opts = EXCLUDED.opts,
+			updated_at = EXCLUDED.updated_at
 	`
 
 	now := time.Now()
@@ -196,8 +203,8 @@ func (r *PostgresStore) Save(ctx context.Context, event domain.Event) error {
 	)
 
 	if err != nil {
-		l.Error("Error on create internal event", "error", err)
-		return fmt.Errorf("failed to create internal event: %w", err)
+		l.Error("Error on upsert internal event", "error", err)
+		return fmt.Errorf("failed to upsert internal event: %w", err)
 	}
 
 	return nil

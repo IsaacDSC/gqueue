@@ -30,8 +30,8 @@ func GetRegisterTaskConsumerArchived(cc cachemanager.Cache, repo Repository) htt
 			key := cc.Key(typeEvent, payload.State, payload.ServiceName, payload.Name)
 
 			if err := cc.Hydrate(ctx, key, &payload, cc.GetDefaultTTL(), func(ctx context.Context) (any, error) {
-				if err := repo.Save(ctx, payload); err != nil {
-					return domain.Event{}, fmt.Errorf("failed to create internal event: %w", err)
+				if err := repo.Upsert(ctx, payload); err != nil {
+					return domain.Event{}, fmt.Errorf("failed to upsert internal event: %w", err)
 				}
 				return payload, nil
 			}); err != nil {

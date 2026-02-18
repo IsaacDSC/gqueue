@@ -33,7 +33,7 @@ func (e *EventDto) ToDomain() domain.Event {
 	}
 }
 
-func CreateConsumer(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
+func CreateOrUpdateConsumer(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
 	return httpadapter.HttpHandle{
 		Path: "POST /api/v1/event/consumer",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
@@ -55,8 +55,8 @@ func CreateConsumer(cc cachemanager.Cache, repo Repository) httpadapter.HttpHand
 			defaultTTL := cc.GetDefaultTTL()
 
 			if err := cc.Hydrate(ctx, key, &payload, defaultTTL, func(ctx context.Context) (any, error) {
-				if err := repo.Save(ctx, event); err != nil {
-					return domain.Event{}, fmt.Errorf("failed to create internal event: %w", err)
+				if err := repo.Upsert(ctx, event); err != nil {
+					return domain.Event{}, fmt.Errorf("failed to upsert internal event: %w", err)
 				}
 				return payload, nil
 			}); err != nil {
@@ -64,7 +64,11 @@ func CreateConsumer(cc cachemanager.Cache, repo Repository) httpadapter.HttpHand
 				return
 			}
 
-			w.WriteHeader(http.StatusCreated)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(payload); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 		},
 	}
 }
