@@ -268,7 +268,7 @@ func TestGetExternalHandle(t *testing.T) {
 					Host:        "http://localhost:8080",
 					Path:        "/webhook",
 				}},
-			}, nil).AnyTimes()
+			}, nil).Times(1)
 
 			insights := NewMockPublisherInsights(ctrl)
 			insights.EXPECT().Published(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
