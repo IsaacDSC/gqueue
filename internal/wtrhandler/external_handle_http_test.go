@@ -62,17 +62,15 @@ func TestGetExternalHandle(t *testing.T) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"your-project-id-event-queue-internal",
-						gomock.AssignableToTypeOf(InternalPayload{}),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "user.created", payload.EventName)
 						assert.Equal(t, "123", payload.Data["user_id"])
 						assert.Equal(t, "test@example.com", payload.Data["email"])
-						assert.Equal(t, "api", payload.Metadata.Source)
-						assert.Equal(t, 3, payload.Opts.MaxRetries)
 					}).
 					Return(nil).
 					Times(1)
@@ -116,23 +114,17 @@ func TestGetExternalHandle(t *testing.T) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"your-project-id-event-queue-internal",
-						gomock.AssignableToTypeOf(InternalPayload{}),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "order.completed", payload.EventName)
 						assert.Equal(t, "ord_123456", payload.Data["order_id"])
 						assert.Equal(t, 99.99, payload.Data["amount"])
-						assert.Equal(t, "checkout-service", payload.Metadata.Source)
-						assert.Equal(t, "production", payload.Metadata.Environment)
-						assert.Equal(t, 5, payload.Opts.MaxRetries)
-						assert.Equal(t, intertime.Duration(24*time.Hour), payload.Opts.Retention)
-						assert.Equal(t, intertime.Duration(1*time.Hour), payload.Opts.UniqueTTL)
-						assert.Equal(t, intertime.Duration(30*time.Second), payload.Opts.ScheduleIn)
 						// Validate headers
-						assert.Equal(t, "Bearer token123", payload.Metadata.Headers["Authorization"])
+						assert.Equal(t, "Bearer token123", payload.Headers["Authorization"])
 					}).
 					Return(nil).
 					Times(1)
@@ -169,23 +161,18 @@ func TestGetExternalHandle(t *testing.T) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"your-project-id-event-queue-internal",
-						gomock.AssignableToTypeOf(InternalPayload{}),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "notification.send", payload.EventName)
 						assert.Equal(t, "user_456", payload.Data["user_id"])
 						assert.Equal(t, "Welcome to our platform!", payload.Data["message"])
 						assert.Equal(t, "email", payload.Data["channel"])
-						assert.Equal(t, "notification-service", payload.Metadata.Source)
-						assert.Equal(t, "1.5", payload.Metadata.Version)
-						assert.Equal(t, "staging", payload.Metadata.Environment)
-						assert.Equal(t, 2, payload.Opts.MaxRetries)
-						assert.NotNil(t, payload.Opts.Deadline)
 						// Validate headers
-						assert.Equal(t, "notification-worker", payload.Metadata.Headers["X-Service"])
+						assert.Equal(t, "notification-worker", payload.Headers["X-Service"])
 					}).
 					Return(nil).
 					Times(1)
@@ -215,17 +202,15 @@ func TestGetExternalHandle(t *testing.T) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"your-project-id-event-queue-internal",
-						gomock.AssignableToTypeOf(InternalPayload{}),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) {
 						// Validate payload even on error scenario using assert
 						assert.Equal(t, "payment.failed", payload.EventName)
 						assert.Equal(t, "pay_error123", payload.Data["payment_id"])
 						assert.Equal(t, "insufficient_funds", payload.Data["reason"])
-						assert.Equal(t, "payment-service", payload.Metadata.Source)
-						assert.Equal(t, 3, payload.Opts.MaxRetries)
 					}).
 					Return(errors.New("publisher error")).
 					Times(1)
@@ -251,20 +236,14 @@ func TestGetExternalHandle(t *testing.T) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"your-project-id-event-queue-internal",
-						gomock.AssignableToTypeOf(InternalPayload{}),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) {
 						// Validate empty/default payload using assert
 						assert.Equal(t, "system.ping", payload.EventName)
 						assert.Empty(t, payload.Data)
-						assert.Equal(t, "health-check", payload.Metadata.Source)
-						assert.Equal(t, "1.0", payload.Metadata.Version)
-						assert.Equal(t, "test", payload.Metadata.Environment)
-						// Validate default config options (should be zero values)
-						assert.Equal(t, 0, payload.Opts.MaxRetries)
-						assert.Equal(t, intertime.Duration(0), payload.Opts.Retention)
 					}).
 					Return(nil).
 					Times(1)
@@ -279,8 +258,23 @@ func TestGetExternalHandle(t *testing.T) {
 			// Setup mock expectations
 			tt.setupMock(mockPublisher)
 
+			// Create mocks for Store and PublisherInsights using generated mocks
+			store := NewMockStore(ctrl)
+			store.EXPECT().GetEvent(gomock.Any(), tt.payload.EventName).Return(domain.Event{
+				Name: tt.payload.EventName,
+				Type: domain.TriggerTypeInternal,
+				Triggers: []domain.Trigger{{
+					ServiceName: "test-service",
+					Host:        "http://localhost:8080",
+					Path:        "/webhook",
+				}},
+			}, nil).AnyTimes()
+
+			insights := NewMockPublisherInsights(ctrl)
+			insights.EXPECT().Published(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
 			// Create handler
-			httpHandle := Publisher(mockPublisher)
+			httpHandle := PublisherEvent(store, mockPublisher, insights)
 
 			// Prepare request
 			payloadBytes, err := json.Marshal(tt.payload)

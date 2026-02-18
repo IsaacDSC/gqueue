@@ -25,7 +25,6 @@ import (
 	"github.com/IsaacDSC/gqueue/cmd/setup/backoffice"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
-	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -69,8 +68,9 @@ func main() {
 	asynqClient := asynq.NewClient(asynq.RedisClientOpt{Addr: conf.Cache.CacheAddr})
 	defer asynqClient.Close()
 
-	var highPerformancePublisher pubadapter.GenericPublisher
-	var highPerformanceAsyncClient *pubsub.Client
+	// var highPerformancePublisher pubadapter.GenericPublisher
+	var pubsubClient *pubsub.Client
+
 	if conf.WQ == cfg.WQGooglePubSub {
 		config := &pubsub.ClientConfig{
 			PublisherCallOptions: &vkit.PublisherCallOptions{
@@ -99,8 +99,7 @@ func main() {
 			log.Fatalf("Erro ao criar cliente: %v", err)
 		}
 
-		highPerformancePublisher = pubadapter.NewPubSubGoogle(clientPubsub)
-		highPerformanceAsyncClient = clientPubsub
+		pubsubClient = clientPubsub
 
 		defer clientPubsub.Close()
 	}
@@ -119,33 +118,26 @@ func main() {
 
 	cc := cachemanager.NewStrategy(appName, cacheClient)
 
-	mediumPerformancePublisher := pubadapter.NewPublisher(asynqClient)
-
-	pub := pubadapter.NewPub(highPerformancePublisher, mediumPerformancePublisher, conf.WQ)
-
 	service := flag.String("service", "all", "service to run")
 	flag.Parse()
 
-	// TODO: adicionar graceful shutdown
 	if *service == "api" {
 		apiServer := api.Start(
 			ctx,
 			store,
-			highPerformanceAsyncClient,
-			mediumPerformancePublisher,
+			asynqClient,
+			pubsubClient,
 			storeInsights,
 		)
 		waitForShutdown(apiServer, nil)
 		return
 	}
 
-	// TODO: adicionar graceful shutdown
 	if *service == "backoffice" {
 		backofficeServer := backoffice.Start(
 			cacheClient,
 			cc,
 			store,
-			pub,
 			storeInsights,
 		)
 		waitForShutdown(nil, backofficeServer)
@@ -162,15 +154,14 @@ func main() {
 		cacheClient,
 		cc,
 		store,
-		pub,
 		storeInsights,
 	)
 
 	apiServer := api.Start(
 		ctx,
 		store,
-		highPerformanceAsyncClient,
-		mediumPerformancePublisher,
+		asynqClient,
+		pubsubClient,
 		storeInsights,
 	)
 

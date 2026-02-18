@@ -15,6 +15,7 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
+	"github.com/hibiken/asynq"
 )
 
 type PersistentRepository interface {
@@ -25,20 +26,32 @@ type PersistentRepository interface {
 func Start(
 	ctx context.Context,
 	store PersistentRepository,
-	clientPubsub *pubsub.Client,
-	redisAsync pubadapter.GenericPublisher,
+	asynqClient *asynq.Client,
+	gcppubsubClient *pubsub.Client,
 	insightsStore *storests.Store,
 ) *http.Server {
 	fetch := fetcher.NewNotification()
 
 	memStore := loadInMemStore(store)
 
-	if clientPubsub != nil {
-		go startUsingGooglePubSub(clientPubsub, memStore, redisAsync, fetch, insightsStore)
+	classificationResult := pubadapter.ClassificationPublisher(
+		pubadapter.NewPubSubGoogle(gcppubsubClient),
+		pubadapter.NewPublisher(asynqClient),
+	)
+
+	adaptpub := pubadapter.NewStrategy(&classificationResult)
+
+	if gcppubsubClient != nil {
+		go startUsingGooglePubSub(
+			memStore,
+			gcppubsubClient,
+			adaptpub,
+			fetch, insightsStore,
+		)
 	}
 
-	if redisAsync != nil {
-		go startUsingAsynq(memStore, redisAsync, fetch, insightsStore)
+	if asynqClient != nil {
+		go startUsingAsynq(memStore, adaptpub, fetch, insightsStore)
 	}
 
 	StartTaskSyncMemStore(ctx, store, memStore)
@@ -47,7 +60,7 @@ func Start(
 
 	routes := []httpadapter.HttpHandle{
 		backoffice.GetHealthCheckHandler(),
-		wtrhandler.Publisher(redisAsync), //TODO: inject abstract gcp.pubsub or asynq
+		wtrhandler.PublisherEvent(memStore, adaptpub, insightsStore),
 	}
 
 	for _, route := range routes {

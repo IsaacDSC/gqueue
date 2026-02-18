@@ -1,16 +1,17 @@
 {
-  "name": "payment.processed",
+  "name": "payment.charged",
   "type": "external",
   "triggers": [
     {
-      "service_name": "consumer-1",
+      "service_name": "external-service",
+      "type": "persistent",
       "host": "http://localhost:3333",
-      "path": "/wq/payment/processed",
+      "path": "/payment/charged",
       "headers": {
         "Content-Type": "application/json"
       },
       "option": {
-        "queue_type": "external.medium",
+        "wq_type": "low_throughput",
         "max_retries": 3,
         "retention": "168h",
         "unique_ttl": "60s"

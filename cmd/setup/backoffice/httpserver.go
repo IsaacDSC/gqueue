@@ -12,7 +12,6 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
-	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -24,7 +23,6 @@ func Start(
 	rdsclient *redis.Client,
 	cache cachemanager.Cache,
 	store interstore.Repository,
-	pub pubadapter.Publisher,
 	insightsStore InsightsStore,
 ) *http.Server {
 	mux := http.NewServeMux()
