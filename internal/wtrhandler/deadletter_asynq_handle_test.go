@@ -347,7 +347,7 @@ func TestDeadLetterQueue_Handler_EmptyEvents(t *testing.T) {
 	assert.Empty(t, mockFetcher.notifyCalls)
 }
 
-func TestDeadLetterQueue_Handler_EventsWithNoconsumers(t *testing.T) {
+func TestDeadLetterQueue_Handler_EventsWithNoConsumers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
