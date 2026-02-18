@@ -31,6 +31,7 @@ func Start(
 		backoffice.GetHealthCheckHandler(),
 		backoffice.CreateConsumer(cache, store),
 		backoffice.GetEvent(cache, store),
+		backoffice.GetPathEventHandle(cache, store),
 		backoffice.GetEvents(cache, store),
 		backoffice.GetRegisterTaskConsumerArchived(cache, store),
 		backoffice.RemoveEvent(cache, store),
