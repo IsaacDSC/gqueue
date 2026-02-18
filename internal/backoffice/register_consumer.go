@@ -14,8 +14,8 @@ import (
 )
 
 type EventDto struct {
-	Name     string            `json:"name"`
-	Type     domain.Type       `json:"type"`
+	Name      string            `json:"name"`
+	Type      domain.Type       `json:"type"`
 	Consumers []domain.Consumer `json:"consumers"`
 }
 

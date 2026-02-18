@@ -262,7 +262,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 		name                string
 		data                map[string]any
 		headers             map[string]string
-		consumer             Consumer
+		consumer            Consumer
 		mockNotifyTriggerFn func(ctx context.Context, data map[string]any, headers map[string]string, consumer Consumer) error
 		setupMocks          func(*MockConsumerInsights)
 		expectedError       bool
