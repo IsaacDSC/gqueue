@@ -34,6 +34,7 @@ func TestGetExternalHandle(t *testing.T) {
 		name           string
 		payload        InternalPayload
 		setupMock      func(*pubadapter.MockGenericPublisher)
+		setupStoreMock func(*MockStore)
 		expectedStatus int
 		expectedError  bool
 	}{
@@ -58,21 +59,30 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "user.created").Return(domain.Event{
+					Name: "user.created",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{{
+						ServiceName: "test-service",
+						Host:        "http://localhost:8080",
+						Path:        "/webhook",
+					}},
+				}, nil).Times(1)
+			},
 			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"your-project-id-event-queue-internal",
-						gomock.AssignableToTypeOf(InternalPayload{}),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "user.created", payload.EventName)
 						assert.Equal(t, "123", payload.Data["user_id"])
 						assert.Equal(t, "test@example.com", payload.Data["email"])
-						assert.Equal(t, "api", payload.Metadata.Source)
-						assert.Equal(t, 3, payload.Opts.MaxRetries)
 					}).
 					Return(nil).
 					Times(1)
@@ -112,27 +122,32 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "order.completed").Return(domain.Event{
+					Name: "order.completed",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{{
+						ServiceName: "test-service",
+						Host:        "http://localhost:8080",
+						Path:        "/webhook",
+					}},
+				}, nil).Times(1)
+			},
 			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"your-project-id-event-queue-internal",
-						gomock.AssignableToTypeOf(InternalPayload{}),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "order.completed", payload.EventName)
 						assert.Equal(t, "ord_123456", payload.Data["order_id"])
 						assert.Equal(t, 99.99, payload.Data["amount"])
-						assert.Equal(t, "checkout-service", payload.Metadata.Source)
-						assert.Equal(t, "production", payload.Metadata.Environment)
-						assert.Equal(t, 5, payload.Opts.MaxRetries)
-						assert.Equal(t, intertime.Duration(24*time.Hour), payload.Opts.Retention)
-						assert.Equal(t, intertime.Duration(1*time.Hour), payload.Opts.UniqueTTL)
-						assert.Equal(t, intertime.Duration(30*time.Second), payload.Opts.ScheduleIn)
 						// Validate headers
-						assert.Equal(t, "Bearer token123", payload.Metadata.Headers["Authorization"])
+						assert.Equal(t, "Bearer token123", payload.Headers["Authorization"])
 					}).
 					Return(nil).
 					Times(1)
@@ -165,27 +180,33 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "notification.send").Return(domain.Event{
+					Name: "notification.send",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{{
+						ServiceName: "test-service",
+						Host:        "http://localhost:8080",
+						Path:        "/webhook",
+					}},
+				}, nil).Times(1)
+			},
 			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"your-project-id-event-queue-internal",
-						gomock.AssignableToTypeOf(InternalPayload{}),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) {
 						// Validate payload content using assert
 						assert.Equal(t, "notification.send", payload.EventName)
 						assert.Equal(t, "user_456", payload.Data["user_id"])
 						assert.Equal(t, "Welcome to our platform!", payload.Data["message"])
 						assert.Equal(t, "email", payload.Data["channel"])
-						assert.Equal(t, "notification-service", payload.Metadata.Source)
-						assert.Equal(t, "1.5", payload.Metadata.Version)
-						assert.Equal(t, "staging", payload.Metadata.Environment)
-						assert.Equal(t, 2, payload.Opts.MaxRetries)
-						assert.NotNil(t, payload.Opts.Deadline)
 						// Validate headers
-						assert.Equal(t, "notification-worker", payload.Metadata.Headers["X-Service"])
+						assert.Equal(t, "notification-worker", payload.Headers["X-Service"])
 					}).
 					Return(nil).
 					Times(1)
@@ -211,21 +232,30 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType:     pubadapter.LowLatency,
 				},
 			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "payment.failed").Return(domain.Event{
+					Name: "payment.failed",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{{
+						ServiceName: "test-service",
+						Host:        "http://localhost:8080",
+						Path:        "/webhook",
+					}},
+				}, nil).Times(1)
+			},
 			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"your-project-id-event-queue-internal",
-						gomock.AssignableToTypeOf(InternalPayload{}),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) {
 						// Validate payload even on error scenario using assert
 						assert.Equal(t, "payment.failed", payload.EventName)
 						assert.Equal(t, "pay_error123", payload.Data["payment_id"])
 						assert.Equal(t, "insufficient_funds", payload.Data["reason"])
-						assert.Equal(t, "payment-service", payload.Metadata.Source)
-						assert.Equal(t, 3, payload.Opts.MaxRetries)
 					}).
 					Return(errors.New("publisher error")).
 					Times(1)
@@ -247,27 +277,168 @@ func TestGetExternalHandle(t *testing.T) {
 					WqType: pubadapter.LowLatency,
 				},
 			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "system.ping").Return(domain.Event{
+					Name: "system.ping",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{{
+						ServiceName: "test-service",
+						Host:        "http://localhost:8080",
+						Path:        "/webhook",
+					}},
+				}, nil).Times(1)
+			},
 			setupMock: func(m *pubadapter.MockGenericPublisher) {
 				m.EXPECT().
 					Publish(
 						gomock.Any(),
-						"your-project-id-event-queue-internal",
-						gomock.AssignableToTypeOf(InternalPayload{}),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
 						gomock.Any(),
 					).
-					Do(func(ctx context.Context, eventName string, payload InternalPayload, opts pubadapter.Opts) {
+					Do(func(ctx context.Context, eventName string, payload RequestPayload, opts pubadapter.Opts) {
 						// Validate empty/default payload using assert
 						assert.Equal(t, "system.ping", payload.EventName)
 						assert.Empty(t, payload.Data)
-						assert.Equal(t, "health-check", payload.Metadata.Source)
-						assert.Equal(t, "1.0", payload.Metadata.Version)
-						assert.Equal(t, "test", payload.Metadata.Environment)
-						// Validate default config options (should be zero values)
-						assert.Equal(t, 0, payload.Opts.MaxRetries)
-						assert.Equal(t, intertime.Duration(0), payload.Opts.Retention)
 					}).
 					Return(nil).
 					Times(1)
+			},
+			expectedStatus: http.StatusAccepted,
+			expectedError:  false,
+		},
+		{
+			name: "get_event_returns_event_not_found",
+			payload: InternalPayload{
+				EventName: "nonexistent.event",
+				Data: Data{
+					"key": "value",
+				},
+				Metadata: Metadata{
+					Source:      "test-service",
+					Version:     "1.0",
+					Environment: "test",
+				},
+				Opts: domain.Opt{
+					WqType: pubadapter.LowLatency,
+				},
+			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "nonexistent.event").Return(domain.Event{}, domain.EventNotFound).Times(1)
+			},
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
+				// No publish should be called when event is not found
+			},
+			expectedStatus: http.StatusNotFound,
+			expectedError:  true,
+		},
+		{
+			name: "get_event_returns_other_error",
+			payload: InternalPayload{
+				EventName: "error.event",
+				Data: Data{
+					"key": "value",
+				},
+				Metadata: Metadata{
+					Source:      "test-service",
+					Version:     "1.0",
+					Environment: "test",
+				},
+				Opts: domain.Opt{
+					WqType: pubadapter.LowLatency,
+				},
+			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "error.event").Return(domain.Event{}, errors.New("database connection error")).Times(1)
+			},
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
+				// No publish should be called when store returns error
+			},
+			expectedStatus: http.StatusInternalServerError,
+			expectedError:  true,
+		},
+		{
+			name: "event_with_zero_triggers",
+			payload: InternalPayload{
+				EventName: "no.triggers.event",
+				Data: Data{
+					"key": "value",
+				},
+				Metadata: Metadata{
+					Source:      "test-service",
+					Version:     "1.0",
+					Environment: "test",
+				},
+				Opts: domain.Opt{
+					WqType: pubadapter.LowLatency,
+				},
+			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "no.triggers.event").Return(domain.Event{
+					Name:     "no.triggers.event",
+					Type:     domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{}, // Empty triggers
+				}, nil).Times(1)
+			},
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
+				// No publish should be called when there are no triggers
+			},
+			expectedStatus: http.StatusAccepted,
+			expectedError:  false,
+		},
+		{
+			name: "event_with_multiple_triggers",
+			payload: InternalPayload{
+				EventName: "multi.trigger.event",
+				Data: Data{
+					"user_id": "456",
+				},
+				Metadata: Metadata{
+					Source:      "multi-service",
+					Version:     "1.0",
+					Environment: "test",
+					Headers: map[string]string{
+						"Content-Type": "application/json",
+					},
+				},
+				Opts: domain.Opt{
+					MaxRetries: 3,
+					WqType:     pubadapter.LowLatency,
+				},
+			},
+			setupStoreMock: func(s *MockStore) {
+				s.EXPECT().GetEvent(gomock.Any(), "multi.trigger.event").Return(domain.Event{
+					Name: "multi.trigger.event",
+					Type: domain.TriggerTypeInternal,
+					Triggers: []domain.Trigger{
+						{
+							ServiceName: "service-one",
+							Host:        "http://localhost:8081",
+							Path:        "/webhook1",
+						},
+						{
+							ServiceName: "service-two",
+							Host:        "http://localhost:8082",
+							Path:        "/webhook2",
+						},
+						{
+							ServiceName: "service-three",
+							Host:        "http://localhost:8083",
+							Path:        "/webhook3",
+						},
+					},
+				}, nil).Times(1)
+			},
+			setupMock: func(m *pubadapter.MockGenericPublisher) {
+				m.EXPECT().
+					Publish(
+						gomock.Any(),
+						"your-project-id-event-queue-request-to-external",
+						gomock.AssignableToTypeOf(RequestPayload{}),
+						gomock.Any(),
+					).
+					Return(nil).
+					Times(3) // Should be called once for each trigger
 			},
 			expectedStatus: http.StatusAccepted,
 			expectedError:  false,
@@ -279,8 +450,15 @@ func TestGetExternalHandle(t *testing.T) {
 			// Setup mock expectations
 			tt.setupMock(mockPublisher)
 
+			// Create mocks for Store and PublisherInsights using generated mocks
+			store := NewMockStore(ctrl)
+			tt.setupStoreMock(store)
+
+			insights := NewMockPublisherInsights(ctrl)
+			insights.EXPECT().Published(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
 			// Create handler
-			httpHandle := Publisher(mockPublisher)
+			httpHandle := PublisherEvent(store, mockPublisher, insights)
 
 			// Prepare request
 			payloadBytes, err := json.Marshal(tt.payload)

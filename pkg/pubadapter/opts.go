@@ -5,6 +5,8 @@ import "github.com/hibiken/asynq"
 type Opts struct {
 	Attributes map[string]string
 	AsynqOpts  []asynq.Option
+	// Type specifies the publisher type for routing ("internal" or "external").
+	Type string
 }
 
 var EmptyOpts = Opts{

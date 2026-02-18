@@ -43,9 +43,9 @@ func loadInMemStore(store PersistentRepository) *interstore.MemStore {
 }
 
 func startUsingGooglePubSub(
-	clientPubsub *pubsub.Client,
 	store *interstore.MemStore,
-	redisPubsub pubadapter.GenericPublisher,
+	clientPubsub *pubsub.Client,
+	gcppublisher pubadapter.GenericPublisher,
 	fetch *fetcher.Notification,
 	insightsStore *storests.Store,
 ) {
@@ -62,9 +62,8 @@ func startUsingGooglePubSub(
 	concurrency := cfg.AsynqConfig.Concurrency
 
 	handlers := []gpubsub.Handle{
-		wtrhandler.NewDeadLatterQueue(store, fetch).ToGPubSubHandler(redisPubsub),
-		wtrhandler.GetRequestHandle(fetch, insightsStore).ToGPubSubHandler(redisPubsub),
-		wtrhandler.GetInternalConsumerHandle(store, redisPubsub, insightsStore).ToGPubSubHandler(redisPubsub),
+		wtrhandler.NewDeadLatterQueue(store, fetch).ToGPubSubHandler(gcppublisher),
+		wtrhandler.GetRequestHandle(fetch, insightsStore).ToGPubSubHandler(gcppublisher),
 	}
 
 	var wg sync.WaitGroup
@@ -161,7 +160,12 @@ func startUsingGooglePubSub(
 	}
 }
 
-func startUsingAsynq(store *interstore.MemStore, pub pubadapter.GenericPublisher, fetch *fetcher.Notification, insightsStore *storests.Store) {
+func startUsingAsynq(
+	store *interstore.MemStore,
+	pub pubadapter.GenericPublisher,
+	fetch *fetcher.Notification,
+	insightsStore *storests.Store,
+) {
 	cfg := cfg.Get()
 
 	asynqCfg := asynq.Config{
@@ -181,7 +185,6 @@ func startUsingAsynq(store *interstore.MemStore, pub pubadapter.GenericPublisher
 
 	events := []asynqsvc.AsynqHandle{
 		wtrhandler.GetRequestHandle(fetch, insightsStore).ToAsynqHandler(),
-		wtrhandler.GetInternalConsumerHandle(store, pub, insightsStore).ToAsynqHandler(),
 	}
 
 	for _, event := range events {

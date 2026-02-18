@@ -1,19 +1,57 @@
 package wtrhandler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 )
 
-func Publisher(pub pubadapter.GenericPublisher) httpadapter.HttpHandle {
+type PublisherInsights interface {
+	Published(ctx context.Context, input domain.PublisherMetric) error
+}
+
+type Store interface {
+	GetEvent(ctx context.Context, eventName string) (domain.Event, error)
+}
+
+func PublisherEvent(
+	store Store,
+	adaptpub pubadapter.GenericPublisher,
+	insights PublisherInsights,
+) httpadapter.HttpHandle {
+
+	insertInsights := func(ctx context.Context, payload InternalPayload, started time.Time, isSuccess bool) {
+		l := ctxlogger.GetLogger(ctx)
+		finished := time.Now()
+
+		if err := insights.Published(ctx, domain.PublisherMetric{
+			TopicName:      payload.EventName,
+			TimeStarted:    started,
+			TimeEnded:      finished,
+			TimeDurationMs: finished.Sub(started).Milliseconds(),
+			ACK:            true,
+		}); err != nil {
+			l.Warn("not save metric", "type", "publisher", "error", err.Error())
+		}
+
+	}
+
 	return httpadapter.HttpHandle{
 		Path: "POST /api/v1/event/publisher",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
+			started := time.Now()
+			ctx := r.Context()
+			l := ctxlogger.GetLogger(ctx)
+
 			var payload InternalPayload
 
 			defer r.Body.Close()
@@ -27,15 +65,51 @@ func Publisher(pub pubadapter.GenericPublisher) httpadapter.HttpHandle {
 				return
 			}
 
-			if payload.Opts.WqType == "" || payload.Opts.ScheduleIn > 0 {
-				payload.Opts.WqType = pubadapter.LowThroughput
+			var err error
+			defer insertInsights(ctx, payload, started, err == nil)
+
+			event, err := store.GetEvent(ctx, payload.EventName)
+			if errors.Is(err, domain.EventNotFound) {
+				err = fmt.Errorf("event not found: %w", err)
+				http.Error(w, "event not found", http.StatusNotFound)
+				return
+			}
+			if err != nil {
+				err = fmt.Errorf("get event: %w", err)
+				l.Error("failed to get event", "error", err.Error())
+				http.Error(w, "failed to get event", http.StatusInternalServerError)
+				return
 			}
 
-			topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueInternal)
-			opts := pubadapter.Opts{Attributes: payload.Attributes(topic), AsynqOpts: payload.AsynqOpts()}
-			if err := pub.Publish(r.Context(), topic, payload, opts); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
+			eventType := event.Type.String()
+			if eventType == "" {
+				l.Warn("event type is empty, defaulting to internal", "event_name", event.Name)
+				eventType = domain.TriggerTypeInternal.String()
+			}
+
+			for _, trigger := range event.Triggers {
+				config := trigger.Option.ToAsynqOptions()
+
+				input := RequestPayload{
+					EventName: event.Name,
+					Data:      payload.Data,
+					Headers:   payload.Metadata.Headers,
+					Trigger: Trigger{
+						ServiceName: trigger.ServiceName,
+						BaseUrl:     trigger.Host,
+						Path:        trigger.Path,
+						Headers:     trigger.Headers,
+					},
+				}
+
+				topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueRequestToExternal)
+				opts := pubadapter.Opts{Attributes: make(map[string]string), AsynqOpts: config, Type: eventType}
+				if err = adaptpub.Publish(ctx, topic, input, opts); err != nil {
+					err = fmt.Errorf("publish event: %w", err)
+					l.Error("failed to publish event", "error", err.Error())
+					http.Error(w, "failed to publish event", http.StatusInternalServerError)
+					return
+				}
 			}
 
 			w.WriteHeader(http.StatusAccepted)
