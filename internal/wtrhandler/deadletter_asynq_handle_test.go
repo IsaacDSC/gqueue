@@ -454,7 +454,7 @@ func TestDeadLetterQueue_Handler_FetcherError(t *testing.T) {
 	assert.Len(t, mockFetcher.notifyCalls, 1)
 }
 
-func TestDeadLetterQueue_Handler_MultipleEventsWithMixedconsumers(t *testing.T) {
+func TestDeadLetterQueue_Handler_MultipleEventsWithMixedConsumers(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
