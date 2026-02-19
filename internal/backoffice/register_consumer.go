@@ -9,6 +9,7 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
+	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/google/uuid"
 )
@@ -33,10 +34,13 @@ func (e *EventDto) ToDomain() domain.Event {
 	}
 }
 
-func CreateConsumer(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
+func PatchConsumer(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
 	return httpadapter.HttpHandle{
-		Path: "POST /api/v1/event/consumer",
+		Path: "PATCH /api/v1/event/consumer",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			l := ctxlogger.GetLogger(ctx)
+
 			var payload EventDto
 			defer r.Body.Close()
 			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -50,21 +54,25 @@ func CreateConsumer(cc cachemanager.Cache, repo Repository) httpadapter.HttpHand
 				return
 			}
 
-			ctx := r.Context()
 			key := eventKey(cc, event.ServiceName, event.Name)
 			defaultTTL := cc.GetDefaultTTL()
 
 			if err := cc.Hydrate(ctx, key, &payload, defaultTTL, func(ctx context.Context) (any, error) {
-				if err := repo.Save(ctx, event); err != nil {
-					return domain.Event{}, fmt.Errorf("failed to create internal event: %w", err)
+				if err := repo.Upsert(ctx, event); err != nil {
+					return domain.Event{}, fmt.Errorf("failed to upsert internal event: %w", err)
 				}
 				return payload, nil
 			}); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				l.Error("failed to save consumer", "error", err)
+				http.Error(w, "failed to save consumer", http.StatusInternalServerError)
 				return
 			}
 
-			w.WriteHeader(http.StatusCreated)
+			w.WriteHeader(http.StatusOK)
+			if err := json.NewEncoder(w).Encode(payload); err != nil {
+				l.Error("failed to encode response", "error", err)
+				http.Error(w, "failed to encode response", http.StatusInternalServerError)
+			}
 		},
 	}
 }

@@ -96,6 +96,8 @@ func CORSMiddlewareWithConfig(config CORSConfig) func(http.Handler) http.Handler
 				return
 			}
 
+			w.Header().Set("Content-Type", "application/json")
+
 			next.ServeHTTP(w, r)
 		})
 	}
