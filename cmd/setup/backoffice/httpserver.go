@@ -29,7 +29,7 @@ func Start(
 
 	routes := []httpadapter.HttpHandle{
 		backoffice.GetHealthCheckHandler(),
-		backoffice.CreateOrUpdateConsumer(cache, store),
+		backoffice.PatchConsumer(cache, store),
 		backoffice.GetEvent(cache, store),
 		backoffice.GetEvents(cache, store),
 		backoffice.GetRegisterTaskConsumerArchived(cache, store),

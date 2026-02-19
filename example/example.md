@@ -1,6 +1,6 @@
-### Example create event
+### Example create or update event
 
-curl -X POST \
+curl -X PATCH \
  http://localhost:8080/api/v1/event/consumer \
  -H "Content-Type: application/json" \
  -H "Accept: application/json" \
@@ -40,12 +40,3 @@ curl -i -X DELETE \
 curl -X GET \
 -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
 http://localhost:8080/api/v1/insights | jq
-
-### PATCH event
-
-curl -X PATCH \
- 'http://localhost:8080/api/v1/event/da4543c5-3cca-4151-8737-5f4cf7fa702f' \
- -H "Content-Type: application/json" \
- -H "Accept: application/json" \
- -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
- -d @example/path_event_data.json
