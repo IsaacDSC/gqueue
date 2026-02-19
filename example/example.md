@@ -11,7 +11,7 @@ curl -X PATCH \
 
 curl -X GET \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
- http://localhost:8080/api/v1/my-app/events/payment.processed | jq
+ http://localhost:8080/api/v1/events/{{eventName}} | jq
 
 curl -X GET \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
