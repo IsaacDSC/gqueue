@@ -24,11 +24,8 @@ import (
 	"github.com/IsaacDSC/gqueue/cmd/setup/api"
 	"github.com/IsaacDSC/gqueue/cmd/setup/backoffice"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
-	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/redis/go-redis/v9"
 )
-
-const appName = "gqueue"
 
 // waitForShutdown waits for SIGINT/SIGTERM and gracefully shuts down the provided servers.
 func waitForShutdown(apiServer, backofficeServer *http.Server) {
@@ -116,8 +113,6 @@ func main() {
 		panic(err)
 	}
 
-	cc := cachemanager.NewStrategy(appName, cacheClient)
-
 	service := flag.String("service", "all", "service to run")
 	flag.Parse()
 
@@ -136,7 +131,6 @@ func main() {
 	if *service == "backoffice" {
 		backofficeServer := backoffice.Start(
 			cacheClient,
-			cc,
 			store,
 			storeInsights,
 		)
@@ -152,7 +146,6 @@ func main() {
 
 	backofficeServer := backoffice.Start(
 		cacheClient,
-		cc,
 		store,
 		storeInsights,
 	)

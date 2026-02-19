@@ -1,14 +1,12 @@
 package backoffice
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/google/uuid"
@@ -34,7 +32,7 @@ func (e *EventDto) ToDomain() domain.Event {
 	}
 }
 
-func PatchConsumer(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
+func PatchConsumer(repo Repository) httpadapter.HttpHandle {
 	return httpadapter.HttpHandle{
 		Path: "PATCH /api/v1/event/consumer",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
@@ -54,15 +52,7 @@ func PatchConsumer(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandl
 				return
 			}
 
-			key := eventKey(cc, event.ServiceName, event.Name)
-			defaultTTL := cc.GetDefaultTTL()
-
-			if err := cc.Hydrate(ctx, key, &payload, defaultTTL, func(ctx context.Context) (any, error) {
-				if err := repo.Upsert(ctx, event); err != nil {
-					return domain.Event{}, fmt.Errorf("failed to upsert internal event: %w", err)
-				}
-				return payload, nil
-			}); err != nil {
+			if err := repo.Upsert(ctx, event); err != nil {
 				l.Error("failed to save consumer", "error", err)
 				http.Error(w, "failed to save consumer", http.StatusInternalServerError)
 				return

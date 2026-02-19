@@ -1,31 +1,23 @@
 package backoffice
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/IsaacDSC/gqueue/pkg/queryparser"
 )
 
-func GetEvent(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
+func GetEvent(repo Repository) httpadapter.HttpHandle {
 	return httpadapter.HttpHandle{
-		Path: "GET /api/v1/{service_name}/events/{event_name}",
+		Path: "GET /api/v1/events/{event_name}",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			serviceName := r.PathValue("service_name")
 			eventName := r.PathValue("event_name")
 
-			key := eventKey(cc, serviceName, eventName)
-			defaultTTL := cc.GetDefaultTTL()
-
-			var event domain.Event
-			if err := cc.Once(ctx, key, &event, defaultTTL, func(ctx context.Context) (any, error) {
-				return repo.GetInternalEvent(ctx, eventName)
-			}); err != nil {
+			event, err := repo.GetInternalEvent(ctx, eventName)
+			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -39,7 +31,7 @@ func GetEvent(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
 	}
 }
 
-func GetEvents(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
+func GetEvents(repo Repository) httpadapter.HttpHandle {
 	return httpadapter.HttpHandle{
 		Path: "GET /api/v1/events",
 		Handler: func(w http.ResponseWriter, r *http.Request) {

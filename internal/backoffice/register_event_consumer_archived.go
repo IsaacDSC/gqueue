@@ -1,21 +1,20 @@
 package backoffice
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
-	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
+	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 )
 
-func GetRegisterTaskConsumerArchived(cc cachemanager.Cache, repo Repository) httpadapter.HttpHandle {
+func GetRegisterTaskConsumerArchived(repo Repository) httpadapter.HttpHandle {
 	return httpadapter.HttpHandle{
 		Path: "POST /events/schedule/archived",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
+			l := ctxlogger.GetLogger(ctx)
 			defer r.Body.Close()
 
 			var payload domain.Event
@@ -25,22 +24,11 @@ func GetRegisterTaskConsumerArchived(cc cachemanager.Cache, repo Repository) htt
 			}
 
 			payload.State = "archived"
-			typeEvent := "schedule"
 
-			key := cc.Key(typeEvent, payload.State, payload.ServiceName, payload.Name)
-
-			if err := cc.Hydrate(ctx, key, &payload, cc.GetDefaultTTL(), func(ctx context.Context) (any, error) {
-				if err := repo.Upsert(ctx, payload); err != nil {
-					return domain.Event{}, fmt.Errorf("failed to upsert internal event: %w", err)
-				}
-				return payload, nil
-			}); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
+			if err := repo.Upsert(ctx, payload); err != nil {
+				l.Error("failed to upsert internal event", "error", err)
+				http.Error(w, "failed to upsert internal event", http.StatusInternalServerError)
 			}
-
-			consumersKey := cc.Key("consumers", typeEvent, payload.State)
-			cc.IncrementValue(ctx, consumersKey, &payload)
 
 			w.WriteHeader(http.StatusCreated)
 		},

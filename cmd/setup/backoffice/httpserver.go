@@ -10,7 +10,6 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
-	"github.com/IsaacDSC/gqueue/pkg/cachemanager"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/redis/go-redis/v9"
 )
@@ -21,7 +20,6 @@ type InsightsStore interface {
 
 func Start(
 	rdsclient *redis.Client,
-	cache cachemanager.Cache,
 	store interstore.Repository,
 	insightsStore InsightsStore,
 ) *http.Server {
@@ -29,11 +27,11 @@ func Start(
 
 	routes := []httpadapter.HttpHandle{
 		backoffice.GetHealthCheckHandler(),
-		backoffice.PatchConsumer(cache, store),
-		backoffice.GetEvent(cache, store),
-		backoffice.GetEvents(cache, store),
-		backoffice.GetRegisterTaskConsumerArchived(cache, store),
-		backoffice.RemoveEvent(cache, store),
+		backoffice.PatchConsumer(store),
+		backoffice.GetEvent(store),
+		backoffice.GetEvents(store),
+		backoffice.GetRegisterTaskConsumerArchived(store),
+		backoffice.RemoveEvent(store),
 		backoffice.GetInsightsHandle(insightsStore),
 	}
 
