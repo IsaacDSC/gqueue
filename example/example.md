@@ -24,7 +24,13 @@ curl -X GET \
 ### Publisher data
 
 curl -X POST \
- http://localhost:8080/api/v1/event/publisher \
+ http://localhost:8082/api/v1/pubsub \
+ -H "Content-Type: application/json" \
+ -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
+-d @example/publisher_data.json
+
+curl -X POST \
+ http://localhost:8083/api/v1/task \
  -H "Content-Type: application/json" \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
 -d @example/publisher_data.json

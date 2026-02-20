@@ -2,24 +2,47 @@ package interstore
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log"
 	"sync/atomic"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 )
 
+type PersistentStore interface {
+	GetAllEvents(ctx context.Context) ([]domain.Event, error)
+}
+
 type MemStore struct {
 	topicEvents atomic.Value
 	retryTopics atomic.Value
 	tag         string
+
+	persitentStore PersistentStore
 }
 
-func NewMemStore() *MemStore {
+func NewMemStore(persistentStore PersistentStore) *MemStore {
 	ms := &MemStore{}
 	ms.topicEvents.Store(make(map[string]domain.Event))
 	ms.retryTopics.Store(make(map[string]domain.Event))
 	ms.tag = "mem_store"
+	ms.persitentStore = persistentStore
+
 	return ms
+}
+
+func (ms *MemStore) LoadInMemStore(ctx context.Context) error {
+	events, err := ms.persitentStore.GetAllEvents(ctx)
+	if err != nil && !errors.Is(err, domain.EventNotFound) {
+		log.Printf("[!] Error loading events into in-memory store: %v", err)
+		return fmt.Errorf("error loading events into in-memory store: %w", err)
+	}
+
+	ms.Refresh(ctx, events)
+
+	return nil
 }
 
 func (ms *MemStore) GetEvent(ctx context.Context, eventName string) (domain.Event, error) {

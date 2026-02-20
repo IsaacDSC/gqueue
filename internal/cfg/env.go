@@ -54,11 +54,13 @@ type Config struct {
 	ConfigDatabase      ConfigDatabase
 	Cache               Cache
 	AsynqConfig         AsynqConfig
-	WQ                  WQ         `env:"WQ"`
-	InternalBaseURL     string     `env:"INTERNAL_BASE_URL"`
-	InternalServiceName string     `env:"INTERNAL_SERVICE_NAME"`
-	ApiPort             ServerPort `env:"API_PORT" env-default:"8080"`
-	BackofficePort      ServerPort `env:"BACKOFFICE_PORT" env-default:"8081"`
+	WQ                  WQ     `env:"WQ"`
+	InternalBaseURL     string `env:"INTERNAL_BASE_URL"`
+	InternalServiceName string `env:"INTERNAL_SERVICE_NAME"`
+
+	PubsubApiPort     ServerPort `env:"PUBSUB_API_PORT" env-default:"8082"`
+	TaskApiPort       ServerPort `env:"TASK_API_PORT" env-default:"8082"`
+	BackofficeApiPort ServerPort `env:"BACKOFFICE_API_PORT" env-default:"8081"`
 }
 
 var cfg Config

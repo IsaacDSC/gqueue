@@ -32,20 +32,25 @@ load-test:
 	@echo "$(YELLOW)Executando teste de carga...$(NC)"
 	@$(GO) run ./cmd/loadtest/loadtest.go
 
-# Iniciar worker
-run-worker:
-	@echo "$(BLUE)Iniciando serviço worker...$(NC)"
-	@$(GO) run ./cmd/api/main.go --service=worker
+# Iniciar pubsub (API)
+run-pubsub:
+	@echo "$(BLUE)Iniciando serviço pubsub (API)...$(NC)"
+	@$(GO) run ./cmd/api/main.go --scope=pubsub
 
-# Iniciar webhook (API)
-run-webhook:
-	@echo "$(BLUE)Iniciando serviço webhook (API)...$(NC)"
-	@$(GO) run ./cmd/api/main.go --service=webhook
+# Iniciar task (API)
+run-task:
+	@echo "$(BLUE)Iniciando serviço task (API)...$(NC)"
+	@$(GO) run ./cmd/api/main.go --scope=task
+
+# Iniciar backoffice (API)
+run-backoffice:
+	@echo "$(BLUE)Iniciando serviço backoffice (API)...$(NC)"
+	@$(GO) run ./cmd/api/main.go --scope=backoffice
 
 # Iniciar ambos serviços
 run-all:
 	@echo "$(BLUE)Iniciando todos os serviços (worker e webhook)...$(NC)"
-	@$(GO) run ./cmd/api/main.go --service=all
+	@$(GO) run ./cmd/api/main.go --scope=all
 
 # Limpar binários gerados
 clean:

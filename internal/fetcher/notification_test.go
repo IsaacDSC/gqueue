@@ -10,7 +10,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
+	"github.com/IsaacDSC/gqueue/internal/domain"
 )
 
 func init() {
@@ -28,7 +28,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 		name           string
 		data           map[string]any
 		headers        map[string]string
-		consumer       wtrhandler.Consumer
+		consumer       domain.Consumer
 		serverResponse serverResponse
 		wantErr        bool
 		errContains    string
@@ -44,7 +44,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"Authorization": "Bearer token123",
 				"X-Custom":      "custom-value",
 			},
-			consumer: wtrhandler.Consumer{
+			consumer: domain.Consumer{
 				ServiceName: "test-service",
 				BaseUrl:     "",
 				Path:        "/webhook",
@@ -64,7 +64,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			headers: map[string]string{
 				"Content-Type": "application/json",
 			},
-			consumer: wtrhandler.Consumer{
+			consumer: domain.Consumer{
 				ServiceName: "user-service",
 				BaseUrl:     "",
 				Path:        "/users/webhook",
@@ -81,7 +81,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"ping": "pong",
 			},
 			headers: map[string]string{},
-			consumer: wtrhandler.Consumer{
+			consumer: domain.Consumer{
 				ServiceName: "ping-service",
 				BaseUrl:     "",
 				Path:        "/ping",
@@ -98,7 +98,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"test": "boundary",
 			},
 			headers: map[string]string{},
-			consumer: wtrhandler.Consumer{
+			consumer: domain.Consumer{
 				ServiceName: "boundary-service",
 				BaseUrl:     "",
 				Path:        "/boundary",
@@ -115,7 +115,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"invalid": "data",
 			},
 			headers: map[string]string{},
-			consumer: wtrhandler.Consumer{
+			consumer: domain.Consumer{
 				ServiceName: "validation-service",
 				BaseUrl:     "",
 				Path:        "/validate",
@@ -133,7 +133,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"sensitive": "data",
 			},
 			headers: map[string]string{},
-			consumer: wtrhandler.Consumer{
+			consumer: domain.Consumer{
 				ServiceName: "auth-service",
 				BaseUrl:     "",
 				Path:        "/secure",
@@ -151,7 +151,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"event": "not-found",
 			},
 			headers: map[string]string{},
-			consumer: wtrhandler.Consumer{
+			consumer: domain.Consumer{
 				ServiceName: "missing-service",
 				BaseUrl:     "",
 				Path:        "/missing",
@@ -169,7 +169,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"event": "server-error",
 			},
 			headers: map[string]string{},
-			consumer: wtrhandler.Consumer{
+			consumer: domain.Consumer{
 				ServiceName: "error-service",
 				BaseUrl:     "",
 				Path:        "/error",
@@ -187,7 +187,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"redirect": "test",
 			},
 			headers: map[string]string{},
-			consumer: wtrhandler.Consumer{
+			consumer: domain.Consumer{
 				ServiceName: "redirect-service",
 				BaseUrl:     "",
 				Path:        "/redirect",
@@ -205,7 +205,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 				"complex": "url",
 			},
 			headers: map[string]string{},
-			consumer: wtrhandler.Consumer{
+			consumer: domain.Consumer{
 				ServiceName: "complex-service",
 				BaseUrl:     "",
 				Path:        "/api/v1/webhooks",
@@ -255,7 +255,7 @@ func TestNotification_NotifyTrigger_InvalidData(t *testing.T) {
 		"channel": make(chan int),
 	}
 
-	trigger := wtrhandler.Consumer{
+	trigger := domain.Consumer{
 		ServiceName: "test-service",
 		BaseUrl:     "http://example.com",
 		Path:        "/webhook",
