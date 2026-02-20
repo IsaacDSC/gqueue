@@ -1,4 +1,4 @@
-package pubsubapp
+package pubsubapp_test
 
 import (
 	"context"
@@ -8,7 +8,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/IsaacDSC/gqueue/internal/app/pubsubapp"
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/mocks/mockpubsubapp"
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,94 +39,14 @@ func (m *mockFetcher) Notify(ctx context.Context, data map[string]any, headers m
 	return nil
 }
 
-func TestRequestPayload_mergeHeaders(t *testing.T) {
-	tests := []struct {
-		name           string
-		payload        RequestPayload
-		inputHeaders   map[string]string
-		expectedResult map[string]string
-	}{
-		{
-			name: "merge_with_empty_payload_headers",
-			payload: RequestPayload{
-				Headers: nil,
-			},
-			inputHeaders: map[string]string{
-				"Authorization": "Bearer token",
-				"Content-Type":  "application/json",
-			},
-			expectedResult: map[string]string{
-				"Authorization": "Bearer token",
-				"Content-Type":  "application/json",
-			},
-		},
-		{
-			name: "merge_with_existing_payload_headers",
-			payload: RequestPayload{
-				Headers: map[string]string{
-					"X-Custom-Header": "custom-value",
-					"User-Agent":      "webhook-client",
-				},
-			},
-			inputHeaders: map[string]string{
-				"Authorization": "Bearer token",
-				"Content-Type":  "application/json",
-			},
-			expectedResult: map[string]string{
-				"X-Custom-Header": "custom-value",
-				"User-Agent":      "webhook-client",
-				"Authorization":   "Bearer token",
-				"Content-Type":    "application/json",
-			},
-		},
-		{
-			name: "override_existing_headers",
-			payload: RequestPayload{
-				Headers: map[string]string{
-					"Content-Type": "text/plain",
-					"User-Agent":   "webhook-client",
-				},
-			},
-			inputHeaders: map[string]string{
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer token",
-			},
-			expectedResult: map[string]string{
-				"User-Agent":    "webhook-client",
-				"Content-Type":  "application/json",
-				"Authorization": "Bearer token",
-			},
-		},
-		{
-			name: "empty_input_headers",
-			payload: RequestPayload{
-				Headers: map[string]string{
-					"X-Custom-Header": "custom-value",
-				},
-			},
-			inputHeaders: map[string]string{},
-			expectedResult: map[string]string{
-				"X-Custom-Header": "custom-value",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := tt.payload.mergeHeaders(tt.inputHeaders)
-			assert.Equal(t, tt.expectedResult, result)
-		})
-	}
-}
-
 func TestGetRequestHandle(t *testing.T) {
 	t.Run("returns_correct_queue_name_and_handler", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
 		mockFetch := &mockFetcher{}
-		mockInsights := NewMockConsumerInsights(ctrl)
-		handle := GetRequestHandle(mockFetch, mockInsights)
+		mockInsights := mockpubsubapp.NewMockConsumerInsights(ctrl)
+		handle := pubsubapp.GetRequestHandle(mockFetch, mockInsights)
 
 		assert.Equal(t, "event-queue.request-to-external", handle.EventName)
 		assert.NotNil(t, handle.Handler)
@@ -157,15 +79,15 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		payload        RequestPayload
+		payload        pubsubapp.RequestPayload
 		mockFetcher    *mockFetcher
-		setupMocks     func(*MockConsumerInsights)
+		setupMocks     func(*mockpubsubapp.MockConsumerInsights)
 		expectedError  bool
 		expectedErrMsg string
 	}{
 		{
 			name: "successful_request",
-			payload: RequestPayload{
+			payload: pubsubapp.RequestPayload{
 				EventName: "user.created",
 				Consumer: domain.Consumer{
 					ServiceName: "user-service",
@@ -188,7 +110,7 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 					return nil
 				},
 			},
-			setupMocks: func(mockInsights *MockConsumerInsights) {
+			setupMocks: func(mockInsights *mockpubsubapp.MockConsumerInsights) {
 				mockInsights.EXPECT().
 					Consumed(gomock.Any(), gomock.Any()).
 					DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
@@ -210,20 +132,20 @@ func TestGetRequestHandle_Handler(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockInsights := NewMockConsumerInsights(ctrl)
+			mockInsights := mockpubsubapp.NewMockConsumerInsights(ctrl)
 			if tt.setupMocks != nil {
 				tt.setupMocks(mockInsights)
 			}
 
 			// Get the handler
-			handle := GetRequestHandle(tt.mockFetcher, mockInsights)
+			handle := pubsubapp.GetRequestHandle(tt.mockFetcher, mockInsights)
 
 			// Create task payload
 			taskPayload, err := json.Marshal(tt.payload)
 			require.NoError(t, err)
 
 			// Create AsyncCtx wrapper
-			asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), taskPayload)
+			asyncCtx := asyncadapter.NewAsyncCtx[pubsubapp.RequestPayload](context.Background(), taskPayload)
 
 			// Execute handler
 			err = handle.Handler(asyncCtx)
@@ -245,11 +167,11 @@ func TestGetRequestHandle_Handler_InvalidPayload(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockFetch := &mockFetcher{}
-	mockInsights := NewMockConsumerInsights(ctrl)
-	handle := GetRequestHandle(mockFetch, mockInsights)
+	mockInsights := mockpubsubapp.NewMockConsumerInsights(ctrl)
+	handle := pubsubapp.GetRequestHandle(mockFetch, mockInsights)
 
 	// Create AsyncCtx wrapper with invalid payload
-	asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), []byte("invalid json"))
+	asyncCtx := asyncadapter.NewAsyncCtx[pubsubapp.RequestPayload](context.Background(), []byte("invalid json"))
 
 	err := handle.Handler(asyncCtx)
 
@@ -264,7 +186,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 		headers             map[string]string
 		consumer            domain.Consumer
 		mockNotifyTriggerFn func(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer) error
-		setupMocks          func(*MockConsumerInsights)
+		setupMocks          func(*mockpubsubapp.MockConsumerInsights)
 		expectedError       bool
 		expectedErrMsg      string
 	}{
@@ -289,7 +211,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 				assert.Equal(t, "webhook-client", headers["User-Agent"])
 				return nil
 			},
-			setupMocks: func(mockInsights *MockConsumerInsights) {
+			setupMocks: func(mockInsights *mockpubsubapp.MockConsumerInsights) {
 				mockInsights.EXPECT().
 					Consumed(gomock.Any(), gomock.Any()).
 					DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
@@ -316,7 +238,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 			mockNotifyTriggerFn: func(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer) error {
 				return assert.AnError
 			},
-			setupMocks: func(mockInsights *MockConsumerInsights) {
+			setupMocks: func(mockInsights *mockpubsubapp.MockConsumerInsights) {
 				mockInsights.EXPECT().
 					Consumed(gomock.Any(), gomock.Any()).
 					DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
@@ -337,7 +259,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockInsights := NewMockConsumerInsights(ctrl)
+			mockInsights := mockpubsubapp.NewMockConsumerInsights(ctrl)
 			if tt.setupMocks != nil {
 				tt.setupMocks(mockInsights)
 			}
@@ -346,9 +268,9 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 				notifyTriggerFunc: tt.mockNotifyTriggerFn,
 			}
 
-			handle := GetRequestHandle(mockFetch, mockInsights)
+			handle := pubsubapp.GetRequestHandle(mockFetch, mockInsights)
 
-			payload := RequestPayload{
+			payload := pubsubapp.RequestPayload{
 				EventName: "user.created",
 				Consumer:  tt.consumer,
 				Data:      tt.data,
@@ -360,7 +282,7 @@ func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create AsyncCtx wrapper
-			asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), taskPayload)
+			asyncCtx := asyncadapter.NewAsyncCtx[pubsubapp.RequestPayload](context.Background(), taskPayload)
 
 			// Execute handler
 			err = handle.Handler(asyncCtx)
@@ -395,7 +317,7 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
-			mockInsights := NewMockConsumerInsights(ctrl)
+			mockInsights := mockpubsubapp.NewMockConsumerInsights(ctrl)
 			mockInsights.EXPECT().
 				Consumed(gomock.Any(), gomock.Any()).
 				DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
@@ -412,9 +334,9 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 				},
 			}
 
-			handle := GetRequestHandle(mockFetch, mockInsights)
+			handle := pubsubapp.GetRequestHandle(mockFetch, mockInsights)
 
-			payload := RequestPayload{
+			payload := pubsubapp.RequestPayload{
 				EventName: "user.created",
 				Consumer: domain.Consumer{
 					ServiceName: "user-service",
@@ -430,7 +352,7 @@ func TestMockFetcher_ErrorScenarios(t *testing.T) {
 			require.NoError(t, err)
 
 			// Create AsyncCtx wrapper
-			asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), taskPayload)
+			asyncCtx := asyncadapter.NewAsyncCtx[pubsubapp.RequestPayload](context.Background(), taskPayload)
 			err = handle.Handler(asyncCtx)
 
 			assert.Error(t, err)
@@ -446,7 +368,7 @@ func TestGetRequestHandle_HeaderMerging(t *testing.T) {
 	// Track the headers received by the mock fetcher
 	var receivedHeaders map[string]string
 
-	mockInsights := NewMockConsumerInsights(ctrl)
+	mockInsights := mockpubsubapp.NewMockConsumerInsights(ctrl)
 	mockInsights.EXPECT().
 		Consumed(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
@@ -464,9 +386,9 @@ func TestGetRequestHandle_HeaderMerging(t *testing.T) {
 		},
 	}
 
-	handle := GetRequestHandle(mockFetch, mockInsights)
+	handle := pubsubapp.GetRequestHandle(mockFetch, mockInsights)
 
-	payload := RequestPayload{
+	payload := pubsubapp.RequestPayload{
 		EventName: "user.created",
 		Consumer: domain.Consumer{
 			ServiceName: "user-service",
@@ -492,7 +414,7 @@ func TestGetRequestHandle_HeaderMerging(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create AsyncCtx wrapper
-	asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), taskPayload)
+	asyncCtx := asyncadapter.NewAsyncCtx[pubsubapp.RequestPayload](context.Background(), taskPayload)
 	err = handle.Handler(asyncCtx)
 	require.NoError(t, err)
 
@@ -510,7 +432,7 @@ func TestGetRequestHandle_DataPassing(t *testing.T) {
 	// Track the data received by the mock fetcher
 	var receivedData map[string]any
 
-	mockInsights := NewMockConsumerInsights(ctrl)
+	mockInsights := mockpubsubapp.NewMockConsumerInsights(ctrl)
 	mockInsights.EXPECT().
 		Consumed(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(ctx context.Context, input domain.ConsumerMetric) error {
@@ -528,7 +450,7 @@ func TestGetRequestHandle_DataPassing(t *testing.T) {
 		},
 	}
 
-	handle := GetRequestHandle(mockFetch, mockInsights)
+	handle := pubsubapp.GetRequestHandle(mockFetch, mockInsights)
 
 	expectedData := map[string]any{
 		"user_id":   "123",
@@ -538,7 +460,7 @@ func TestGetRequestHandle_DataPassing(t *testing.T) {
 		"is_active": true,
 	}
 
-	payload := RequestPayload{
+	payload := pubsubapp.RequestPayload{
 		EventName: "user.created",
 		Consumer: domain.Consumer{
 			ServiceName: "user-service",
@@ -554,7 +476,7 @@ func TestGetRequestHandle_DataPassing(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create AsyncCtx wrapper
-	asyncCtx := asyncadapter.NewAsyncCtx[RequestPayload](context.Background(), taskPayload)
+	asyncCtx := asyncadapter.NewAsyncCtx[pubsubapp.RequestPayload](context.Background(), taskPayload)
 	err = handle.Handler(asyncCtx)
 	require.NoError(t, err)
 

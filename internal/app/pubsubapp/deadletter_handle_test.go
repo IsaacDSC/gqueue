@@ -10,6 +10,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/mocks/mockpubsubapp"
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,7 +32,7 @@ type notifyCall struct {
 
 // mockFetcherWithCalls wraps MockFetcher to track calls
 type mockFetcherWithCalls struct {
-	*MockFetcher
+	*mockpubsubapp.MockFetcher
 	notifyCalls []notifyCall
 }
 
@@ -49,8 +50,8 @@ func TestNewDeadLatterQueue(t *testing.T) {
 	defer ctrl.Finish()
 
 	t.Run("returns_correct_event_name_and_handler", func(t *testing.T) {
-		mockStore := NewMockDeadLetterStore(ctrl)
-		mockFetcher := NewMockFetcher(ctrl)
+		mockStore := mockpubsubapp.NewMockDeadLetterStore(ctrl)
+		mockFetcher := mockpubsubapp.NewMockFetcher(ctrl)
 
 		handle := NewDeadLatterQueue(mockStore, mockFetcher)
 
@@ -67,10 +68,10 @@ func TestNewDeadLatterQueue(t *testing.T) {
 	})
 
 	t.Run("constructor_creates_different_instances", func(t *testing.T) {
-		mockStore1 := NewMockDeadLetterStore(ctrl)
-		mockFetcher1 := NewMockFetcher(ctrl)
-		mockStore2 := NewMockDeadLetterStore(ctrl)
-		mockFetcher2 := NewMockFetcher(ctrl)
+		mockStore1 := mockpubsubapp.NewMockDeadLetterStore(ctrl)
+		mockFetcher1 := mockpubsubapp.NewMockFetcher(ctrl)
+		mockStore2 := mockpubsubapp.NewMockDeadLetterStore(ctrl)
+		mockFetcher2 := mockpubsubapp.NewMockFetcher(ctrl)
 
 		handle1 := NewDeadLatterQueue(mockStore1, mockFetcher1)
 		handle2 := NewDeadLatterQueue(mockStore2, mockFetcher2)
@@ -135,14 +136,14 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 		},
 	}
 
-	mockStore := NewMockDeadLetterStore(ctrl)
+	mockStore := mockpubsubapp.NewMockDeadLetterStore(ctrl)
 	mockStore.EXPECT().
 		GetAllSchedulers(gomock.Any(), "archived").
 		Return(mockEvents, nil).
 		Times(1)
 
 	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: NewMockFetcher(ctrl),
+		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
 		notifyCalls: []notifyCall{},
 	}
 
@@ -225,14 +226,14 @@ func TestDeadLetterQueue_Handler_EventNotFound(t *testing.T) {
 		PublishTime: time.Now(),
 	}
 
-	mockStore := NewMockDeadLetterStore(ctrl)
+	mockStore := mockpubsubapp.NewMockDeadLetterStore(ctrl)
 	mockStore.EXPECT().
 		GetAllSchedulers(gomock.Any(), "archived").
 		Return(nil, domain.EventNotFound).
 		Times(1)
 
 	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: NewMockFetcher(ctrl),
+		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
 		notifyCalls: []notifyCall{},
 	}
 
@@ -265,14 +266,14 @@ func TestDeadLetterQueue_Handler_StoreError(t *testing.T) {
 
 	expectedError := errors.New("database connection failed")
 
-	mockStore := NewMockDeadLetterStore(ctrl)
+	mockStore := mockpubsubapp.NewMockDeadLetterStore(ctrl)
 	mockStore.EXPECT().
 		GetAllSchedulers(gomock.Any(), "archived").
 		Return(nil, expectedError).
 		Times(1)
 
 	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: NewMockFetcher(ctrl),
+		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
 		notifyCalls: []notifyCall{},
 	}
 
@@ -297,8 +298,8 @@ func TestDeadLetterQueue_Handler_InvalidPayload(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockStore := NewMockDeadLetterStore(ctrl)
-	mockFetcher := NewMockFetcher(ctrl)
+	mockStore := mockpubsubapp.NewMockDeadLetterStore(ctrl)
+	mockFetcher := mockpubsubapp.NewMockFetcher(ctrl)
 
 	handle := NewDeadLatterQueue(mockStore, mockFetcher)
 
@@ -321,14 +322,14 @@ func TestDeadLetterQueue_Handler_EmptyEvents(t *testing.T) {
 		PublishTime: time.Now(),
 	}
 
-	mockStore := NewMockDeadLetterStore(ctrl)
+	mockStore := mockpubsubapp.NewMockDeadLetterStore(ctrl)
 	mockStore.EXPECT().
 		GetAllSchedulers(gomock.Any(), "archived").
 		Return([]domain.Event{}, nil).
 		Times(1)
 
 	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: NewMockFetcher(ctrl),
+		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
 		notifyCalls: []notifyCall{},
 	}
 
@@ -367,14 +368,14 @@ func TestDeadLetterQueue_Handler_EventsWithNoConsumers(t *testing.T) {
 		},
 	}
 
-	mockStore := NewMockDeadLetterStore(ctrl)
+	mockStore := mockpubsubapp.NewMockDeadLetterStore(ctrl)
 	mockStore.EXPECT().
 		GetAllSchedulers(gomock.Any(), "archived").
 		Return(mockEvents, nil).
 		Times(1)
 
 	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: NewMockFetcher(ctrl),
+		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
 		notifyCalls: []notifyCall{},
 	}
 
@@ -421,7 +422,7 @@ func TestDeadLetterQueue_Handler_FetcherError(t *testing.T) {
 		},
 	}
 
-	mockStore := NewMockDeadLetterStore(ctrl)
+	mockStore := mockpubsubapp.NewMockDeadLetterStore(ctrl)
 	mockStore.EXPECT().
 		GetAllSchedulers(gomock.Any(), "archived").
 		Return(mockEvents, nil).
@@ -429,7 +430,7 @@ func TestDeadLetterQueue_Handler_FetcherError(t *testing.T) {
 
 	fetcherError := errors.New("webhook delivery failed")
 	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: NewMockFetcher(ctrl),
+		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
 		notifyCalls: []notifyCall{},
 	}
 
@@ -507,14 +508,14 @@ func TestDeadLetterQueue_Handler_MultipleEventsWithMixedConsumers(t *testing.T) 
 		},
 	}
 
-	mockStore := NewMockDeadLetterStore(ctrl)
+	mockStore := mockpubsubapp.NewMockDeadLetterStore(ctrl)
 	mockStore.EXPECT().
 		GetAllSchedulers(gomock.Any(), "archived").
 		Return(mockEvents, nil).
 		Times(1)
 
 	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: NewMockFetcher(ctrl),
+		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
 		notifyCalls: []notifyCall{},
 	}
 
@@ -575,13 +576,13 @@ func TestDeadLetterQueue_Handler_VerifyState(t *testing.T) {
 		PublishTime: time.Now(),
 	}
 
-	mockStore := NewMockDeadLetterStore(ctrl)
+	mockStore := mockpubsubapp.NewMockDeadLetterStore(ctrl)
 	mockStore.EXPECT().
 		GetAllSchedulers(gomock.Any(), "archived").
 		Return([]domain.Event{}, nil).
 		Times(1)
 
-	mockFetcher := NewMockFetcher(ctrl)
+	mockFetcher := mockpubsubapp.NewMockFetcher(ctrl)
 
 	handle := NewDeadLatterQueue(mockStore, mockFetcher)
 

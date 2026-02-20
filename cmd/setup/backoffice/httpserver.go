@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/cmd/setup/middleware"
-	"github.com/IsaacDSC/gqueue/internal/app/backoffice"
+	"github.com/IsaacDSC/gqueue/internal/app/backofficeapp"
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
@@ -26,13 +26,13 @@ func Start(
 	mux := http.NewServeMux()
 
 	routes := []httpadapter.HttpHandle{
-		backoffice.GetHealthCheckHandler(),
-		backoffice.PatchConsumer(store),
-		backoffice.GetEvent(store),
-		backoffice.GetEvents(store),
-		backoffice.GetRegisterTaskConsumerArchived(store),
-		backoffice.RemoveEvent(store),
-		backoffice.GetInsightsHandle(insightsStore),
+		backofficeapp.GetHealthCheckHandler(),
+		backofficeapp.PatchConsumer(store),
+		backofficeapp.GetEvent(store),
+		backofficeapp.GetEvents(store),
+		backofficeapp.GetRegisterTaskConsumerArchived(store),
+		backofficeapp.RemoveEvent(store),
+		backofficeapp.GetInsightsHandle(insightsStore),
 	}
 
 	for _, route := range routes {

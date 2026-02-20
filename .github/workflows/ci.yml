@@ -56,6 +56,12 @@ jobs:
 
       - name: Verify dependencies
         run: go mod verify
+      
+      - name: Validate Go packages
+        run: go run ./deployment/ci/validation_pkg/main.go
+
+      - name: Check mocks
+        run: make check-mocks
 
       - name: Generate mocks
         run: make generate-mocks

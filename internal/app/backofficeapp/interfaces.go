@@ -1,4 +1,4 @@
-package backoffice
+package backofficeapp
 
 import (
 	"context"
