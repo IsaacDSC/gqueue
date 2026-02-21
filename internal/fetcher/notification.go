@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/IsaacDSC/gqueue/internal/wtrhandler"
+	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/httpclient"
 )
 
@@ -17,7 +17,7 @@ func NewNotification() *Notification {
 	return &Notification{}
 }
 
-func (n Notification) Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer wtrhandler.Consumer) error {
+func (n Notification) Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer) error {
 	url := consumer.GetUrl()
 	return fetch(ctx, url, data, headers)
 }

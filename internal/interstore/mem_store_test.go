@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/mocks/mockinterstore"
 	"github.com/google/uuid"
+	"go.uber.org/mock/gomock"
 )
 
 func TestMemStore_GetEvent(t *testing.T) {
@@ -92,9 +94,12 @@ func TestMemStore_GetEvent(t *testing.T) {
 		},
 	}
 
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStore := mockinterstore.NewMockPersistentStore(ctrl)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ms := NewMemStore()
+			ms := NewMemStore(mockStore)
 			ctx := context.Background()
 
 			ms.Refresh(ctx, tt.setupEvents)
@@ -243,9 +248,12 @@ func TestMemStore_Refresh(t *testing.T) {
 		},
 	}
 
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStore := mockinterstore.NewMockPersistentStore(ctrl)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ms := NewMemStore()
+			ms := NewMemStore(mockStore)
 			ctx := context.Background()
 
 			if len(tt.initialEvents) > 0 {
@@ -276,7 +284,10 @@ func TestMemStore_Refresh(t *testing.T) {
 }
 
 func TestMemStore_DuplicateEventLastWins(t *testing.T) {
-	ms := NewMemStore()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStore := mockinterstore.NewMockPersistentStore(ctrl)
+	ms := NewMemStore(mockStore)
 	ctx := context.Background()
 
 	events := []domain.Event{

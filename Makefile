@@ -19,8 +19,19 @@ NC=\033[0m # No Color
 all: help
 
 # Executar todos os checks do CI localmente
-ci: lint security test build clean
+ci: validate-pkg check-mocks test build lint security clean
 	@echo "$(GREEN)✅ Todos os checks do CI passaram com sucesso!$(NC)"
+
+# Gera mocks
+generate-mocks: install-mockgen clean-mocks
+	go run deployment/ci/gen_mocks/main.go
+	@echo "$(GREEN)Mocks gerados com sucesso!$(NC)"
+
+# Valida pacotes Go
+validate-pkg:
+	@echo "$(GREEN)Validando pacotes Go...$(NC)"
+	$(GO) run ./deployment/ci/validation_pkg/main.go
+	@echo "$(GREEN)Validação dos pacotes Go finalizada!$(NC)"
 
 # Construir o aplicativo
 build:
@@ -32,20 +43,25 @@ load-test:
 	@echo "$(YELLOW)Executando teste de carga...$(NC)"
 	@$(GO) run ./cmd/loadtest/loadtest.go
 
-# Iniciar worker
-run-worker:
-	@echo "$(BLUE)Iniciando serviço worker...$(NC)"
-	@$(GO) run ./cmd/api/main.go --service=worker
+# Iniciar pubsub (API)
+run-pubsub:
+	@echo "$(BLUE)Iniciando serviço pubsub (API)...$(NC)"
+	@$(GO) run ./cmd/api/main.go --scope=pubsub
 
-# Iniciar webhook (API)
-run-webhook:
-	@echo "$(BLUE)Iniciando serviço webhook (API)...$(NC)"
-	@$(GO) run ./cmd/api/main.go --service=webhook
+# Iniciar task (API)
+run-task:
+	@echo "$(BLUE)Iniciando serviço task (API)...$(NC)"
+	@$(GO) run ./cmd/api/main.go --scope=task
+
+# Iniciar backoffice (API)
+run-backoffice:
+	@echo "$(BLUE)Iniciando serviço backoffice (API)...$(NC)"
+	@$(GO) run ./cmd/api/main.go --scope=backoffice
 
 # Iniciar ambos serviços
 run-all:
 	@echo "$(BLUE)Iniciando todos os serviços (worker e webhook)...$(NC)"
-	@$(GO) run ./cmd/api/main.go --service=all
+	@$(GO) run ./cmd/api/main.go --scope=all
 
 # Limpar binários gerados
 clean:
@@ -201,90 +217,22 @@ install-mockgen:
 	@$(GO) install go.uber.org/mock/mockgen@latest
 
 generate-mocks: install-mockgen clean-mocks
-	@echo "$(GREEN)Gerando mocks...$(NC)"
-	@echo "$(BLUE)Gerando mock para DeadLetter...$(NC)"
-	@$(MOCKGEN) -source=internal/wtrhandler/deadletter_asynq_handle.go -destination=internal/wtrhandler/deadletter_mock.go -package=wtrhandler DeadLetterStore
-	@echo "$(BLUE)Gerando mock para Fetcher...$(NC)"
-	@$(MOCKGEN) -source=internal/wtrhandler/request_handle_asynq.go -destination=internal/wtrhandler/fetcher_mock.go -package=wtrhandler Fetcher
-	@echo "$(BLUE)Gerando mock para Publisher...$(NC)"
-	@$(MOCKGEN) -source=pkg/pubadapter/adapter.go -destination=pkg/publisher/publisher_task_mock.go -package=publisher
-	@echo "$(BLUE)Gerando mock para Publisher em pubadapter...$(NC)"
-	@$(MOCKGEN) -source=pkg/pubadapter/adapter.go -destination=pkg/pubadapter/publisher_task_mock.go -package=pubadapter
-	@echo "$(BLUE)Gerando mock para PublisherInsights...$(NC)"
-	# TODO: está sendo criado junto com outro por estar no mesmo arquivo, separar interfaces em arquivos diferentes
-	# @$(MOCKGEN) -source=tmp/publisher_insights.go -destination=internal/wtrhandler/mock_publisher_insights.go -package=wtrhandler
-	@echo "$(BLUE)Gerando mock para ConsumerInsights...$(NC)"
-	# TODO: está sendo criado junto com outro por estar no mesmo arquivo, separar interfaces em arquivos diferentes
-	# @$(MOCKGEN) -source=tmp/consumer_insights.go -destination=internal/wtrhandler/mock_consumer_insights.go -package=wtrhandler
+	@go run deployment/ci/gen_mocks/main.go
 	@echo "$(GREEN)Mocks gerados com sucesso!$(NC)"
 
 update-mocks: generate-mocks
+	@$(MAKE) clean-mocks
+	@$(MAKE) generate-mocks
 	@echo "$(GREEN)Mocks atualizados!$(NC)"
 
 check-mocks:
-	@echo "$(GREEN)Verificando se os mocks existem...$(NC)"
-	@if [ ! -f "internal/wtrhandler/repository_mock.go" ]; then \
-		echo "$(YELLOW)⚠️  Repository mock não encontrado!$(NC)"; \
-		echo "Execute 'make generate-mocks' para gerar os mocks"; \
-		exit 1; \
-	fi
-	@if [ ! -f "internal/wtrhandler/deadletter_mock.go" ]; then \
-		echo "$(YELLOW)⚠️  DeadLetter mock não encontrado!$(NC)"; \
-		echo "Execute 'make generate-mocks' para gerar os mocks"; \
-		exit 1; \
-	fi
-	@if [ ! -f "internal/wtrhandler/fetcher_mock.go" ]; then \
-		echo "$(YELLOW)⚠️  Fetcher mock não encontrado!$(NC)"; \
-		echo "Execute 'make generate-mocks' para gerar os mocks"; \
-		exit 1; \
-	fi
-	@if [ ! -f "pkg/cachemanager/cache_mock.go" ]; then \
-		echo "$(YELLOW)⚠️  Cache mock não encontrado!$(NC)"; \
-		echo "Execute 'make generate-mocks' para gerar os mocks"; \
-		exit 1; \
-	fi
-	@if [ ! -f "pkg/publisher/publisher_task_mock.go" ]; then \
-		echo "$(YELLOW)⚠️  Publisher mock não encontrado!$(NC)"; \
-		echo "Execute 'make generate-mocks' para gerar os mocks"; \
-		exit 1; \
-	fi
-	@if [ ! -f "pkg/pubadapter/publisher_task_mock.go" ]; then \
-		echo "$(YELLOW)⚠️  Publisher mock em pubadapter não encontrado!$(NC)"; \
-		echo "Execute 'make generate-mocks' para gerar os mocks"; \
-		exit 1; \
-	fi
-	# TODO: Descomentar quando os mocks de insights forem implementados
-	# @if [ ! -f "internal/wtrhandler/mock_publisher_insights.go" ]; then \
-	#	echo "$(YELLOW)⚠️  PublisherInsights mock não encontrado!$(NC)"; \
-	#	echo "Execute 'make generate-mocks' para gerar os mocks"; \
-	#	exit 1; \
-	# fi
-	# @if [ ! -f "internal/wtrhandler/mock_consumer_insights.go" ]; then \
-	#	echo "$(YELLOW)⚠️  ConsumerInsights mock não encontrado!$(NC)"; \
-	#	echo "Execute 'make generate-mocks' para gerar os mocks"; \
-	#	exit 1; \
-	# fi
-	@echo "$(GREEN)✅ Todos os mocks existem!$(NC)"
+	@echo "$(GREEN)Verificando se todas as interfaces possuem mocks...$(NC)"
+	@sh ./deployment/ci/validate_mock.sh
 	@echo "$(BLUE)💡 Para regenerar todos os mocks, execute: make update-mocks$(NC)"
 
 clean-mocks:
-	@echo "$(GREEN)Removendo mocks...$(NC)"
-	@echo "$(BLUE)Removendo Repository mock...$(NC)"
-	@rm -f internal/wtrhandler/repository_mock.go
-	@echo "$(BLUE)Removendo DeadLetter mock...$(NC)"
-	@rm -f internal/wtrhandler/deadletter_mock.go
-	@echo "$(BLUE)Removendo Fetcher mock...$(NC)"
-	@rm -f internal/wtrhandler/fetcher_mock.go
-	@echo "$(BLUE)Removendo Cache mock...$(NC)"
-	@rm -f pkg/cachemanager/cache_mock.go
-	@echo "$(BLUE)Removendo Publisher mock...$(NC)"
-	@rm -f pkg/publisher/publisher_task_mock.go
-	@echo "$(BLUE)Removendo Publisher mock em pubadapter...$(NC)"
-	@rm -f pkg/pubadapter/publisher_task_mock.go
-	@echo "$(BLUE)Removendo PublisherInsights mock...$(NC)"
-	@rm -f internal/wtrhandler/mock_publisher_insights.go
-	@echo "$(BLUE)Removendo ConsumerInsights mock...$(NC)"
-	@rm -f internal/wtrhandler/mock_consumer_insights.go
+	@find . -type f -name '*_mock.go' -exec rm -f {} \;
+	@rm -rf ./mocks/**
 	@echo "$(GREEN)Mocks removidos com sucesso!$(NC)"
 	@echo "$(BLUE)💡 Para gerar novos mocks, execute: make generate-mocks$(NC)"
 

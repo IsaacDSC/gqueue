@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/IsaacDSC/gqueue/pkg/intertime"
@@ -34,9 +35,15 @@ func (e *Event) Validate() error {
 
 type Consumer struct {
 	ServiceName string            `json:"service_name" bson:"service_name"`
-	Host        string            `json:"host" bson:"host"`
+	BaseUrl     string            `json:"host" bson:"base_url"`
 	Path        string            `json:"path" bson:"path"`
 	Headers     map[string]string `json:"headers" bson:"headers"`
+}
+
+func (t *Consumer) GetUrl() string {
+	baseURL := strings.TrimSuffix(t.BaseUrl, "/")
+	path := strings.TrimPrefix(t.Path, "/")
+	return fmt.Sprintf("%s/%s", baseURL, path)
 }
 
 type Opt struct {
