@@ -7,6 +7,7 @@ import (
 
 	"github.com/IsaacDSC/gqueue/cmd/setup/middleware"
 	"github.com/IsaacDSC/gqueue/internal/app/backofficeapp"
+	"github.com/IsaacDSC/gqueue/internal/app/health"
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
@@ -26,7 +27,7 @@ func Start(
 	mux := http.NewServeMux()
 
 	routes := []httpadapter.HttpHandle{
-		backofficeapp.GetHealthCheckHandler(),
+		health.GetHealthCheckHandler(),
 		backofficeapp.PatchConsumer(store),
 		backofficeapp.GetEvent(store),
 		backofficeapp.GetEvents(store),

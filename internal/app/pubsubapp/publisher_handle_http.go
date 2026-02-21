@@ -42,18 +42,6 @@ func (p RequestPayload) mergeHeaders(headers map[string]string) map[string]strin
 	return p.Headers
 }
 
-func (p RequestPayload) MergeHeaders(headers map[string]string) map[string]string {
-	if p.Headers == nil {
-		p.Headers = make(map[string]string)
-	}
-
-	for key, value := range headers {
-		p.Headers[key] = value
-	}
-
-	return p.Headers
-}
-
 func PublisherEvent(
 	store Store,
 	adaptpub pubadapter.GenericPublisher,

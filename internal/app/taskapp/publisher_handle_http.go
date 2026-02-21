@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
 	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
@@ -32,11 +31,6 @@ type RequestPayload struct {
 }
 
 func (p RequestPayload) Validate() error {
-	empty := RequestPayload{}
-	if reflect.DeepEqual(p, empty) {
-		return errors.New("payload is empty")
-	}
-
 	if p.EventName == "" {
 		return errors.New("event_name is required")
 	}

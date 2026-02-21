@@ -40,7 +40,6 @@ func waitForShutdown(server *http.Server) {
 	log.Println("Server shutdown complete")
 }
 
-// TODO: MODIFICAR NO MAKEFILE
 // go run . --scope=all
 // go run . --scope=backoffice
 // go run . --scope=pubsub

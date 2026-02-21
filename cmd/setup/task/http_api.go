@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/IsaacDSC/gqueue/cmd/setup/middleware"
-	"github.com/IsaacDSC/gqueue/internal/app/backofficeapp"
+	"github.com/IsaacDSC/gqueue/internal/app/health"
 	"github.com/IsaacDSC/gqueue/internal/app/taskapp"
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
@@ -17,7 +17,7 @@ func (s *Service) startHttpServer(ctx context.Context, env cfg.Config) *http.Ser
 	mux := http.NewServeMux()
 
 	routes := []httpadapter.HttpHandle{
-		backofficeapp.GetHealthCheckHandler(),
+		health.GetHealthCheckHandler(),
 		taskapp.PublisherEvent(s.memStore, s.asynqPublisher, s.insightsStore),
 	}
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"sync/atomic"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
@@ -34,9 +33,10 @@ func NewMemStore(persistentStore PersistentStore) *MemStore {
 }
 
 func (ms *MemStore) LoadInMemStore(ctx context.Context) error {
+	l := ctxlogger.GetLogger(ctx)
 	events, err := ms.persitentStore.GetAllEvents(ctx)
 	if err != nil && !errors.Is(err, domain.EventNotFound) {
-		log.Printf("[!] Error loading events into in-memory store: %v", err)
+		l.Error("Error loading events into in-memory store", "error", err)
 		return fmt.Errorf("error loading events into in-memory store: %w", err)
 	}
 

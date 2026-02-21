@@ -3,14 +3,12 @@ package task
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/fetcher"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/internal/storests"
-	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/hibiken/asynq"
 )
@@ -66,24 +64,7 @@ func (s *Service) Start(ctx context.Context, env cfg.Config) {
 	s.memStore.LoadInMemStore(ctx)
 
 	// task refresh mem store
-	go func() {
-		l := ctxlogger.GetLogger(ctx)
-		trigger := time.NewTicker(time.Minute)
-		for {
-			select {
-			case <-trigger.C:
-				if err := s.memStore.LoadInMemStore(ctx); err != nil {
-					l.Error("Error refreshing mem store with events from persistent store", "error", err)
-					continue
-				}
-
-				l.Info("Executed periodic refresh of mem store with events from persistent store", "scope", "task")
-			case <-ctx.Done():
-				trigger.Stop()
-				return
-			}
-		}
-	}()
+	go s.syncMemStore(ctx)
 
 	s.server = s.startHttpServer(ctx, env)
 }

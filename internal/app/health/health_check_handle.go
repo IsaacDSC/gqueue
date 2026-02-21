@@ -1,4 +1,4 @@
-package backofficeapp
+package health
 
 import (
 	"net/http"
