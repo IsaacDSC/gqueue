@@ -3,9 +3,6 @@ package task
 import (
 	"context"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/IsaacDSC/gqueue/cmd/setup/middleware"
 	"github.com/IsaacDSC/gqueue/internal/app/taskapp"
@@ -17,8 +14,6 @@ import (
 )
 
 func (s *Service) consumer(ctx context.Context, env cfg.Config, asynqCfg asynq.Config) {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 
 	mux := asynq.NewServeMux()
 	mux.Use(middleware.AsynqLogger)
@@ -42,9 +37,9 @@ func (s *Service) consumer(ctx context.Context, env cfg.Config, asynqCfg asynq.C
 		}
 	}()
 
-	<-sigChan
-	log.Println("[*] Received shutdown signal, initiating graceful shutdown...")
-
+	// Wait for context cancellation
+	<-ctx.Done()
+	log.Println("[*] Context cancelled, initiating graceful shutdown...")
 	s.asynqServer.Shutdown()
 	log.Println("[*] Asynq server stopped gracefully")
 

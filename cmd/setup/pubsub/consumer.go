@@ -3,10 +3,7 @@ package pubsub
 import (
 	"context"
 	"log"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -18,11 +15,7 @@ import (
 )
 
 func (s *Service) consumer(ctx context.Context, env cfg.Config) {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	// Use only the context passed from main for shutdown control
 
 	concurrency := env.AsynqConfig.Concurrency
 
@@ -104,12 +97,10 @@ func (s *Service) consumer(ctx context.Context, env cfg.Config) {
 
 	log.Println("[*] starting worker with configs")
 	log.Println("[*] wq.concurrency", (len(handlers))*concurrency)
-	log.Println("[*] Worker started. Press Ctrl+C to gracefully shutdown...")
+	log.Println("[*] Worker started. Waiting for shutdown signal from context...")
 
-	<-sigChan
-	log.Println("[*] Received shutdown signal, initiating graceful shutdown...")
-
-	cancel()
+	<-ctx.Done()
+	log.Println("[*] Context cancelled, initiating graceful shutdown...")
 
 	done := make(chan struct{})
 	go func() {
