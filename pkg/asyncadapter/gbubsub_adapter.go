@@ -36,12 +36,12 @@ func (h Handle[T]) ToGPubSubHandler(pub pubadapter.GenericPublisher) gpubsub.Han
 
 		retryCount, err := strconv.Atoi(strRetryCount)
 		if err != nil {
-			panic(err) //TODO: adicionar validação e tratamento de erro melhor
+			panic(err) //TODO: add better validation and error handling
 		}
 
 		maxRetryAttempts, err := strconv.Atoi(strMaxRetryCount)
 		if err != nil {
-			panic(err) //TODO: adicionar validação e tratamento de erro melhor
+			panic(err) //TODO: add better validation and error handling
 		}
 
 		if retryCount >= maxRetryAttempts {
@@ -52,14 +52,25 @@ func (h Handle[T]) ToGPubSubHandler(pub pubadapter.GenericPublisher) gpubsub.Han
 		retryCount++
 		msg.Attributes["retry_count"] = strconv.Itoa(retryCount)
 		topic := msg.Attributes["topic"]
-		time.Sleep(time.Second * 5)
+
+		// Wait respecting the context
+		select {
+		case <-time.After(5 * time.Second):
+			// continue
+		case <-ctx.Done():
+			return
+		}
+
+		if ctx.Err() != nil {
+			return
+		}
+
 		if err := pub.Publish(ctx, topic, msg, pubadapter.Opts{
 			Attributes: msg.Attributes,
 		}); err != nil {
 			msg.Nack()
 			return
 		}
-
 	}
 
 	return gpubsub.Handle{

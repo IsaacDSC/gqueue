@@ -20,33 +20,39 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// waitForShutdown waits for SIGINT/SIGTERM and gracefully shuts down the provided servers.
-func waitForShutdown(server *http.Server) {
+// Centralized shutdown: creates a context that is cancelled on SIGINT/SIGTERM and waits for all servers to shutdown.
+func waitForShutdown(ctx context.Context, servers []*http.Server) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
 
-	log.Println("Shutting down servers...")
+	select {
+	case <-quit:
+		log.Println("Shutting down servers...")
+	case <-ctx.Done():
+		log.Println("Context cancelled, shutting down servers...")
+	}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	if server != nil {
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			log.Printf("Backoffice server shutdown error: %v", err)
+	for _, server := range servers {
+		if server != nil {
+			if err := server.Shutdown(shutdownCtx); err != nil {
+				log.Printf("Server shutdown error: %v", err)
+			}
 		}
 	}
 
-	log.Println("Server shutdown complete")
+	log.Println("All servers shutdown complete")
 }
 
 // go run . --scope=all
 // go run . --scope=backoffice
 // go run . --scope=pubsub
-// go run . --scope=task
 func main() {
 	conf := cfg.Get()
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	scope := flag.String("scope", "all", "service to run")
 	flag.Parse()
@@ -64,6 +70,8 @@ func main() {
 	}
 
 	var servers []*http.Server
+	var closers []func()
+
 	if scopeOrAll(*scope, "backoffice") {
 		backofficeServer := backoffice.Start(
 			redisClient,
@@ -85,11 +93,8 @@ func main() {
 		s := pubsub.New(
 			store, memStore, fetch, storeInsights,
 		)
-
 		s.Start(ctx, conf)
-
-		defer s.Close()
-
+		closers = append(closers, s.Close)
 		servers = append(servers, s.Server())
 	}
 
@@ -97,18 +102,17 @@ func main() {
 		s := task.New(
 			store, memStore, fetch, storeInsights,
 		)
-
 		s.Start(ctx, conf)
-
-		defer s.Close()
-
+		closers = append(closers, s.Close)
 		servers = append(servers, s.Server())
 	}
 
-	for _, server := range servers {
-		waitForShutdown(server)
-	}
+	waitForShutdown(ctx, servers)
 
+	// call all closers after shutdown
+	for _, closeFn := range closers {
+		closeFn()
+	}
 }
 
 func scopeOrAll(scope, expected string) bool {

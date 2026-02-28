@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/IsaacDSC/gqueue/cmd/setup/middleware"
 	"github.com/IsaacDSC/gqueue/internal/app/health"
@@ -37,8 +38,11 @@ func (s *Service) startHttpServer(ctx context.Context, env cfg.Config) *http.Ser
 	port := env.PubsubApiPort
 
 	server := &http.Server{
-		Addr:    port.String(),
-		Handler: handler,
+		Addr:         port.String(),
+		Handler:      handler,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 200 * time.Millisecond,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	log.Printf("[*] Starting Pubsub API server on :%d", port)
