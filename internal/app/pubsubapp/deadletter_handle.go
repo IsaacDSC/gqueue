@@ -7,6 +7,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/internal/notifyopt"
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 )
@@ -50,7 +51,7 @@ func NewDeadLatterQueue(store DeadLetterStore, fetcher Fetcher) asyncadapter.Han
 						BaseUrl:     consumer.BaseUrl,
 						Path:        consumer.Path,
 						Headers:     consumer.Headers,
-					})
+					}, notifyopt.HighThroughput)
 				}
 			}
 

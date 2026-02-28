@@ -10,6 +10,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/internal/notifyopt"
 	"github.com/IsaacDSC/gqueue/mocks/mockpubsubapp"
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/stretchr/testify/assert"
@@ -21,28 +22,6 @@ func init() {
 	// Setup test configuration with valid queues
 	testConfig := cfg.Config{}
 	cfg.SetConfig(testConfig)
-}
-
-// notifyCall struct to track calls made to the mock fetcher
-type notifyCall struct {
-	data     map[string]any
-	headers  map[string]string
-	consumer domain.Consumer
-}
-
-// mockFetcherWithCalls wraps MockFetcher to track calls
-type mockFetcherWithCalls struct {
-	*mockpubsubapp.MockFetcher
-	notifyCalls []notifyCall
-}
-
-func (m *mockFetcherWithCalls) Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer) error {
-	m.notifyCalls = append(m.notifyCalls, notifyCall{
-		data:     data,
-		headers:  headers,
-		consumer: consumer,
-	})
-	return m.MockFetcher.Notify(ctx, data, headers, consumer)
 }
 
 func TestNewDeadLatterQueue(t *testing.T) {
@@ -142,15 +121,22 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 		Return(mockEvents, nil).
 		Times(1)
 
-	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
-		notifyCalls: []notifyCall{},
+	var notifyCalls []struct {
+		data     map[string]any
+		headers  map[string]string
+		consumer domain.Consumer
 	}
-
-	// Expect 3 calls to Notify (2 consumers from first event + 1 consumer from second event)
-	mockFetcher.MockFetcher.EXPECT().
-		Notify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(nil).
+	mockFetcher := mockpubsubapp.NewMockFetcher(ctrl)
+	mockFetcher.EXPECT().
+		Notify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), notifyopt.HighThroughput).
+		DoAndReturn(func(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer, opt notifyopt.Kind) error {
+			notifyCalls = append(notifyCalls, struct {
+				data     map[string]any
+				headers  map[string]string
+				consumer domain.Consumer
+			}{data: data, headers: headers, consumer: consumer})
+			return nil
+		}).
 		Times(3)
 
 	handle := NewDeadLatterQueue(mockStore, mockFetcher)
@@ -166,10 +152,10 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 
 	// Verify that Notify was called for each consumer in each event
 	expectedCalls := 3 // 2 consumers from first event + 1 consumer from second event
-	assert.Len(t, mockFetcher.notifyCalls, expectedCalls)
+	assert.Len(t, notifyCalls, expectedCalls)
 
 	// Verify first call (first consumer of first event)
-	firstCall := mockFetcher.notifyCalls[0]
+	firstCall := notifyCalls[0]
 	assert.Equal(t, "user.created", firstCall.data["event"])
 	assert.Equal(t, "test-message-id", firstCall.data["id"])
 	assert.Equal(t, []byte(`{"user_id": "123", "action": "create"}`), firstCall.data["data"])
@@ -185,7 +171,7 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 	}, firstCall.consumer)
 
 	// Verify second call (second consumer of first event)
-	secondCall := mockFetcher.notifyCalls[1]
+	secondCall := notifyCalls[1]
 	assert.Equal(t, "user.created", secondCall.data["event"])
 	assert.Equal(t, "test-message-id", secondCall.data["id"])
 	assert.Equal(t, []byte(`{"user_id": "123", "action": "create"}`), secondCall.data["data"])
@@ -200,7 +186,7 @@ func TestDeadLetterQueue_Handler_Success(t *testing.T) {
 	}, secondCall.consumer)
 
 	// Verify third call (first consumer of second event)
-	thirdCall := mockFetcher.notifyCalls[2]
+	thirdCall := notifyCalls[2]
 	assert.Equal(t, "order.completed", thirdCall.data["event"])
 	assert.Equal(t, "test-message-id", thirdCall.data["id"])
 	assert.Equal(t, []byte(`{"user_id": "123", "action": "create"}`), thirdCall.data["data"])
@@ -232,10 +218,7 @@ func TestDeadLetterQueue_Handler_EventNotFound(t *testing.T) {
 		Return(nil, domain.EventNotFound).
 		Times(1)
 
-	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
-		notifyCalls: []notifyCall{},
-	}
+	mockFetcher := mockpubsubapp.NewMockFetcher(ctrl)
 
 	handle := NewDeadLatterQueue(mockStore, mockFetcher)
 
@@ -246,11 +229,8 @@ func TestDeadLetterQueue_Handler_EventNotFound(t *testing.T) {
 	asyncCtx := asyncadapter.NewAsyncCtx[pubsub.Message](context.Background(), messageBytes)
 	err = handle.Handler(asyncCtx)
 
-	// Should return nil when EventNotFound
+	// Should return nil when EventNotFound (Notify is not called)
 	require.NoError(t, err)
-
-	// Verify that Notify was not called
-	assert.Empty(t, mockFetcher.notifyCalls)
 }
 
 func TestDeadLetterQueue_Handler_StoreError(t *testing.T) {
@@ -272,10 +252,7 @@ func TestDeadLetterQueue_Handler_StoreError(t *testing.T) {
 		Return(nil, expectedError).
 		Times(1)
 
-	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
-		notifyCalls: []notifyCall{},
-	}
+	mockFetcher := mockpubsubapp.NewMockFetcher(ctrl)
 
 	handle := NewDeadLatterQueue(mockStore, mockFetcher)
 
@@ -289,9 +266,6 @@ func TestDeadLetterQueue_Handler_StoreError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get all schedulers:")
 	assert.Contains(t, err.Error(), "database connection failed")
-
-	// Verify that Notify was not called
-	assert.Empty(t, mockFetcher.notifyCalls)
 }
 
 func TestDeadLetterQueue_Handler_InvalidPayload(t *testing.T) {
@@ -328,10 +302,7 @@ func TestDeadLetterQueue_Handler_EmptyEvents(t *testing.T) {
 		Return([]domain.Event{}, nil).
 		Times(1)
 
-	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
-		notifyCalls: []notifyCall{},
-	}
+	mockFetcher := mockpubsubapp.NewMockFetcher(ctrl)
 
 	handle := NewDeadLatterQueue(mockStore, mockFetcher)
 
@@ -343,9 +314,6 @@ func TestDeadLetterQueue_Handler_EmptyEvents(t *testing.T) {
 	err = handle.Handler(asyncCtx)
 
 	require.NoError(t, err)
-
-	// Verify that Notify was not called since there are no events
-	assert.Empty(t, mockFetcher.notifyCalls)
 }
 
 func TestDeadLetterQueue_Handler_EventsWithNoConsumers(t *testing.T) {
@@ -374,10 +342,7 @@ func TestDeadLetterQueue_Handler_EventsWithNoConsumers(t *testing.T) {
 		Return(mockEvents, nil).
 		Times(1)
 
-	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
-		notifyCalls: []notifyCall{},
-	}
+	mockFetcher := mockpubsubapp.NewMockFetcher(ctrl)
 
 	handle := NewDeadLatterQueue(mockStore, mockFetcher)
 
@@ -389,9 +354,6 @@ func TestDeadLetterQueue_Handler_EventsWithNoConsumers(t *testing.T) {
 	err = handle.Handler(asyncCtx)
 
 	require.NoError(t, err)
-
-	// Verify that Notify was not called since there are no consumers
-	assert.Empty(t, mockFetcher.notifyCalls)
 }
 
 func TestDeadLetterQueue_Handler_FetcherError(t *testing.T) {
@@ -429,13 +391,9 @@ func TestDeadLetterQueue_Handler_FetcherError(t *testing.T) {
 		Times(1)
 
 	fetcherError := errors.New("webhook delivery failed")
-	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
-		notifyCalls: []notifyCall{},
-	}
-
-	mockFetcher.MockFetcher.EXPECT().
-		Notify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+	mockFetcher := mockpubsubapp.NewMockFetcher(ctrl)
+	mockFetcher.EXPECT().
+		Notify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), notifyopt.HighThroughput).
 		Return(fetcherError).
 		Times(1)
 
@@ -450,9 +408,6 @@ func TestDeadLetterQueue_Handler_FetcherError(t *testing.T) {
 
 	// The handler should continue even if Notify fails (no error propagation in current implementation)
 	require.NoError(t, err)
-
-	// Verify that Notify was called despite the error
-	assert.Len(t, mockFetcher.notifyCalls, 1)
 }
 
 func TestDeadLetterQueue_Handler_MultipleEventsWithMixedConsumers(t *testing.T) {
@@ -514,15 +469,16 @@ func TestDeadLetterQueue_Handler_MultipleEventsWithMixedConsumers(t *testing.T) 
 		Return(mockEvents, nil).
 		Times(1)
 
-	mockFetcher := &mockFetcherWithCalls{
-		MockFetcher: mockpubsubapp.NewMockFetcher(ctrl),
-		notifyCalls: []notifyCall{},
+	var notifyCalls []struct {
+		data map[string]any
 	}
-
-	// Expect 3 calls to Notify: 1 from first event + 0 from second event + 2 from third event
-	mockFetcher.MockFetcher.EXPECT().
-		Notify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(nil).
+	mockFetcher := mockpubsubapp.NewMockFetcher(ctrl)
+	mockFetcher.EXPECT().
+		Notify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), notifyopt.HighThroughput).
+		DoAndReturn(func(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer, opt notifyopt.Kind) error {
+			notifyCalls = append(notifyCalls, struct{ data map[string]any }{data: data})
+			return nil
+		}).
 		Times(3)
 
 	handle := NewDeadLatterQueue(mockStore, mockFetcher)
@@ -537,11 +493,11 @@ func TestDeadLetterQueue_Handler_MultipleEventsWithMixedConsumers(t *testing.T) 
 	require.NoError(t, err)
 
 	// Should have 3 calls: 1 from first event + 0 from second event + 2 from third event
-	assert.Len(t, mockFetcher.notifyCalls, 3)
+	assert.Len(t, notifyCalls, 3)
 
 	// Verify calls contain expected event names
-	eventNames := make([]string, len(mockFetcher.notifyCalls))
-	for i, call := range mockFetcher.notifyCalls {
+	eventNames := make([]string, len(notifyCalls))
+	for i, call := range notifyCalls {
 		eventNames[i] = call.data["event"].(string)
 	}
 

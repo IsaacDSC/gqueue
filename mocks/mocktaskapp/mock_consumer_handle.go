@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	domain "github.com/IsaacDSC/gqueue/internal/domain"
+	notifyopt "github.com/IsaacDSC/gqueue/internal/notifyopt"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,17 +43,17 @@ func (m *MockFetcher) EXPECT() *MockFetcherMockRecorder {
 }
 
 // Notify mocks base method.
-func (m *MockFetcher) Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer) error {
+func (m *MockFetcher) Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer, opt notifyopt.Kind) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Notify", ctx, data, headers, consumer)
+	ret := m.ctrl.Call(m, "Notify", ctx, data, headers, consumer, opt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Notify indicates an expected call of Notify.
-func (mr *MockFetcherMockRecorder) Notify(ctx, data, headers, consumer any) *gomock.Call {
+func (mr *MockFetcherMockRecorder) Notify(ctx, data, headers, consumer, opt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Notify", reflect.TypeOf((*MockFetcher)(nil).Notify), ctx, data, headers, consumer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Notify", reflect.TypeOf((*MockFetcher)(nil).Notify), ctx, data, headers, consumer, opt)
 }
 
 // MockConsumerInsights is a mock of ConsumerInsights interface.

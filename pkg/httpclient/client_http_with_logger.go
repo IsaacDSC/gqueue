@@ -86,19 +86,42 @@ func (t *ClientHTTPTransport) RoundTrip(req *http.Request) (*http.Response, erro
 	return httpResp, nil
 }
 
-// NewHTTPClientWithLogging creates a new HTTP client with logging using clienthttp
-func NewHTTPClientWithLogging(ctx context.Context) *http.Client {
-	auditor := &LoggerAuditor{ctx: ctx}
-
-	client, err := clienthttp.New("",
-		clienthttp.WithTimeout(30*time.Second),
+func HighThroughputSettings() []clienthttp.Option {
+	return []clienthttp.Option{
+		clienthttp.WithTimeout(30 * time.Second),
 		clienthttp.WithMaxIdleConns(100),
 		clienthttp.WithMaxIdleConnsPerHost(2),
-		clienthttp.WithIdleConnTimeout(90*time.Second),
-		clienthttp.WithAuditor(auditor),
-	)
+		clienthttp.WithIdleConnTimeout(90 * time.Second),
+	}
+}
+
+func LongRunningSettings() []clienthttp.Option {
+	return []clienthttp.Option{
+		clienthttp.WithTimeout(5 * time.Minute),
+		clienthttp.WithMaxIdleConns(50),
+		clienthttp.WithMaxIdleConnsPerHost(2),
+		clienthttp.WithIdleConnTimeout(90 * time.Second),
+	}
+}
+
+// NewHTTPClientWithLogging creates a new HTTP client with logging using clienthttp
+func NewHTTPClientWithLogging(ctx context.Context, settings ...clienthttp.Option) *http.Client {
+	auditor := &LoggerAuditor{ctx: ctx}
+	l := ctxlogger.GetLogger(ctx)
+
+	opts := make([]clienthttp.Option, 0)
+	if len(settings) == 0 {
+		opts = append(opts, HighThroughputSettings()...)
+	} else {
+		opts = append(opts, settings...)
+	}
+
+	opts = append(opts, clienthttp.WithAuditor(auditor))
+
+	client, err := clienthttp.New("", opts...)
 	if err != nil {
 		// Fallback to standard http.Client
+		l.Warn("create http client with logging", "error", err)
 		return &http.Client{Timeout: 30 * time.Second}
 	}
 
@@ -107,7 +130,6 @@ func NewHTTPClientWithLogging(ctx context.Context) *http.Client {
 			client: client,
 			ctx:    ctx,
 		},
-		Timeout: 30 * time.Second,
 	}
 }
 

@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/IsaacDSC/clienthttp"
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/internal/notifyopt"
 	"github.com/IsaacDSC/gqueue/pkg/httpclient"
 )
 
@@ -17,9 +19,20 @@ func NewNotification() *Notification {
 	return &Notification{}
 }
 
-func (n Notification) Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer) error {
+func (n Notification) Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer, opt notifyopt.Kind) error {
 	url := consumer.GetUrl()
-	return fetch(ctx, url, data, headers)
+
+	settings := make([]clienthttp.Option, 0)
+	switch opt {
+	case notifyopt.HighThroughput:
+		settings = append(settings, httpclient.HighThroughputSettings()...)
+	case notifyopt.LongRunning:
+		settings = append(settings, httpclient.LongRunningSettings()...)
+	default:
+		settings = append(settings, httpclient.HighThroughputSettings()...)
+	}
+
+	return fetch(ctx, url, data, headers, settings...)
 }
 
 func (n Notification) NotifyConsumer(ctx context.Context, url string, data map[string]any, headers map[string]string) error {
@@ -30,7 +43,7 @@ func (n Notification) NotifyScheduler(ctx context.Context, url string, data any,
 	return fetch(ctx, url, data, headers)
 }
 
-func fetch(ctx context.Context, url string, data any, headers map[string]string) error {
+func fetch(ctx context.Context, url string, data any, headers map[string]string, settings ...clienthttp.Option) error {
 	payload, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("marshal data: %w", err)
@@ -38,7 +51,7 @@ func fetch(ctx context.Context, url string, data any, headers map[string]string)
 
 	bodyReader := bytes.NewReader(payload)
 
-	client := httpclient.NewHTTPClientWithLogging(ctx) //TODO: melhorar para ser instaciado uma vez só
+	client := httpclient.NewHTTPClientWithLogging(ctx, settings...) //TODO: melhorar para ser instaciado uma vez só
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bodyReader)
 	if err != nil {

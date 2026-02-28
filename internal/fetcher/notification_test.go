@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/internal/notifyopt"
 )
 
 func init() {
@@ -228,7 +229,7 @@ func TestNotification_NotifyTrigger(t *testing.T) {
 			notification := NewNotification()
 
 			ctx := context.Background()
-			err := notification.Notify(ctx, tt.data, tt.headers, tt.consumer)
+			err := notification.Notify(ctx, tt.data, tt.headers, tt.consumer, notifyopt.Default)
 
 			if tt.wantErr {
 				if err == nil {
@@ -261,7 +262,7 @@ func TestNotification_NotifyTrigger_InvalidData(t *testing.T) {
 		Path:        "/webhook",
 	}
 
-	err := notification.Notify(ctx, invalidData, nil, trigger)
+	err := notification.Notify(ctx, invalidData, nil, trigger, notifyopt.Default)
 	if err == nil {
 		t.Error("Notify() expected error for invalid data but got none")
 		return

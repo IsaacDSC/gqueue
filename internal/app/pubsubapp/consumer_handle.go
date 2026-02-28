@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
+	"github.com/IsaacDSC/gqueue/internal/notifyopt"
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 )
 
 type Fetcher interface {
-	Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer) error
+	Notify(ctx context.Context, data map[string]any, headers map[string]string, consumer domain.Consumer, opt notifyopt.Kind) error
 }
 
 type ConsumerInsights interface {
@@ -48,7 +49,7 @@ func GetRequestHandle(fetch Fetcher, insights ConsumerInsights) asyncadapter.Han
 			}
 
 			headers := payload.mergeHeaders(payload.Consumer.Headers)
-			if err := fetch.Notify(ctx, payload.Data, headers, payload.Consumer); err != nil {
+			if err := fetch.Notify(ctx, payload.Data, headers, payload.Consumer, notifyopt.HighThroughput); err != nil {
 				insertInsights(ctx, payload, started, false)
 				return fmt.Errorf("fetch consumer: %w", err)
 			}
