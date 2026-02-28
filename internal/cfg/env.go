@@ -58,9 +58,10 @@ type Config struct {
 	InternalBaseURL     string `env:"INTERNAL_BASE_URL"`
 	InternalServiceName string `env:"INTERNAL_SERVICE_NAME"`
 
-	PubsubApiPort     ServerPort `env:"PUBSUB_API_PORT" env-default:"8082"`
-	TaskApiPort       ServerPort `env:"TASK_API_PORT" env-default:"8082"`
-	BackofficeApiPort ServerPort `env:"BACKOFFICE_API_PORT" env-default:"8081"`
+	PubsubApiPort     ServerPort    `env:"PUBSUB_API_PORT" env-default:"8082"`
+	TaskApiPort       ServerPort    `env:"TASK_API_PORT" env-default:"8082"`
+	BackofficeApiPort ServerPort    `env:"BACKOFFICE_API_PORT" env-default:"8081"`
+	ShutdownTimeout   time.Duration `env:"SHUTDOWN_TIMEOUT" env-default:"30s"`
 }
 
 var cfg Config

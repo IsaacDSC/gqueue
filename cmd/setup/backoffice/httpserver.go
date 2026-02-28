@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/IsaacDSC/gqueue/cmd/setup/middleware"
 	"github.com/IsaacDSC/gqueue/internal/app/backofficeapp"
@@ -53,8 +54,11 @@ func Start(
 	port := env.BackofficeApiPort
 
 	server := &http.Server{
-		Addr:    port.String(),
-		Handler: handler,
+		Addr:         port.String(),
+		Handler:      handler,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	log.Printf("[*] Starting Backoffice server on :%d", port)
