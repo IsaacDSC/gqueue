@@ -1,7 +1,7 @@
 ### Example create or update event
 
 curl -X PATCH \
- http://localhost:8080/api/v1/event/consumer \
+ http://localhost:8081/api/v1/event/consumer \
  -H "Content-Type: application/json" \
  -H "Accept: application/json" \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \

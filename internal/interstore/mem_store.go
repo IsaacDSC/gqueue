@@ -75,7 +75,7 @@ func (ms *MemStore) Refresh(ctx context.Context, events []domain.Event) {
 	// Update the in-memory map with the latest events
 	ms.topicEvents.Store(eventsMap)
 
-	l.Info("Refreshed in-memory store", "num_events", len(events), "tag", ms.tag)
+	l.Debug("Refreshed in-memory store", "num_events", len(events), "tag", ms.tag)
 }
 
 func (ms *MemStore) RefreshRetryTopics(ctx context.Context, events []domain.Event) {
@@ -90,5 +90,5 @@ func (ms *MemStore) RefreshRetryTopics(ctx context.Context, events []domain.Even
 	// Update the in-memory map with the latest events
 	ms.retryTopics.Store(retryTopics)
 
-	l.Info("Refreshed retry topics", "num_events", len(events), "tag", ms.tag)
+	l.Debug("Refreshed retry topics", "num_events", len(events), "tag", ms.tag)
 }

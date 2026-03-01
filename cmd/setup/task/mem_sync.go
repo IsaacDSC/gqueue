@@ -18,7 +18,7 @@ func (s *Service) syncMemStore(ctx context.Context) {
 				continue
 			}
 
-			l.Info("Executed periodic refresh of mem store with events from persistent store", "scope", "task")
+			l.Debug("Executed periodic refresh of mem store with events from persistent store", "scope", "task")
 		case <-ctx.Done():
 			trigger.Stop()
 			return

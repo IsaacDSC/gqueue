@@ -1,27 +1,32 @@
 services:
-  server:
+  backoffice:
     build:
       context: ../../.
       target: final
+    command: ["/bin/server", "--scope=backoffice"]
     ports:
-      - 8080:8080
+      - 8081:8081
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      pubsub-emulator:
         condition: service_healthy
     environment:
       - CACHE_ADDR=redis:6379
       - DB_DRIVER=pg
       - DB_CONNECTION_STRING=postgres://idsc:admin@postgres:5432/gqueue?sslmode=disable
       - WQ_CONCURRENCY=32
+      - "WQ_QUEUES={\"internal.critical\": 7, \"internal.high\": 5, \"internal.medium\": 3, \"internal.low\": 1, \"external.critical\": 7, \"external.high\": 5, \"external.medium\": 3, \"external.low\": 1}"
       - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
       - CACHE_DEFAULT_TTL=24h
       - WQ=googlepubsub
       - PROJECT_ID=admin
       - SECRET_KEY=password
+      - INTERNAL_BASE_URL="http://localhost:8080"
+      - INTERNAL_SERVICE_NAME="service-internal"
+      - BACKOFFICE_API_PORT=8081
+      - PUBSUB_API_PORT=8082
+      - TASK_API_PORT=8083
     networks:
       - app-network
     deploy:
@@ -34,6 +39,101 @@ services:
           memory: 512M
     profiles:
       - complete
+      - gqueue
+
+  pubsub:
+    build:
+      context: ../../.
+      target: final
+    command: ["/bin/server", "--scope=pubsub"]
+    ports:
+      - 8082:8082
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pubsub-emulator:
+        condition: service_healthy
+      consumer:
+        condition: service_started
+        required: false
+    environment:
+      - CACHE_ADDR=redis:6379
+      - DB_DRIVER=pg
+      - DB_CONNECTION_STRING=postgres://idsc:admin@postgres:5432/gqueue?sslmode=disable
+      - WQ_CONCURRENCY=32
+      - "WQ_QUEUES={\"internal.critical\": 7, \"internal.high\": 5, \"internal.medium\": 3, \"internal.low\": 1, \"external.critical\": 7, \"external.high\": 5, \"external.medium\": 3, \"external.low\": 1}"
+      - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
+      - CACHE_DEFAULT_TTL=24h
+      - WQ=googlepubsub
+      - PROJECT_ID=admin
+      - SECRET_KEY=password
+      - INTERNAL_BASE_URL="http://localhost:8080"
+      - INTERNAL_SERVICE_NAME="service-internal"
+      - BACKOFFICE_API_PORT=8081
+      - PUBSUB_API_PORT=8082
+      - TASK_API_PORT=8083
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    profiles:
+      - complete
+      - gqueue
+
+  task:
+    build:
+      context: ../../.
+      target: final
+    command: ["/bin/server", "--scope=task"]
+    ports:
+      - 8083:8083
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pubsub-emulator:
+        condition: service_healthy
+      consumer:
+        condition: service_started
+        required: false
+    environment:
+      - CACHE_ADDR=redis:6379
+      - DB_DRIVER=pg
+      - DB_CONNECTION_STRING=postgres://idsc:admin@postgres:5432/gqueue?sslmode=disable
+      - WQ_CONCURRENCY=32
+      - "WQ_QUEUES={\"internal.critical\": 7, \"internal.high\": 5, \"internal.medium\": 3, \"internal.low\": 1, \"external.critical\": 7, \"external.high\": 5, \"external.medium\": 3, \"external.low\": 1}"
+      - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
+      - CACHE_DEFAULT_TTL=24h
+      - WQ=googlepubsub
+      - PROJECT_ID=admin
+      - SECRET_KEY=password
+      - INTERNAL_BASE_URL="http://localhost:8080"
+      - INTERNAL_SERVICE_NAME="service-internal"
+      - BACKOFFICE_API_PORT=8081
+      - PUBSUB_API_PORT=8082
+      - TASK_API_PORT=8083
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    profiles:
+      - complete
+      - gqueue
 
   redis:
     image: redis:latest
@@ -59,6 +159,7 @@ services:
     profiles:
       - complete
       - infra
+      - gqueue
 
   postgres:
     image: postgres:15
@@ -89,11 +190,12 @@ services:
     profiles:
       - complete
       - infra
+      - gqueue
 
   pgadmin:
     image: dpage/pgadmin4:latest
     ports:
-      - 8081:80
+      - 5050:80
     environment:
       - PGADMIN_DEFAULT_EMAIL=admin@admin.com
       - PGADMIN_DEFAULT_PASSWORD=admin
@@ -140,6 +242,7 @@ services:
     profiles:
       - complete
       - infra
+      - gqueue
 
   consumer:
     build:
@@ -159,6 +262,7 @@ services:
           memory: 128M
     profiles:
       - example
+      - complete
 
   grafana:
     image: grafana/grafana:latest

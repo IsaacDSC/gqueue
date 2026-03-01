@@ -49,6 +49,7 @@ func waitForShutdown(ctx context.Context, servers []*http.Server) {
 // go run . --scope=all
 // go run . --scope=backoffice
 // go run . --scope=pubsub
+// go run . --scope=task
 func main() {
 	conf := cfg.Get()
 	ctx, cancel := context.WithCancel(context.Background())

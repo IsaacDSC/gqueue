@@ -49,19 +49,20 @@ const (
 )
 
 type Config struct {
-	ProjectID           string `env:"PROJECT_ID"`
-	SecretKey           string `env:"SECRET_KEY"`
-	ConfigDatabase      ConfigDatabase
-	Cache               Cache
-	AsynqConfig         AsynqConfig
-	WQ                  WQ     `env:"WQ"`
+	ProjectID      string `env:"PROJECT_ID"`
+	SecretKey      string `env:"SECRET_KEY"`
+	ConfigDatabase ConfigDatabase
+	Cache          Cache
+	AsynqConfig    AsynqConfig
+	WQ             WQ `env:"WQ"`
+	// InternalBaseURL TODO: será utilizado para buscar informações e não compartilhar banco de dados(backoffice, pubsub, task)
 	InternalBaseURL     string `env:"INTERNAL_BASE_URL"`
 	InternalServiceName string `env:"INTERNAL_SERVICE_NAME"`
 
 	PubsubApiPort     ServerPort    `env:"PUBSUB_API_PORT" env-default:"8082"`
 	TaskApiPort       ServerPort    `env:"TASK_API_PORT" env-default:"8082"`
 	BackofficeApiPort ServerPort    `env:"BACKOFFICE_API_PORT" env-default:"8081"`
-	ShutdownTimeout   time.Duration `env:"SHUTDOWN_TIMEOUT" env-default:"30s"`
+	ShutdownTimeout   time.Duration `env:"SHUTDOWN_TIMEOUT" env-default:"30s"` //TODO: porque não está sendo usado?
 }
 
 var cfg Config
