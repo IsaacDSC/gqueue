@@ -3,7 +3,7 @@
   "event_name": "payment.charged",
   "data": {
     "key": "value",
-    "w-queue":"pubsub"
+    "w-queue":"task"
   },
   "metadata": {
     "correlation_id": "5e4dd662-9eba-4321-9c97-0b4ee0942f8b"

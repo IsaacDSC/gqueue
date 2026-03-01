@@ -75,12 +75,40 @@ func loadEnvFile(path string) {
 	}
 }
 
+// setEnvInSlice sets key=value in env (a slice of "KEY=VALUE" strings). If key exists, it is replaced; otherwise appended.
+func setEnvInSlice(env []string, key, value string) []string {
+	prefix := key + "="
+	for i, s := range env {
+		if strings.HasPrefix(s, prefix) {
+			env[i] = prefix + value
+			return env
+		}
+	}
+	return append(env, prefix+value)
+}
+
+// freeBackofficePort returns a port number that is free to use, so the test does not
+// conflict with another process on 8081 (which would make our server fail to bind and
+// cause shutdown to finish in milliseconds).
+func freeBackofficePort(t *testing.T) string {
+	t.Helper()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("could not bind to get free port: %v", err)
+	}
+	_, port, err := net.SplitHostPort(l.Addr().String())
+	_ = l.Close()
+	if err != nil {
+		t.Fatalf("SplitHostPort: %v", err)
+	}
+	return port
+}
+
 // holdBackofficeConnection opens a TCP connection to the backoffice server and sends an
 // incomplete HTTP request so the server blocks reading until ReadTimeout. When we SIGINT,
 // the server must wait for this connection to drain before exiting—proving shutdown waits.
-func holdBackofficeConnection(t *testing.T) (closeConn func()) {
+func holdBackofficeConnection(t *testing.T, port string) (closeConn func()) {
 	t.Helper()
-	port := os.Getenv("BACKOFFICE_API_PORT")
 	if port == "" {
 		port = "8081"
 	}
@@ -133,10 +161,17 @@ func TestShutdownGraceful(t *testing.T) {
 		t.Skip("Skipping shutdown integration test: DB_CONNECTION_STRING and CACHE_ADDR must be set (use .env or run scripts/run_shutdown_test.sh)")
 	}
 
+	// Use a dedicated port so we don't connect to another process on 8081 (which would
+	// make our server fail to bind and cause shutdown to complete in milliseconds).
+	backofficePort := freeBackofficePort(t)
+	env := os.Environ()
+	env = setEnvInSlice(env, "BACKOFFICE_API_PORT", backofficePort)
+
 	// Build and run the binary so SIGINT goes to the server process (go run would send it to the go process only).
 	exe := buildApiBinary(t, moduleRoot)
 	cmd := exec.Command(exe)
 	cmd.Dir = moduleRoot
+	cmd.Env = env
 	output := &syncBuffer{}
 	cmd.Stdout = output
 	cmd.Stderr = output
@@ -159,7 +194,7 @@ func TestShutdownGraceful(t *testing.T) {
 
 	// Hold one connection with an incomplete HTTP request so the server must wait for it
 	// (or ReadTimeout) during shutdown. This proves shutdown is not killing immediately.
-	closeConn := holdBackofficeConnection(t)
+	closeConn := holdBackofficeConnection(t, backofficePort)
 	defer closeConn()
 
 	// Give the server time to see the connection (in-flight).

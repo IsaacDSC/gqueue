@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -72,6 +73,10 @@ func main() {
 
 	var servers []*http.Server
 	var closers []func()
+
+	fmt.Println()
+	fmt.Println("scope", *scope)
+	fmt.Println()
 
 	if scopeOrAll(*scope, "backoffice") {
 		backofficeServer := backoffice.Start(

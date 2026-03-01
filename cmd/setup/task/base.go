@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/IsaacDSC/gqueue/cmd/setup/memstore"
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/fetcher"
@@ -64,7 +65,7 @@ func (s *Service) Start(ctx context.Context, env cfg.Config) {
 	s.memStore.LoadInMemStore(ctx)
 
 	// task refresh mem store
-	go s.syncMemStore(ctx)
+	go memstore.SyncMemStore(ctx, s.memStore)
 
 	s.server = s.startHttpServer(ctx, env)
 }

@@ -3,7 +3,7 @@ services:
     build:
       context: ../../.
       target: final
-    command: ["/bin/server", "--scope=backoffice"]
+    command: ["--scope=backoffice"]
     ports:
       - 8081:8081
     depends_on:
@@ -45,7 +45,7 @@ services:
     build:
       context: ../../.
       target: final
-    command: ["/bin/server", "--scope=pubsub"]
+    command: ["--scope=pubsub"]
     ports:
       - 8082:8082
     depends_on:
@@ -92,7 +92,7 @@ services:
     build:
       context: ../../.
       target: final
-    command: ["/bin/server", "--scope=task"]
+    command: ["--scope=task"]
     ports:
       - 8083:8083
     depends_on:
