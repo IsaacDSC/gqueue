@@ -15,5 +15,5 @@ func (s *Service) startHttpServer(ctx context.Context, env cfg.Config) *http.Ser
 		taskapp.PublisherEvent(s.memStore, s.asynqPublisher, s.insightsStore),
 	}
 
-	return httpsvc.StartHttpServer(ctx, env, routes, env.TaskApiPort.String())
+	return httpsvc.StartHttpServer(ctx, env, routes, env.TaskApiPort.String(), cfg.TASK_APP_NAME)
 }

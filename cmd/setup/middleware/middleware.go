@@ -9,8 +9,11 @@ import (
 
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/IsaacDSC/gqueue/pkg/logs"
+	"github.com/IsaacDSC/gqueue/pkg/telemetry"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
+	"go.opentelemetry.io/otel/attribute"
+	api "go.opentelemetry.io/otel/metric"
 )
 
 type CORSConfig struct {
@@ -29,7 +32,7 @@ func DefaultCORSConfig() CORSConfig {
 		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-Requested-With"},
 		ExposedHeaders:   []string{},
 		AllowCredentials: false,
-		MaxAge:           86400, // 24 horas
+		MaxAge:           86400, // 24 hours
 	}
 }
 
@@ -143,5 +146,72 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)
+	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.statusCode = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+// MetricsMiddleware records HTTP metrics per service using OpenTelemetry.
+func MetricsMiddleware(serviceName string, next http.Handler) http.Handler {
+	// Create instruments once per middleware chain.
+	meter := telemetry.Meter(serviceName)
+
+	requestCounter, err := meter.Int64Counter(
+		"http_server_requests_total",
+		api.WithDescription("Total HTTP requests received"),
+	)
+	if err != nil {
+		// If instrument creation fails, return the original handler.
+		return next
+	}
+
+	requestDuration, err := meter.Float64Histogram(
+		"http_server_request_duration_seconds",
+		api.WithDescription("HTTP request duration in seconds"),
+	)
+	if err != nil {
+		return next
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if path == "/metrics" || path == "/health" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		start := time.Now()
+
+		rec := &statusRecorder{
+			ResponseWriter: w,
+			statusCode:     http.StatusOK,
+		}
+
+		// Ensure the Meter is available in the request context.
+		ctxWithMeter := telemetry.WithMeter(r.Context(), meter)
+		r = r.WithContext(ctxWithMeter)
+
+		next.ServeHTTP(rec, r)
+
+		duration := time.Since(start).Seconds()
+
+		attrs := []attribute.KeyValue{
+			attribute.String("http.method", r.Method),
+			attribute.String("http.route", path),
+			attribute.Int("http.status_code", rec.statusCode),
+			attribute.String("service.name", serviceName),
+		}
+
+		ctx := r.Context()
+		requestCounter.Add(ctx, 1, api.WithAttributes(attrs...))
+		requestDuration.Record(ctx, duration, api.WithAttributes(attrs...))
 	})
 }

@@ -30,6 +30,14 @@ func (e *Event) Validate() error {
 		return fmt.Errorf("invalid event option: %w", err)
 	}
 
+	if len(e.Consumers) == 0 {
+		return fmt.Errorf("at least one consumer is required")
+	}
+
+	if len(e.Consumers) > 10 {
+		return fmt.Errorf("consumers must be less than 10")
+	}
+
 	return nil
 }
 

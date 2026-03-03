@@ -17,6 +17,7 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/fetcher"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/internal/storests"
+	"github.com/IsaacDSC/gqueue/pkg/telemetry"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -57,6 +58,13 @@ func main() {
 
 	scope := flag.String("scope", "all", "service to run")
 	flag.Parse()
+
+	_, err := telemetry.New(telemetry.Config{
+		Enabled: conf.MetricsEnabled,
+	})
+	if err != nil {
+		panic(err)
+	}
 
 	redisClient := redis.NewClient(&redis.Options{Addr: conf.Cache.CacheAddr})
 	if err := redisClient.Ping(ctx).Err(); err != nil {
@@ -115,6 +123,12 @@ func main() {
 	// call all closers after shutdown
 	for _, closeFn := range closers {
 		closeFn()
+	}
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	if err := telemetry.Shutdown(shutdownCtx); err != nil {
+		log.Printf("Error shutting down telemetry: %v", err)
 	}
 }
 

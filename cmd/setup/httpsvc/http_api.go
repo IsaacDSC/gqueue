@@ -10,11 +10,15 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/app/health"
 	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
+	"github.com/IsaacDSC/gqueue/pkg/telemetry"
 )
 
-func StartHttpServer(ctx context.Context, env cfg.Config, routes []httpadapter.HttpHandle, port string) *http.Server {
+func StartHttpServer(ctx context.Context, env cfg.Config, routes []httpadapter.HttpHandle, port string, serviceName string) *http.Server {
 
 	mux := http.NewServeMux()
+
+	// Rota de métricas para Prometheus.
+	mux.Handle("/metrics", telemetry.Handler())
 
 	routes = append(routes, health.GetHealthCheckHandler())
 
@@ -28,7 +32,9 @@ func StartHttpServer(ctx context.Context, env cfg.Config, routes []httpadapter.H
 	// 	config.ProjectID: config.SecretKey,
 	// })
 
-	handler := middleware.CORSMiddleware(middleware.LoggerMiddleware(mux))
+	handler := middleware.CORSMiddleware(
+		middleware.MetricsMiddleware(serviceName, middleware.LoggerMiddleware(mux)),
+	)
 	// h := authorization.Middleware(handler.ServeHTTP)
 
 	server := &http.Server{

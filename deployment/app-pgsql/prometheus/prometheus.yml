@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "gqueue-backoffice"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backoffice:8081"]
+
+  - job_name: "gqueue-pubsub"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["pubsub:8082"]
+
+  - job_name: "gqueue-task"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["task:8083"]
+
+  # Optional: collect metrics from the otel-collector
+  - job_name: "otel-collector"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["otel-collector:9464"]
+
