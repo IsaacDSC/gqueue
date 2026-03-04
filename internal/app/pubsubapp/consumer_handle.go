@@ -11,6 +11,7 @@ import (
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/IsaacDSC/gqueue/pkg/telemetry"
+	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -57,6 +58,13 @@ func GetRequestHandle(fetch Fetcher, insights ConsumerInsights) asyncadapter.Han
 				recordDuration(ctx, started, payload, err)
 				return fmt.Errorf("fetch consumer: %w", err)
 			}
+
+			publishedTime := time.UnixMilli(payload.PublishedAt)
+			lag := started.Sub(publishedTime).Seconds()
+			topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueRequestToExternal)
+			telemetry.PubSubConsumerLagSeconds.Record(ctx, lag,
+				attribute.String("topic", topic),
+				attribute.String("consumer.service_name", payload.Consumer.ServiceName))
 
 			insertInsights(ctx, payload, started, true)
 			recordDuration(ctx, started, payload, nil)

@@ -48,7 +48,7 @@ func (h Handle[T]) ToGPubSubHandler(pub pubadapter.GenericPublisher) gpubsub.Han
 		}
 
 		if retryCount >= maxRetryAttempts {
-			telemetry.PubSubConsumerArchived.Increment(ctx, attribute.String("topic", topic))
+			telemetry.PubSubConsumerDlq.Increment(ctx, attribute.String("topic", topic))
 			archivedMsg(ctx, msg)
 			return
 		}
