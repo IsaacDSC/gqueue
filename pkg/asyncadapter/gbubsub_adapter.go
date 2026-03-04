@@ -9,7 +9,9 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/gpubsub"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
+	"github.com/IsaacDSC/gqueue/pkg/telemetry"
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func (h Handle[T]) ToGPubSubHandler(pub pubadapter.GenericPublisher) gpubsub.Handle {
@@ -26,6 +28,7 @@ func (h Handle[T]) ToGPubSubHandler(pub pubadapter.GenericPublisher) gpubsub.Han
 
 	retryable := func(ctx context.Context, msg *pubsub.Message) {
 		defer msg.Ack()
+		topic := msg.Attributes["topic"]
 
 		strRetryCount, ok := msg.Attributes["retry_count"]
 		if !ok {
@@ -45,13 +48,15 @@ func (h Handle[T]) ToGPubSubHandler(pub pubadapter.GenericPublisher) gpubsub.Han
 		}
 
 		if retryCount >= maxRetryAttempts {
+			telemetry.PubSubConsumerArchived.Increment(ctx, attribute.String("topic", topic))
 			archivedMsg(ctx, msg)
 			return
 		}
 
+		telemetry.PubSubConsumerRetries.Increment(ctx, attribute.String("topic", topic))
+
 		retryCount++
 		msg.Attributes["retry_count"] = strconv.Itoa(retryCount)
-		topic := msg.Attributes["topic"]
 
 		// Wait respecting the context
 		select {

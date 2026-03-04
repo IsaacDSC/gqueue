@@ -12,7 +12,6 @@ import (
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
-	"github.com/IsaacDSC/gqueue/pkg/telemetry"
 	"github.com/IsaacDSC/gqueue/pkg/topicutils"
 )
 
@@ -83,14 +82,6 @@ func PublisherEvent(
 			started := time.Now()
 			ctx := r.Context()
 			l := ctxlogger.GetLogger(ctx)
-
-			if meter := telemetry.MeterFromContext(ctx); meter != nil {
-				if counter, err := meter.Int64Counter("task_publisher_requests_total"); err == nil {
-					counter.Add(ctx, 1)
-				}
-			} else {
-				l.Warn("meter not found in context")
-			}
 
 			var payload InternalPayload
 

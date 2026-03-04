@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"go.opentelemetry.io/otel/attribute"
-	api "go.opentelemetry.io/otel/metric"
 )
 
 type CORSConfig struct {
@@ -164,23 +163,6 @@ func MetricsMiddleware(serviceName string, next http.Handler) http.Handler {
 	// Create instruments once per middleware chain.
 	meter := telemetry.Meter(serviceName)
 
-	requestCounter, err := meter.Int64Counter(
-		"http_server_requests_total",
-		api.WithDescription("Total HTTP requests received"),
-	)
-	if err != nil {
-		// If instrument creation fails, return the original handler.
-		return next
-	}
-
-	requestDuration, err := meter.Float64Histogram(
-		"http_server_request_duration_seconds",
-		api.WithDescription("HTTP request duration in seconds"),
-	)
-	if err != nil {
-		return next
-	}
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
 		if path == "/metrics" || path == "/health" {
@@ -211,7 +193,7 @@ func MetricsMiddleware(serviceName string, next http.Handler) http.Handler {
 		}
 
 		ctx := r.Context()
-		requestCounter.Add(ctx, 1, api.WithAttributes(attrs...))
-		requestDuration.Record(ctx, duration, api.WithAttributes(attrs...))
+		telemetry.HTTPServerRequests.Increment(ctx, attrs...)
+		telemetry.HTTPServerRequestDuration.Record(ctx, duration, attrs...)
 	})
 }

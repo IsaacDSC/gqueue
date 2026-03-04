@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
+	"github.com/IsaacDSC/gqueue/pkg/telemetry"
 	"github.com/hibiken/asynq"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Task struct {
@@ -37,10 +39,16 @@ func (t *Task) Publish(ctx context.Context, eventName string, payload any, opts 
 	task := asynq.NewTask(eventName, p)
 	info, err := t.client.Enqueue(task, definedOpts...)
 	if err != nil {
+		telemetry.TaskPublisherRequests.Increment(
+			ctx,
+			attribute.String("event_name", eventName),
+			attribute.String("error", err.Error()),
+		)
+
 		return fmt.Errorf("could not schedule task: %v", err)
 	}
 
-	l.Info("enqueued task", "id", info.ID, "queue", info.Queue)
+	l.Debug("enqueued task", "id", info.ID, "queue", info.Queue)
 
 	return nil
 }

@@ -7,6 +7,8 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
+	"github.com/IsaacDSC/gqueue/pkg/telemetry"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type PubSubGoogle struct {
@@ -21,7 +23,6 @@ func NewPubSubGoogle(client *pubsub.Client) *PubSubGoogle {
 
 func (p *PubSubGoogle) Publish(ctx context.Context, topicName string, payload any, opts Opts) error {
 	l := ctxlogger.GetLogger(ctx)
-	l.Info("[*] Publisher msg to topic", "topic", topicName)
 
 	bytesPayload, err := json.Marshal(payload)
 	if err != nil {
@@ -44,6 +45,12 @@ func (p *PubSubGoogle) Publish(ctx context.Context, topicName string, payload an
 
 	id, err := result.Get(ctx)
 	if err != nil {
+		telemetry.PubSubPublisherRequests.Increment(
+			ctx,
+			attribute.String("topic", topicName),
+			attribute.String("error", err.Error()),
+		)
+
 		return fmt.Errorf("could not publish message: %v", err)
 	}
 

@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/notifyopt"
 	"github.com/IsaacDSC/gqueue/pkg/asyncadapter"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
+	"github.com/IsaacDSC/gqueue/pkg/telemetry"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Fetcher interface {
@@ -51,12 +54,36 @@ func GetRequestHandle(fetch Fetcher, insights ConsumerInsights) asyncadapter.Han
 			headers := payload.mergeHeaders(payload.Consumer.Headers)
 			if err := fetch.Notify(ctx, payload.Data, headers, payload.Consumer, notifyopt.HighThroughput); err != nil {
 				insertInsights(ctx, payload, started, false)
+				recordDuration(ctx, started, payload, err)
 				return fmt.Errorf("fetch consumer: %w", err)
 			}
 
 			insertInsights(ctx, payload, started, true)
+			recordDuration(ctx, started, payload, nil)
 
 			return nil
 		},
 	}
+}
+
+func recordDuration(ctx context.Context, started time.Time, payload RequestPayload, err error) {
+	attrs := []attribute.KeyValue{
+		attribute.String("consumer.app_name", cfg.PUBSUB_APP_NAME),
+		attribute.String("consumer.base_url", payload.Consumer.BaseUrl),
+		attribute.String("consumer.path", payload.Consumer.Path),
+		attribute.String("consumer.service_name", payload.Consumer.ServiceName),
+	}
+
+	if err != nil {
+		attrs = append(attrs, attribute.Bool("success", false))
+		attrs = append(attrs, attribute.String("error", err.Error()))
+	} else {
+		attrs = append(attrs, attribute.Bool("success", true))
+	}
+
+	duration := time.Since(started).Seconds()
+	telemetry.PubSubConsumerDuration.Record(
+		ctx, duration,
+		attrs...,
+	)
 }

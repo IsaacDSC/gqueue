@@ -6,11 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/IsaacDSC/clienthttp"
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/notifyopt"
 	"github.com/IsaacDSC/gqueue/pkg/httpclient"
+	"github.com/IsaacDSC/gqueue/pkg/telemetry"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Notification struct{}
@@ -44,6 +47,7 @@ func (n Notification) NotifyScheduler(ctx context.Context, url string, data any,
 }
 
 func fetch(ctx context.Context, url string, data any, headers map[string]string, settings ...clienthttp.Option) error {
+	start := time.Now()
 	payload, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("marshal data: %w", err)
@@ -69,6 +73,16 @@ func fetch(ctx context.Context, url string, data any, headers map[string]string,
 		return fmt.Errorf("post request: %w", err)
 	}
 	defer resp.Body.Close()
+
+	attrs := []attribute.KeyValue{
+		attribute.String("http.method", req.Method),
+		attribute.String("http.url", req.URL.String()),
+		attribute.Int("http.status_code", resp.StatusCode),
+	}
+
+	duration := time.Since(start).Seconds()
+	telemetry.HTTPClientRequests.Increment(ctx, attrs...)
+	telemetry.HTTPClientRequestDuration.Record(ctx, duration, attrs...)
 
 	if resp.StatusCode > 299 {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
