@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-URL="http://localhost:8082/api/v1/pubsub"
+URL="http://localhost:8083/api/v1/task"
 AUTH="Basic YWRtaW46cGFzc3dvcmQ="
-DATA_FILE="example/pubsub_event_payload.json"
+DATA_FILE="example/task_event_payload.json"
 
 while true; do
   # 10 chamadas em paralelo
@@ -18,5 +18,5 @@ while true; do
   wait
 
   # espera 100ms
-  sleep 0.1
+  sleep 1
 done
