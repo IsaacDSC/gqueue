@@ -64,7 +64,6 @@ func GetRequestHandle(fetch Fetcher, insights ConsumerInsights) asyncadapter.Han
 
 			insertInsights(ctx, payload, started, true)
 			recordDuration(ctx, started, payload, nil)
-
 			return nil
 		},
 	}
@@ -86,7 +85,7 @@ func recordDuration(ctx context.Context, started time.Time, payload RequestPaylo
 	}
 
 	duration := time.Since(started).Seconds()
-	telemetry.PubSubConsumerDuration.Record(
+	telemetry.TaskConsumerDuration.Record(
 		ctx, duration,
 		attrs...,
 	)

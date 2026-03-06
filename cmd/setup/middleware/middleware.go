@@ -130,6 +130,29 @@ func AsynqLogger(h asynq.Handler) asynq.Handler {
 	})
 }
 
+func AsynqMetrics(next asynq.Handler) asynq.Handler {
+	return asynq.HandlerFunc(func(ctx context.Context, t *asynq.Task) error {
+		meter := telemetry.Meter("task-consumer")
+		ctx = telemetry.WithMeter(ctx, meter)
+
+		attrs := []attribute.KeyValue{
+			attribute.String("task.event_name", t.Type()),
+		}
+
+		telemetry.TaskConsumerTotalProcessing.Increment(ctx, attrs...)
+		defer telemetry.TaskConsumerTotalProcessing.Decrement(ctx, attrs...)
+
+		if err := next.ProcessTask(ctx, t); err != nil {
+			telemetry.TaskConsumerTotalFailure.Count(ctx, 1, attrs...)
+			return err
+		}
+
+		telemetry.TaskConsumerTotalSuccess.Count(ctx, 1, attrs...)
+
+		return nil
+	})
+}
+
 func LoggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -188,7 +211,7 @@ func MetricsMiddleware(serviceName string, next http.Handler) http.Handler {
 		attrs := []attribute.KeyValue{
 			attribute.String("http.method", r.Method),
 			attribute.String("http.route", path),
-			attribute.Int("http.status_code", rec.statusCode),
+			attribute.Int("http.response_code", rec.statusCode),
 			attribute.String("service.name", serviceName),
 		}
 

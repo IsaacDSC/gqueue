@@ -35,18 +35,18 @@ func (n Notification) Notify(ctx context.Context, data map[string]any, headers m
 		settings = append(settings, httpclient.HighThroughputSettings()...)
 	}
 
-	return fetch(ctx, url, data, headers, settings...)
+	return fetch(ctx, url, data, headers, opt, settings...)
 }
 
 func (n Notification) NotifyConsumer(ctx context.Context, url string, data map[string]any, headers map[string]string) error {
-	return fetch(ctx, url, data, headers)
+	return fetch(ctx, url, data, headers, notifyopt.LongRunning)
 }
 
 func (n Notification) NotifyScheduler(ctx context.Context, url string, data any, headers map[string]string) error {
-	return fetch(ctx, url, data, headers)
+	return fetch(ctx, url, data, headers, notifyopt.LongRunning)
 }
 
-func fetch(ctx context.Context, url string, data any, headers map[string]string, settings ...clienthttp.Option) error {
+func fetch(ctx context.Context, url string, data any, headers map[string]string, opt notifyopt.Kind, settings ...clienthttp.Option) error {
 	start := time.Now()
 	payload, err := json.Marshal(data)
 	if err != nil {
@@ -75,6 +75,7 @@ func fetch(ctx context.Context, url string, data any, headers map[string]string,
 	defer resp.Body.Close()
 
 	attrs := []attribute.KeyValue{
+		attribute.String("http.service_name", opt.String()),
 		attribute.String("http.method", req.Method),
 		attribute.String("http.url", req.URL.String()),
 		attribute.Int("http.status_code", resp.StatusCode),
