@@ -197,6 +197,29 @@ services:
       - gqueue
       - observability
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      - DATA_SOURCE_URI=postgres:5432/gqueue?sslmode=disable
+      - DATA_SOURCE_USER=idsc
+      - DATA_SOURCE_PASS=admin
+    ports:
+      - "9187:9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+    profiles:
+      - observability
+
   pgadmin:
     image: dpage/pgadmin4:latest
     ports:
@@ -280,6 +303,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./provisioning:/etc/grafana/provisioning
+      - ../grafana:/etc/grafana/dashboards:ro
     ports:
       - "3000:3000"
     networks:

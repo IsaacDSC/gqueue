@@ -9,7 +9,7 @@ set -e
 GRAFANA_URL="${GRAFANA_URL:-http://localhost:3000}"
 GRAFANA_USER="${GRAFANA_USER:-admin}"
 GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-admin}"
-DASHBOARD_FILE="$(dirname "$0")/grafana_dashboard.json"
+DASHBOARD_DIR="$(dirname "$0")/grafana"
 REDIS_DATASOURCE_NAME="Redis Main"
 REDIS_URL="${REDIS_URL:-redis://localhost:6379}"
 
@@ -67,22 +67,29 @@ check_grafana() {
     log_success "Grafana is accessible"
 }
 
-# Check if dashboard file exists
-check_dashboard_file() {
-    log_info "Checking dashboard file..."
+# Check if dashboard files exist
+check_dashboard_files() {
+    log_info "Checking dashboard files..."
 
-    if [ ! -f "$DASHBOARD_FILE" ]; then
-        log_error "Dashboard file not found: $DASHBOARD_FILE"
-        exit 1
-    fi
+    local dashboard_files=(
+        "$DASHBOARD_DIR/backoffice_dashboard.json"
+        "$DASHBOARD_DIR/pubsub_dashboard.json"
+        "$DASHBOARD_DIR/task_dashboard.json"
+    )
 
-    # Validate JSON
-    if ! jq . "$DASHBOARD_FILE" > /dev/null 2>&1; then
-        log_error "Dashboard file contains invalid JSON"
-        exit 1
-    fi
+    for dashboard_file in "${dashboard_files[@]}"; do
+        if [ ! -f "$dashboard_file" ]; then
+            log_error "Dashboard file not found: $dashboard_file"
+            exit 1
+        fi
 
-    log_success "Dashboard file is valid"
+        if ! jq . "$dashboard_file" > /dev/null 2>&1; then
+            log_error "Dashboard file contains invalid JSON: $dashboard_file"
+            exit 1
+        fi
+    done
+
+    log_success "Dashboard files are valid"
 }
 
 # Create or update Redis datasource
@@ -166,41 +173,46 @@ setup_redis_datasource() {
     rm -f /tmp/datasource_check.json /tmp/datasource_update.json /tmp/datasource_create.json
 }
 
-# Import dashboard
-import_dashboard() {
-    log_info "Importing GQueue dashboard..."
+# Import dashboards
+import_dashboards() {
+    log_info "Importing GQueue dashboards..."
 
-    # Prepare dashboard JSON for import
-    DASHBOARD_JSON=$(jq '{
-        dashboard: .,
-        overwrite: true,
-        inputs: [],
-        folderId: 0
-    }' "$DASHBOARD_FILE")
+    local dashboard_files=(
+        "$DASHBOARD_DIR/backoffice_dashboard.json"
+        "$DASHBOARD_DIR/pubsub_dashboard.json"
+        "$DASHBOARD_DIR/task_dashboard.json"
+    )
 
-    # Import dashboard
-    IMPORT_RESULT=$(curl -s -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
-        -H "Content-Type: application/json" \
-        -X POST \
-        "${GRAFANA_URL}/api/dashboards/db" \
-        -d "$DASHBOARD_JSON" \
-        -w "%{http_code}" -o /tmp/dashboard_import.json)
+    for dashboard_file in "${dashboard_files[@]}"; do
+        DASHBOARD_JSON=$(jq '{
+            dashboard: .,
+            overwrite: true,
+            inputs: [],
+            folderId: 0
+        }' "$dashboard_file")
 
-    HTTP_CODE=$(echo "$IMPORT_RESULT" | tail -n1)
+        IMPORT_RESULT=$(curl -s -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            "${GRAFANA_URL}/api/dashboards/db" \
+            -d "$DASHBOARD_JSON" \
+            -w "%{http_code}" -o /tmp/dashboard_import.json)
 
-    if [ "$HTTP_CODE" = "200" ]; then
-        DASHBOARD_URL=$(jq -r '.url' /tmp/dashboard_import.json)
-        log_success "Dashboard imported successfully!"
-        log_info "Dashboard URL: ${GRAFANA_URL}${DASHBOARD_URL}"
-    else
-        log_error "Failed to import dashboard (HTTP $HTTP_CODE)"
-        if [ -f /tmp/dashboard_import.json ]; then
-            log_error "Response: $(cat /tmp/dashboard_import.json)"
+        HTTP_CODE=$(echo "$IMPORT_RESULT" | tail -n1)
+
+        if [ "$HTTP_CODE" = "200" ]; then
+            DASHBOARD_URL=$(jq -r '.url' /tmp/dashboard_import.json)
+            log_success "Dashboard imported successfully: $(basename "$dashboard_file")"
+            log_info "Dashboard URL: ${GRAFANA_URL}${DASHBOARD_URL}"
+        else
+            log_error "Failed to import dashboard $(basename "$dashboard_file") (HTTP $HTTP_CODE)"
+            if [ -f /tmp/dashboard_import.json ]; then
+                log_error "Response: $(cat /tmp/dashboard_import.json)"
+            fi
+            exit 1
         fi
-        exit 1
-    fi
+    done
 
-    # Clean up temp file
     rm -f /tmp/dashboard_import.json
 }
 
@@ -209,18 +221,27 @@ test_dashboard() {
     log_info "Testing dashboard accessibility..."
 
     # Get dashboard by UID
-    DASHBOARD_TEST=$(curl -s -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
-        "${GRAFANA_URL}/api/dashboards/uid/gqueue-dashboard" \
-        -w "%{http_code}" -o /tmp/dashboard_test.json)
+    local dashboard_uids=(
+        "adxctbtbackoffice"
+        "adhqlpfpubsub"
+        "adxctbttask"
+    )
 
-    HTTP_CODE=$(echo "$DASHBOARD_TEST" | tail -n1)
+    for dashboard_uid in "${dashboard_uids[@]}"; do
+        DASHBOARD_TEST=$(curl -s -u "${GRAFANA_USER}:${GRAFANA_PASSWORD}" \
+            "${GRAFANA_URL}/api/dashboards/uid/${dashboard_uid}" \
+            -w "%{http_code}" -o /tmp/dashboard_test.json)
 
-    if [ "$HTTP_CODE" = "200" ]; then
-        log_success "Dashboard is accessible and working"
-    else
-        log_warning "Dashboard may not be accessible (HTTP $HTTP_CODE)"
-    fi
+        HTTP_CODE=$(echo "$DASHBOARD_TEST" | tail -n1)
 
+        if [ "$HTTP_CODE" = "200" ]; then
+            log_success "Dashboard is accessible and working: ${dashboard_uid}"
+        else
+            log_warning "Dashboard may not be accessible: ${dashboard_uid} (HTTP $HTTP_CODE)"
+        fi
+    done
+
+    # Clean up temp file
     # Clean up temp file
     rm -f /tmp/dashboard_test.json
 }
@@ -233,4 +254,51 @@ usage() {
     echo "  -h, --help              Show this help message"
     echo "  -u, --url URL           Grafana URL (default: http://localhost:3000)"
     echo "  --user USER             Grafana username (default: admin)"
-    echo "  --password PASSWORD     Grafana
+    echo "  --password PASSWORD     Grafana password (default: admin)"
+    echo "  --redis-url URL         Redis URL (default: redis://localhost:6379)"
+}
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -u|--url)
+                GRAFANA_URL="$2"
+                shift 2
+                ;;
+            --user)
+                GRAFANA_USER="$2"
+                shift 2
+                ;;
+            --password)
+                GRAFANA_PASSWORD="$2"
+                shift 2
+                ;;
+            --redis-url)
+                REDIS_URL="$2"
+                shift 2
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                usage
+                exit 1
+                ;;
+        esac
+    done
+}
+
+main() {
+    parse_args "$@"
+    check_dependencies
+    check_grafana
+    check_dashboard_files
+    setup_redis_datasource
+    import_dashboards
+    test_dashboard
+    log_success "Grafana setup completed"
+}
+
+main "$@"
