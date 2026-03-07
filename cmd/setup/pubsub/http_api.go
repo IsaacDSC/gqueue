@@ -15,5 +15,5 @@ func (s *Service) startHttpServer(ctx context.Context, env cfg.Config) *http.Ser
 		pubsubapp.PublisherEvent(s.memStore, s.gcppublisher, s.insightsStore),
 	}
 
-	return httpsvc.StartHttpServer(ctx, env, routes, env.PubsubApiPort.String())
+	return httpsvc.StartHttpServer(ctx, env, routes, env.PubsubApiPort.String(), cfg.PUBSUB_APP_NAME)
 }

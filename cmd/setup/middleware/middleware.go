@@ -9,8 +9,10 @@ import (
 
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
 	"github.com/IsaacDSC/gqueue/pkg/logs"
+	"github.com/IsaacDSC/gqueue/pkg/telemetry"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type CORSConfig struct {
@@ -29,7 +31,7 @@ func DefaultCORSConfig() CORSConfig {
 		AllowedHeaders:   []string{"Content-Type", "Authorization", "X-Requested-With"},
 		ExposedHeaders:   []string{},
 		AllowCredentials: false,
-		MaxAge:           86400, // 24 horas
+		MaxAge:           86400, // 24 hours
 	}
 }
 
@@ -128,6 +130,29 @@ func AsynqLogger(h asynq.Handler) asynq.Handler {
 	})
 }
 
+func AsynqMetrics(next asynq.Handler) asynq.Handler {
+	return asynq.HandlerFunc(func(ctx context.Context, t *asynq.Task) error {
+		meter := telemetry.Meter("task-consumer")
+		ctx = telemetry.WithMeter(ctx, meter)
+
+		attrs := []attribute.KeyValue{
+			attribute.String("task.event_name", t.Type()),
+		}
+
+		telemetry.TaskConsumerTotalProcessing.Increment(ctx, attrs...)
+		defer telemetry.TaskConsumerTotalProcessing.Decrement(ctx, attrs...)
+
+		if err := next.ProcessTask(ctx, t); err != nil {
+			telemetry.TaskConsumerTotalFailure.Count(ctx, 1, attrs...)
+			return err
+		}
+
+		telemetry.TaskConsumerTotalSuccess.Count(ctx, 1, attrs...)
+
+		return nil
+	})
+}
+
 func LoggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -143,5 +168,55 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)
+	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.statusCode = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+// MetricsMiddleware records HTTP metrics per service using OpenTelemetry.
+func MetricsMiddleware(serviceName string, next http.Handler) http.Handler {
+	// Create instruments once per middleware chain.
+	meter := telemetry.Meter(serviceName)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if path == "/metrics" || path == "/health" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		start := time.Now()
+
+		rec := &statusRecorder{
+			ResponseWriter: w,
+			statusCode:     http.StatusOK,
+		}
+
+		// Ensure the Meter is available in the request context.
+		ctxWithMeter := telemetry.WithMeter(r.Context(), meter)
+		r = r.WithContext(ctxWithMeter)
+
+		next.ServeHTTP(rec, r)
+
+		duration := time.Since(start).Seconds()
+
+		attrs := []attribute.KeyValue{
+			attribute.String("http.method", r.Method),
+			attribute.String("http.route", path),
+			attribute.Int("http.response_code", rec.statusCode),
+			attribute.String("service.name", serviceName),
+		}
+
+		ctx := r.Context()
+		telemetry.HTTPServerRequests.Increment(ctx, attrs...)
+		telemetry.HTTPServerRequestDuration.Record(ctx, duration, attrs...)
 	})
 }

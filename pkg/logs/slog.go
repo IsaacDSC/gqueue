@@ -94,7 +94,7 @@ func (l LogLevel) GetLevel() slog.Level {
 // New creates a new configured logger
 func New(opts ...LogOption) *Logger {
 	config := &logConfig{
-		level:      LevelInfo,
+		level:      LevelDebug,
 		output:     os.Stdout,
 		addSource:  false,
 		jsonFormat: true, // Default to JSON format

@@ -24,10 +24,11 @@ type Store interface {
 }
 
 type RequestPayload struct {
-	EventName string            `json:"event_name"`
-	Consumer  domain.Consumer   `json:"consumer"`
-	Data      map[string]any    `json:"data"`
-	Headers   map[string]string `json:"headers,omitempty"`
+	EventName   string            `json:"event_name"`
+	Consumer    domain.Consumer   `json:"consumer"`
+	Data        map[string]any    `json:"data"`
+	Headers     map[string]string `json:"headers,omitempty"`
+	PublishedAt int64             `json:"published_at,omitempty"`
 }
 
 func (p RequestPayload) Validate() error {

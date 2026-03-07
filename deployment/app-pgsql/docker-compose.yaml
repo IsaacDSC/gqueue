@@ -40,6 +40,7 @@ services:
     profiles:
       - complete
       - gqueue
+      - observability
 
   pubsub:
     build:
@@ -87,6 +88,7 @@ services:
     profiles:
       - complete
       - gqueue
+      - observability
 
   task:
     build:
@@ -134,6 +136,7 @@ services:
     profiles:
       - complete
       - gqueue
+      - observability
 
   redis:
     image: redis:latest
@@ -160,6 +163,7 @@ services:
       - complete
       - infra
       - gqueue
+      - observability
 
   postgres:
     image: postgres:15
@@ -191,6 +195,30 @@ services:
       - complete
       - infra
       - gqueue
+      - observability
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      - DATA_SOURCE_URI=postgres:5432/gqueue?sslmode=disable
+      - DATA_SOURCE_USER=idsc
+      - DATA_SOURCE_PASS=admin
+    ports:
+      - "9187:9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+    profiles:
+      - observability
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -243,6 +271,7 @@ services:
       - complete
       - infra
       - gqueue
+      - observability
 
   consumer:
     build:
@@ -274,6 +303,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./provisioning:/etc/grafana/provisioning
+      - ../grafana:/etc/grafana/dashboards:ro
     ports:
       - "3000:3000"
     networks:
@@ -282,6 +312,39 @@ services:
     depends_on:
       - postgres
       - redis
+      - prometheus
+    profiles:
+      - observability
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    networks:
+      - app-network
+    restart: unless-stopped
+    profiles:
+      - observability
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    command:
+      - "--config=/etc/otel-collector-config.yaml"
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "9464:9464"
+    networks:
+      - app-network
+    restart: unless-stopped
     profiles:
       - observability
 

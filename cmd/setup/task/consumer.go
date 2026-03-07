@@ -17,6 +17,7 @@ func (s *Service) consumer(ctx context.Context, env cfg.Config, asynqCfg asynq.C
 
 	mux := asynq.NewServeMux()
 	mux.Use(middleware.AsynqLogger)
+	mux.Use(middleware.AsynqMetrics)
 
 	events := []asynqsvc.AsynqHandle{
 		taskapp.GetRequestHandle(s.fetch, s.insightsStore).ToAsynqHandler(),

@@ -60,9 +60,12 @@ type Config struct {
 	InternalServiceName string `env:"INTERNAL_SERVICE_NAME"`
 
 	PubsubApiPort     ServerPort    `env:"PUBSUB_API_PORT" env-default:"8082"`
-	TaskApiPort       ServerPort    `env:"TASK_API_PORT" env-default:"8082"`
+	TaskApiPort       ServerPort    `env:"TASK_API_PORT" env-default:"8083"`
 	BackofficeApiPort ServerPort    `env:"BACKOFFICE_API_PORT" env-default:"8081"`
 	ShutdownTimeout   time.Duration `env:"SHUTDOWN_TIMEOUT" env-default:"30s"` //TODO: porque não está sendo usado?
+
+	MetricsEnabled           bool   `env:"METRICS_ENABLED" env-default:"true"`
+	OTELExporterOTLPEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT" env-default:""`
 }
 
 var cfg Config

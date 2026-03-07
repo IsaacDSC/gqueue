@@ -24,10 +24,11 @@ type Store interface {
 }
 
 type RequestPayload struct {
-	EventName string            `json:"event_name"`
-	Consumer  domain.Consumer   `json:"consumer"`
-	Data      map[string]any    `json:"data"`
-	Headers   map[string]string `json:"headers,omitempty"`
+	EventName   string            `json:"event_name"`
+	Consumer    domain.Consumer   `json:"consumer"`
+	Data        map[string]any    `json:"data"`
+	Headers     map[string]string `json:"headers,omitempty"`
+	PublishedAt int64             `json:"published_at,omitempty"`
 }
 
 func (p RequestPayload) mergeHeaders(headers map[string]string) map[string]string {
@@ -109,10 +110,12 @@ func PublisherEvent(
 			config := event.Option.ToAsynqOptions()
 			for _, consumer := range event.Consumers {
 
+				nowMs := time.Now().UnixMilli()
 				input := RequestPayload{
-					EventName: event.Name,
-					Data:      payload.Data,
-					Headers:   payload.Metadata.Headers,
+					EventName:   event.Name,
+					Data:        payload.Data,
+					Headers:     payload.Metadata.Headers,
+					PublishedAt: nowMs,
 					Consumer: domain.Consumer{
 						ServiceName: consumer.ServiceName,
 						BaseUrl:     consumer.BaseUrl,
@@ -122,7 +125,13 @@ func PublisherEvent(
 				}
 
 				topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueRequestToExternal)
-				opts := pubadapter.Opts{Attributes: make(map[string]string), AsynqOpts: config}
+				opts := pubadapter.Opts{
+					Attributes: map[string]string{
+						"topic":       topic,
+						"max_retries": "1",
+					},
+					AsynqOpts: config,
+				}
 				if err = adaptpub.Publish(ctx, topic, input, opts); err != nil {
 					err = fmt.Errorf("publish event: %w", err)
 					l.Error("failed to publish event", "error", err.Error())

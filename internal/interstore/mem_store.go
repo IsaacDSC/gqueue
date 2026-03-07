@@ -8,6 +8,8 @@ import (
 
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/pkg/ctxlogger"
+	"github.com/IsaacDSC/gqueue/pkg/telemetry"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type PersistentStore interface {
@@ -52,6 +54,13 @@ func (ms *MemStore) GetEvent(ctx context.Context, eventName string) (domain.Even
 	event, exists := eventsMap[eventName]
 	if !exists {
 		l.Warn("Event not found", "event_name", eventName, "tag", ms.tag)
+
+		telemetry.MemStoreEventNotFound.Increment(
+			ctx,
+			attribute.String("event_name", eventName),
+			attribute.String("error", domain.EventNotFound.Error()),
+		)
+
 		return domain.Event{}, domain.EventNotFound
 	}
 
