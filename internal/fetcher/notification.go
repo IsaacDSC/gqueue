@@ -39,11 +39,11 @@ func (n Notification) Notify(ctx context.Context, data map[string]any, headers m
 }
 
 func (n Notification) NotifyConsumer(ctx context.Context, url string, data map[string]any, headers map[string]string) error {
-	return fetch(ctx, url, data, headers, notifyopt.LongRunning)
+	return fetch(ctx, url, data, headers, notifyopt.Default)
 }
 
 func (n Notification) NotifyScheduler(ctx context.Context, url string, data any, headers map[string]string) error {
-	return fetch(ctx, url, data, headers, notifyopt.LongRunning)
+	return fetch(ctx, url, data, headers, notifyopt.Default)
 }
 
 func fetch(ctx context.Context, url string, data any, headers map[string]string, opt notifyopt.Kind, settings ...clienthttp.Option) error {

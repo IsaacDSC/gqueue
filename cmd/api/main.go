@@ -125,7 +125,7 @@ func main() {
 		closeFn()
 	}
 
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, shutdownCancel := context.WithTimeout(ctx, 5*time.Second)
 	defer shutdownCancel()
 	if err := telemetry.Shutdown(shutdownCtx); err != nil {
 		log.Printf("Error shutting down telemetry: %v", err)

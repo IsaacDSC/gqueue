@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/pkg/intertime"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/google/uuid"
@@ -34,7 +35,7 @@ func (e *Event) Validate() error {
 		return fmt.Errorf("at least one consumer is required")
 	}
 
-	if len(e.Consumers) > 10 {
+	if len(e.Consumers) > cfg.Get().MaxConsumers {
 		return fmt.Errorf("consumers must be less than 10")
 	}
 

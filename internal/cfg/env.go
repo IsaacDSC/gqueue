@@ -66,6 +66,8 @@ type Config struct {
 
 	MetricsEnabled           bool   `env:"METRICS_ENABLED" env-default:"true"`
 	OTELExporterOTLPEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT" env-default:""`
+	MaxConsumers             int    `env:"MAX_CONSUMERS" env-default:"10"`
+	LogLevel                 int    `env:"LOG_LEVEL" env-default:"2"` // 0: debug, 1: info, 2: warn, 3: error
 }
 
 var cfg Config
@@ -78,6 +80,10 @@ func Get() Config {
 
 	if err := cfg.WQ.IsValid(); err != nil {
 		panic(err)
+	}
+
+	if cfg.LogLevel < 0 || cfg.LogLevel > 3 {
+		panic("invalid log level")
 	}
 
 	return cfg
