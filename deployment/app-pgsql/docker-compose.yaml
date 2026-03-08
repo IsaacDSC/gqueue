@@ -138,6 +138,34 @@ services:
       - gqueue
       - observability
 
+  nginx:
+    image: nginx:alpine
+    ports:
+      - 8080:80
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      backoffice:
+        condition: service_started
+      pubsub:
+        condition: service_started
+      task:
+        condition: service_started
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    profiles:
+      - complete
+      - gqueue
+      - observability
+
   redis:
     image: redis:latest
     ports:
