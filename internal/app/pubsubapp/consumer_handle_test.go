@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/IsaacDSC/gqueue/internal/app/pubsubapp"
 	"github.com/IsaacDSC/gqueue/internal/domain"
@@ -171,6 +172,44 @@ func TestGetRequestHandle_Handler_InvalidPayload(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unmarshal payload:")
+}
+
+func TestGetRequestHandle_Handler_WithPublishedAtInBody_RecordsLag(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer testServer.Close()
+
+	// published_at 2 seconds in the past (Unix ms) in the body
+	publishedAtMs := time.Now().Add(-2 * time.Second).UnixMilli()
+	payload := pubsubapp.RequestPayload{
+		EventName:   "user.created",
+		PublishedAt: publishedAtMs,
+		Consumer: domain.Consumer{
+			ServiceName: "user-service",
+			BaseUrl:     testServer.URL,
+			Path:        "/webhook",
+			Headers:     map[string]string{},
+		},
+		Data: map[string]any{"key": "value"},
+	}
+	taskPayload, err := json.Marshal(payload)
+	require.NoError(t, err)
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockFetcher := mockpubsubapp.NewMockFetcher(ctrl)
+	mockInsights := mockpubsubapp.NewMockConsumerInsights(ctrl)
+	mockFetcher.EXPECT().
+		Notify(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), notifyopt.HighThroughput).
+		Return(nil).Times(1)
+	mockInsights.EXPECT().Consumed(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+
+	handle := pubsubapp.GetRequestHandle(mockFetcher, mockInsights)
+	asyncCtx := asyncadapter.NewAsyncCtx[pubsubapp.RequestPayload](context.Background(), taskPayload)
+
+	err = handle.Handler(asyncCtx)
+	assert.NoError(t, err)
 }
 
 func TestRequestPayload_mergeHeaders_Integration(t *testing.T) {

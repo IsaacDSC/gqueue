@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/IsaacDSC/gqueue/internal/cfg"
 	"github.com/IsaacDSC/gqueue/pkg/intertime"
 	"github.com/IsaacDSC/gqueue/pkg/pubadapter"
 	"github.com/google/uuid"
@@ -28,6 +29,14 @@ func (e *Event) Validate() error {
 
 	if err := e.Option.Validate(); err != nil {
 		return fmt.Errorf("invalid event option: %w", err)
+	}
+
+	if len(e.Consumers) == 0 {
+		return fmt.Errorf("at least one consumer is required")
+	}
+
+	if len(e.Consumers) > cfg.Get().MaxConsumers {
+		return fmt.Errorf("consumers must be less than 10")
 	}
 
 	return nil

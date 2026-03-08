@@ -13,6 +13,7 @@ import (
 	"github.com/IsaacDSC/gqueue/internal/domain"
 	"github.com/IsaacDSC/gqueue/internal/interstore"
 	"github.com/IsaacDSC/gqueue/pkg/httpadapter"
+	"github.com/IsaacDSC/gqueue/pkg/telemetry"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -26,6 +27,9 @@ func Start(
 	insightsStore InsightsStore,
 ) *http.Server {
 	mux := http.NewServeMux()
+
+	// Rota de métricas para Prometheus.
+	mux.Handle("/metrics", telemetry.Handler())
 
 	routes := []httpadapter.HttpHandle{
 		health.GetHealthCheckHandler(),
@@ -47,7 +51,9 @@ func Start(
 	// 	config.ProjectID: config.SecretKey,
 	// })
 
-	handler := middleware.CORSMiddleware(middleware.LoggerMiddleware(mux))
+	handler := middleware.CORSMiddleware(
+		middleware.MetricsMiddleware(cfg.BACKOFFICE_APP_NAME, middleware.LoggerMiddleware(mux)),
+	)
 	// h := authorization.Middleware(handler.ServeHTTP)
 
 	env := cfg.Get()

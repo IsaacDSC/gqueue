@@ -11,11 +11,11 @@ curl -X PATCH \
 
 curl -X GET \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
- http://localhost:8080/api/v1/events/{{eventName}} | jq
+ http://localhost:8081/api/v1/events/payment.charged1 | jq
 
 curl -X GET \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
- http://localhost:8080/api/v1/events
+ http://localhost:8081/api/v1/events
 
 curl -X GET \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
@@ -27,13 +27,13 @@ curl -X POST \
  http://localhost:8082/api/v1/pubsub \
  -H "Content-Type: application/json" \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
--d @example/publisher_data.json
+-d @example/pubsub_event_payload.json
 
 curl -X POST \
  http://localhost:8083/api/v1/task \
  -H "Content-Type: application/json" \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
--d @example/publisher_data.json
+-d @example/task_event_payload.json
 
 ### DELETE event
 

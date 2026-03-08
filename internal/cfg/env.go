@@ -60,9 +60,14 @@ type Config struct {
 	InternalServiceName string `env:"INTERNAL_SERVICE_NAME"`
 
 	PubsubApiPort     ServerPort    `env:"PUBSUB_API_PORT" env-default:"8082"`
-	TaskApiPort       ServerPort    `env:"TASK_API_PORT" env-default:"8082"`
+	TaskApiPort       ServerPort    `env:"TASK_API_PORT" env-default:"8083"`
 	BackofficeApiPort ServerPort    `env:"BACKOFFICE_API_PORT" env-default:"8081"`
 	ShutdownTimeout   time.Duration `env:"SHUTDOWN_TIMEOUT" env-default:"30s"` //TODO: porque não está sendo usado?
+
+	MetricsEnabled           bool   `env:"METRICS_ENABLED" env-default:"true"`
+	OTELExporterOTLPEndpoint string `env:"OTEL_EXPORTER_OTLP_ENDPOINT" env-default:""`
+	MaxConsumers             int    `env:"MAX_CONSUMERS" env-default:"10"`
+	LogLevel                 int    `env:"LOG_LEVEL" env-default:"2"` // 0: debug, 1: info, 2: warn, 3: error
 }
 
 var cfg Config
@@ -75,6 +80,10 @@ func Get() Config {
 
 	if err := cfg.WQ.IsValid(); err != nil {
 		panic(err)
+	}
+
+	if cfg.LogLevel < 0 || cfg.LogLevel > 3 {
+		panic("invalid log level")
 	}
 
 	return cfg

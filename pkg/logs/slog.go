@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+
+	"github.com/IsaacDSC/gqueue/internal/cfg"
 )
 
 var (
@@ -94,7 +96,7 @@ func (l LogLevel) GetLevel() slog.Level {
 // New creates a new configured logger
 func New(opts ...LogOption) *Logger {
 	config := &logConfig{
-		level:      LevelInfo,
+		level:      LogLevel(cfg.Get().LogLevel),
 		output:     os.Stdout,
 		addSource:  false,
 		jsonFormat: true, // Default to JSON format
