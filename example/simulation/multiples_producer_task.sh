@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-URL="http://localhost:8083/api/v1/task"
+URL="http://localhost:8080/api/v1/task"
 AUTH="Basic YWRtaW46cGFzc3dvcmQ="
 DATA_FILE="example/task_event_payload.json"
 
