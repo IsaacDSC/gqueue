@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-URL="http://localhost:8082/api/v1/pubsub"
+URL="http://localhost:8080/api/v1/pubsub"
 AUTH="Basic YWRtaW46cGFzc3dvcmQ="
 DATA_FILE="example/pubsub_event_payload.json"
 

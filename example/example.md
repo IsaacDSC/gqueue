@@ -1,7 +1,7 @@
 ### Example create or update event
 
 curl -X PATCH \
- http://localhost:8081/api/v1/event/consumer \
+ http://localhost:8080/api/v1/event/consumer \
  -H "Content-Type: application/json" \
  -H "Accept: application/json" \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
@@ -11,11 +11,11 @@ curl -X PATCH \
 
 curl -X GET \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
- http://localhost:8081/api/v1/events/payment.charged1 | jq
+ http://localhost:8080/api/v1/events/payment.charged1 | jq
 
 curl -X GET \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
- http://localhost:8081/api/v1/events
+ http://localhost:8080/api/v1/events
 
 curl -X GET \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
@@ -24,13 +24,13 @@ curl -X GET \
 ### Publisher data
 
 curl -X POST \
- http://localhost:8082/api/v1/pubsub \
+ http://localhost:8080/api/v1/pubsub \
  -H "Content-Type: application/json" \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
 -d @example/pubsub_event_payload.json
 
 curl -X POST \
- http://localhost:8083/api/v1/task \
+ http://localhost:8080/api/v1/task \
  -H "Content-Type: application/json" \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
 -d @example/task_event_payload.json
