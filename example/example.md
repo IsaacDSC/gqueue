@@ -1,6 +1,6 @@
 ### Example create or update event
 
-curl -X PATCH \
+curl -X PUT \
  http://localhost:8080/api/v1/event/consumer \
  -H "Content-Type: application/json" \
  -H "Accept: application/json" \

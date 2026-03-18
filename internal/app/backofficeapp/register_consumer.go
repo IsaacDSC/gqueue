@@ -32,9 +32,9 @@ func (e *EventDto) ToDomain() domain.Event {
 	}
 }
 
-func PatchConsumer(repo Repository) httpadapter.HttpHandle {
+func SaveConsumerHandle(repo Repository) httpadapter.HttpHandle {
 	return httpadapter.HttpHandle{
-		Path: "PATCH /api/v1/event/consumer",
+		Path: "PUT /api/v1/event/consumer",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 			l := ctxlogger.GetLogger(ctx)
