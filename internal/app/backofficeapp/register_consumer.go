@@ -17,10 +17,17 @@ type EventDto struct {
 	Type      domain.Type       `json:"type"`
 	Option    domain.Opt        `json:"option" bson:"option"`
 	Consumers []domain.Consumer `json:"consumers"`
+	State     string            `json:"state"`
 }
+
+const DefaultState = "active"
 
 func (e *EventDto) ToDomain() domain.Event {
 	env := cfg.Get()
+
+	if e.State == "" {
+		e.State = DefaultState
+	}
 
 	return domain.Event{
 		ID:          uuid.New(),
@@ -29,6 +36,7 @@ func (e *EventDto) ToDomain() domain.Event {
 		Type:        e.Type,
 		Option:      e.Option,
 		Consumers:   e.Consumers,
+		State:       e.State,
 	}
 }
 

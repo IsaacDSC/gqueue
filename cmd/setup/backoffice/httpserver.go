@@ -36,7 +36,6 @@ func Start(
 		backofficeapp.SaveConsumerHandle(store),
 		backofficeapp.GetEvent(store),
 		backofficeapp.GetEvents(store),
-		backofficeapp.GetRegisterTaskConsumerArchived(store),
 		backofficeapp.RemoveEvent(store),
 		backofficeapp.GetInsightsHandle(insightsStore),
 	}

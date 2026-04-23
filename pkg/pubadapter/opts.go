@@ -7,9 +7,10 @@ import (
 )
 
 type Opts struct {
-	Attributes map[string]string
-	AsynqOpts  []asynq.Option
-	WQType     WQType
+	Attributes   map[string]string
+	AsynqOpts    []asynq.Option
+	WQType       WQType
+	NotUnmarshal bool
 }
 
 var EmptyOpts = Opts{

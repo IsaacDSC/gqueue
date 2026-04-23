@@ -68,8 +68,14 @@ func (ms *MemStore) GetEvent(ctx context.Context, eventName string) (domain.Even
 }
 
 // DEPRECATED GetAllSchedulers is deprecated and should not be used. It will be removed in future versions. Please use GetRetryEvent by eventName with state parameter instead.
-func (ms *MemStore) GetAllSchedulers(ctx context.Context, state string) ([]domain.Event, error) {
-	return nil, domain.EventNotFound
+func (ms *MemStore) GetAllSchedulers(ctx context.Context, eventName string) (domain.Event, error) {
+	retryTopics := ms.retryTopics.Load().(map[string]domain.Event)
+	event, exists := retryTopics[eventName]
+	if !exists {
+		return domain.Event{}, domain.EventNotFound
+	}
+
+	return event, nil
 }
 
 func (ms *MemStore) Refresh(ctx context.Context, events []domain.Event) {
@@ -77,27 +83,18 @@ func (ms *MemStore) Refresh(ctx context.Context, events []domain.Event) {
 
 	// Convert slice of events to a map for efficient lookups
 	eventsMap := make(map[string]domain.Event)
+	retryTopics := make(map[string]domain.Event)
 	for _, event := range events {
-		eventsMap[event.Name] = event
+		if event.State == "archived" {
+			retryTopics[event.Name] = event
+		} else {
+			eventsMap[event.Name] = event
+		}
 	}
 
 	// Update the in-memory map with the latest events
 	ms.topicEvents.Store(eventsMap)
-
-	l.Debug("Refreshed in-memory store", "num_events", len(events), "tag", ms.tag)
-}
-
-func (ms *MemStore) RefreshRetryTopics(ctx context.Context, events []domain.Event) {
-	l := ctxlogger.GetLogger(ctx)
-
-	// Convert slice of events to a map for efficient lookups
-	retryTopics := make(map[string]domain.Event)
-	for _, event := range events {
-		retryTopics[event.Name] = event
-	}
-
-	// Update the in-memory map with the latest events
 	ms.retryTopics.Store(retryTopics)
 
-	l.Debug("Refreshed retry topics", "num_events", len(events), "tag", ms.tag)
+	l.Debug("Refreshed in-memory store", "num_events", len(events), "tag", ms.tag)
 }

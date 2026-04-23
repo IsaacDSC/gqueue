@@ -7,6 +7,15 @@ curl -X PUT \
  -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
  -d @example/event_data.json
 
+### Example create or update
+
+curl -X PUT \
+ http://localhost:8080/api/v1/event/consumer \
+ -H "Content-Type: application/json" \
+ -H "Accept: application/json" \
+ -H "Authorization: Basic YWRtaW46cGFzc3dvcmQ=" \
+ -d @example/event_data_archieved.json
+
 ### Example get event
 
 curl -X GET \

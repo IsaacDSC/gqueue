@@ -59,7 +59,7 @@ run-backoffice:
 	@$(GO) run ./cmd/api/main.go --scope=backoffice
 
 # Iniciar ambos serviços
-run-all:
+run:
 	@echo "$(BLUE)Iniciando todos os serviços (worker e webhook)...$(NC)"
 	@$(GO) run ./cmd/api/main.go --scope=all
 
@@ -116,8 +116,12 @@ lint:
 	@echo "$(BLUE)Executando go vet...$(NC)"
 	@$(GO) vet ./...
 	@echo "$(BLUE)Verificando go mod tidy...$(NC)"
-	@$(GO) mod tidy
-	@if ! git diff --quiet go.mod go.sum; then \
+	@before_go_mod="$$(cat go.mod 2>/dev/null)"; \
+	before_go_sum="$$(cat go.sum 2>/dev/null)"; \
+	$(GO) mod tidy; \
+	after_go_mod="$$(cat go.mod 2>/dev/null)"; \
+	after_go_sum="$$(cat go.sum 2>/dev/null)"; \
+	if [ "$$before_go_mod" != "$$after_go_mod" ] || [ "$$before_go_sum" != "$$after_go_sum" ]; then \
 		echo "$(YELLOW)⚠️  go.mod ou go.sum não estão atualizados$(NC)"; \
 		echo "$(BLUE)Execute 'go mod tidy' para corrigir$(NC)"; \
 		exit 1; \

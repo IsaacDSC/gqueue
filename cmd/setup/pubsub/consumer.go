@@ -65,7 +65,7 @@ func (s *Service) consumer(ctx context.Context, env cfg.Config) {
 
 				subscription, err = s.pubsubClient.CreateSubscription(ctx, subscriptionName, pubsub.SubscriptionConfig{
 					Topic:       topic,
-					AckDeadline: 20 * time.Second,
+					AckDeadline: 40 * time.Second, //TODO: mover para env
 					// DeadLetterPolicy: &pubsub.DeadLetterPolicy{
 					// 	DeadLetterTopic:     topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueDeadLatter),
 					// 	MaxDeliveryAttempts: 10,

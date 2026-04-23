@@ -42,7 +42,7 @@ func NewPostgresStore(db *sql.DB) *PostgresStore {
 var _ Repository = (*PostgresStore)(nil)
 
 func (r *PostgresStore) GetAllEvents(ctx context.Context) ([]domain.Event, error) {
-	query := fmt.Sprintf(`SELECT %s FROM events WHERE deleted_at IS NULL AND state != 'archived'`, modelEventFields)
+	query := fmt.Sprintf(`SELECT %s FROM events WHERE deleted_at IS NULL`, modelEventFields)
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
@@ -172,10 +172,6 @@ func (r *PostgresStore) Upsert(ctx context.Context, event domain.Event) error {
 	optsJSON, err := json.Marshal(event.Option)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event option: %w", err)
-	}
-
-	if event.State == "" {
-		event.State = "active"
 	}
 
 	query := `

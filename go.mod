@@ -1,12 +1,12 @@
 module github.com/IsaacDSC/gqueue
 
-go 1.24.0
+go 1.25.8
 
-toolchain go1.26.1
+toolchain go1.26.2
 
 require (
 	cloud.google.com/go/pubsub v1.49.0
-	github.com/IsaacDSC/clienthttp v1.0.1
+	github.com/IsaacDSC/clienthttp v1.1.0
 	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.15.0

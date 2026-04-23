@@ -1,7 +1,5 @@
-# syntax=docker/dockerfile:1
-
 # Build stage
-FROM golang:1.24.3 AS build
+FROM golang:1.26.2 AS build
 WORKDIR /src
 
 # Initialize go module for the consumer app

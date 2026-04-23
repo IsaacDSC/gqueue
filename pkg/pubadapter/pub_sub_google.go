@@ -24,9 +24,15 @@ func NewPubSubGoogle(client *pubsub.Client) *PubSubGoogle {
 func (p *PubSubGoogle) Publish(ctx context.Context, topicName string, payload any, opts Opts) error {
 	l := ctxlogger.GetLogger(ctx)
 
-	bytesPayload, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("could not marshal payload: %v", err)
+	var bytesPayload []byte
+	if opts.NotUnmarshal {
+		bytesPayload = payload.([]byte)
+	} else {
+		b, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("could not marshal payload: %v", err)
+		}
+		bytesPayload = b
 	}
 
 	attributes := opts.Attributes

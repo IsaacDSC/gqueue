@@ -2,6 +2,7 @@ package cfg
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -76,6 +77,10 @@ func Get() Config {
 	err := cleanenv.ReadEnv(&cfg)
 	if err != nil {
 		panic(err)
+	}
+
+	if cfg.WQ == "" && os.Getenv("GO_ENV") == "test" {
+		cfg.WQ = WQRedis
 	}
 
 	if err := cfg.WQ.IsValid(); err != nil {

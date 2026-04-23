@@ -1,0 +1,21 @@
+{
+  "name": "payment.charged.dlq",
+  "type": "external",
+  "state": "archived",
+  "option": {
+    "wq_type": "low_throughput",
+    "max_retries": 3,
+    "retention": "168h"
+  },
+  "consumers": [
+    {
+      "service_name": "external-service",
+      "type": "persistent",
+      "host": "http://consumer:3333",
+      "path": "/payment/charged",
+      "headers": {
+        "Content-Type": "application/json"
+      }
+    }
+  ]
+}

@@ -56,6 +56,7 @@ func GetRequestHandle(fetch Fetcher, insights ConsumerInsights) asyncadapter.Han
 			if err := fetch.Notify(ctx, payload.Data, headers, payload.Consumer, notifyopt.HighThroughput); err != nil {
 				insertInsights(ctx, payload, started, false)
 				recordDuration(ctx, started, payload, err)
+
 				return fmt.Errorf("fetch consumer: %w", err)
 			}
 

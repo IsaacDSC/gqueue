@@ -97,6 +97,11 @@ func main() {
 	// task and pubsub share some dependencies, so we initialize them here and pass to both services
 	if *scope == "pubsub" || *scope == "task" || *scope == "all" {
 		memStore = interstore.NewMemStore(store)
+
+		if err := memStore.LoadInMemStore(ctx); err != nil {
+			panic(err)
+		}
+
 		fetch = fetcher.NewNotification()
 	}
 

@@ -16,11 +16,12 @@ import (
 
 func (h Handle[T]) ToGPubSubHandler(pub pubadapter.GenericPublisher) gpubsub.Handle {
 
-	archivedMsg := func(ctx context.Context, msg *pubsub.Message) {
+	deadLetterQueueHandler := func(ctx context.Context, msg *pubsub.Message) {
 		defer msg.Ack()
 		topic := topicutils.BuildTopicName(domain.ProjectID, domain.EventQueueDeadLetter)
-		if err := pub.Publish(ctx, topic, msg, pubadapter.Opts{
-			Attributes: msg.Attributes,
+		if err := pub.Publish(ctx, topic, msg.Data, pubadapter.Opts{
+			Attributes:   msg.Attributes,
+			NotUnmarshal: true,
 		}); err != nil {
 			msg.Nack()
 		}
@@ -49,7 +50,7 @@ func (h Handle[T]) ToGPubSubHandler(pub pubadapter.GenericPublisher) gpubsub.Han
 
 		if retryCount >= maxRetryAttempts {
 			telemetry.PubSubConsumerDlq.Increment(ctx, attribute.String("topic", topic))
-			archivedMsg(ctx, msg)
+			deadLetterQueueHandler(ctx, msg)
 			return
 		}
 
@@ -70,8 +71,9 @@ func (h Handle[T]) ToGPubSubHandler(pub pubadapter.GenericPublisher) gpubsub.Han
 			return
 		}
 
-		if err := pub.Publish(ctx, topic, msg, pubadapter.Opts{
-			Attributes: msg.Attributes,
+		if err := pub.Publish(ctx, topic, msg.Data, pubadapter.Opts{
+			NotUnmarshal: true,
+			Attributes:   msg.Attributes,
 		}); err != nil {
 			msg.Nack()
 			return
@@ -87,7 +89,7 @@ func (h Handle[T]) ToGPubSubHandler(pub pubadapter.GenericPublisher) gpubsub.Han
 				ctx:         ctx,
 				bytePayload: msg.Data,
 			}); err != nil {
-				msg.Attributes["msg"] = err.Error()
+				msg.Attributes["error"] = err.Error()
 				retryable(ctx, msg)
 				return
 			}
